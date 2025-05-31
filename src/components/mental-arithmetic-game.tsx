@@ -133,7 +133,7 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
 
   const currentTheme: Theme = themes[settings.theme] || themes.default;
 
-  // Speech function
+  // Enhanced speech function with female voice preference and duration estimation
   const speak = (text: string): Promise<void> => {
     if (!settings.speechEnabled) return Promise.resolve();
     
@@ -143,9 +143,42 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
         window.speechSynthesis.cancel();
         
         const utterance = new SpeechSynthesisUtterance(text);
+        
+        // Try to find a female voice
+        const voices = window.speechSynthesis.getVoices();
+        const femaleVoice = voices.find(voice => 
+          voice.name.toLowerCase().includes('female') ||
+          voice.name.toLowerCase().includes('woman') ||
+          voice.name.toLowerCase().includes('zira') ||
+          voice.name.toLowerCase().includes('samantha') ||
+          voice.name.toLowerCase().includes('susan') ||
+          voice.name.toLowerCase().includes('karen') ||
+          voice.name.toLowerCase().includes('moira') ||
+          voice.name.toLowerCase().includes('tessa') ||
+          voice.name.toLowerCase().includes('amelie') ||
+          voice.name.toLowerCase().includes('anna') ||
+          voice.name.toLowerCase().includes('carmit') ||
+          voice.name.toLowerCase().includes('lekha') ||
+          voice.name.toLowerCase().includes('mei-jia') ||
+          voice.name.toLowerCase().includes('sin-ji') ||
+          voice.name.toLowerCase().includes('ting-ting') ||
+          voice.name.toLowerCase().includes('yuna') ||
+          voice.name.toLowerCase().includes('nicky') ||
+          voice.name.toLowerCase().includes('fiona') ||
+          voice.name.toLowerCase().includes('ellen') ||
+          voice.name.toLowerCase().includes('joana') ||
+          voice.name.toLowerCase().includes('helena') ||
+          voice.name.toLowerCase().includes('luciana') ||
+          voice.name.toLowerCase().includes('paulina')
+        );
+        
+        if (femaleVoice) {
+          utterance.voice = femaleVoice;
+        }
+        
         utterance.rate = 0.8; // Slightly slower for better comprehension
-        utterance.volume = 0.7;
-        utterance.pitch = 1.0;
+        utterance.volume = 0.8;
+        utterance.pitch = 1.1; // Slightly higher pitch for female voice
         
         utterance.onend = () => resolve();
         utterance.onerror = () => resolve();
@@ -156,6 +189,25 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
         resolve();
       }
     });
+  };
+
+  // Function to estimate speech duration
+  const estimateSpeechDuration = (text: string): number => {
+    // Estimate based on text length and speech rate
+    // Average speaking rate is about 150-160 words per minute at normal speed
+    // With rate 0.8, it's slower, so roughly 120-130 words per minute
+    const wordsPerMinute = 125;
+    const words = text.split(' ').length;
+    const baseTime = (words / wordsPerMinute) * 60 * 1000; // Convert to milliseconds
+    
+    // Add extra time for numbers (they take longer to say)
+    const numberCount = (text.match(/\d+/g) || []).length;
+    const extraTimeForNumbers = numberCount * 200; // 200ms extra per number
+    
+    // Minimum time for single words/numbers
+    const minimumTime = Math.max(500, text.length * 50);
+    
+    return Math.max(minimumTime, baseTime + extraTimeForNumbers);
   };
 
   // Sound functions
@@ -217,11 +269,20 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
     }
   };
 
-  // Calculate delays based on level
+  // Calculate delays based on level with speech consideration
   const getDelays = (level: number) => {
-    const numberDelay = Math.max(0.5, 2 - (level - 1) * 0.5);
-    const answerDelay = Math.max(0.8, 5 - (level - 1) * 0.6);
-    return { numberDelay, answerDelay };
+    const baseNumberDelay = Math.max(0.5, 2 - (level - 1) * 0.5);
+    const baseAnswerDelay = Math.max(0.8, 5 - (level - 1) * 0.6);
+    
+    // If speech is enabled, delays are handled by speech duration + buffer
+    if (settings.speechEnabled) {
+      return { 
+        numberDelay: 0, // Will be calculated dynamically based on speech
+        answerDelay: 0  // Will be calculated dynamically based on speech
+      };
+    }
+    
+    return { numberDelay: baseNumberDelay, answerDelay: baseAnswerDelay };
   };
 
   // Generate a random number based on enabled digit types
@@ -348,6 +409,10 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
     playSound('pause');
     setIsPaused(true);
     setGameState('paused');
+    // Cancel any ongoing speech
+    if (settings.speechEnabled) {
+      window.speechSynthesis.cancel();
+    }
   };
 
   const resumeGame = (): void => {
@@ -367,9 +432,13 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
     setFlashingBetweenNumbers(false);
     setIsPaused(false);
     setAllQuestions([]);
+    // Cancel any ongoing speech
+    if (settings.speechEnabled) {
+      window.speechSynthesis.cancel();
+    }
   };
 
-  // Game logic effect
+  // Game logic effect with improved speech timing
   useEffect(() => {
     if (gameState !== 'playing' || isPaused || showingGetReady) return;
     
@@ -380,7 +449,11 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
       // Speak the answer when it's revealed and wait for completion
       if (settings.speechEnabled) {
         speak(answer.toString()).then(() => {
-          // Wait additional time after speech completes before moving to next question
+          // Calculate delay based on speech duration and level
+          const speechDuration = estimateSpeechDuration(answer.toString());
+          const levelMultiplier = Math.max(0.3, 1.5 - (settings.level - 1) * 0.2);
+          const additionalDelay = speechDuration * levelMultiplier + 300; // Extra buffer
+          
           setTimeout(() => {
             playSound('questionComplete');
             if (currentQuestion < allQuestions.length - 1) {
@@ -416,10 +489,11 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
               playSound('gameComplete');
               setGameState('results');
             }
-          }, 500); // 500ms additional delay after speech completes
+          }, additionalDelay);
         });
       } else {
         // Original timer behavior when speech is disabled
+        const delays = getDelays(settings.level);
         const timer = setTimeout(() => {
           playSound('questionComplete');
           if (currentQuestion < allQuestions.length - 1) {
@@ -457,18 +531,28 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
       
       return;
     } else if (calculatingAnswer) {
-      const delays = getDelays(settings.level);
-      const timer = setTimeout(() => {
-        // Only play answer reveal sound if speech is disabled
-        if (!settings.speechEnabled) {
+      if (settings.speechEnabled) {
+        // Calculate delay based on level for calculating phase
+        const levelDelay = Math.max(800, 3000 - (settings.level - 1) * 400);
+        const timer = setTimeout(() => {
+          setDisplayNumber(answer.toString());
+          setCalculatingAnswer(false);
+          setShowingAnswer(true);
+        }, levelDelay);
+        
+        return () => clearTimeout(timer);
+      } else {
+        const delays = getDelays(settings.level);
+        const timer = setTimeout(() => {
+          // Only play answer reveal sound if speech is disabled
           playSound('answerReveal');
-        }
-        setDisplayNumber(answer.toString());
-        setCalculatingAnswer(false);
-        setShowingAnswer(true);
-      }, delays.answerDelay * 1000);
-      
-      return () => clearTimeout(timer);
+          setDisplayNumber(answer.toString());
+          setCalculatingAnswer(false);
+          setShowingAnswer(true);
+        }, delays.answerDelay * 1000);
+        
+        return () => clearTimeout(timer);
+      }
     } else if (flashingBetweenNumbers) {
       const timer = setTimeout(() => {
         setFlashingBetweenNumbers(false);
@@ -496,21 +580,55 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
       return () => clearTimeout(timer);
     } else {
       if (currentNumberIndex < currentNumbers.length) {
-        const delays = getDelays(settings.level);
-        const timer = setTimeout(() => {
-          if (currentNumberIndex < currentNumbers.length - 1) {
-            setFlashingBetweenNumbers(true);
-          } else {
-            // No calculating sound played here
-            setDisplayNumber('Calculating...');
-            setCalculatingAnswer(true);
-          }
-        }, delays.numberDelay * 1000);
-        
-        return () => clearTimeout(timer);
+        if (settings.speechEnabled) {
+          // For speech mode, calculate dynamic delay based on speech duration
+          const currentText = displayNumber;
+          const speechDuration = estimateSpeechDuration(currentText);
+          const levelMultiplier = Math.max(0.4, 1.2 - (settings.level - 1) * 0.15);
+          const dynamicDelay = speechDuration * levelMultiplier + 200; // Small buffer
+          
+          const timer = setTimeout(() => {
+            if (currentNumberIndex < currentNumbers.length - 1) {
+              setFlashingBetweenNumbers(true);
+            } else {
+              // No calculating sound played here
+              setDisplayNumber('Calculating...');
+              setCalculatingAnswer(true);
+            }
+          }, dynamicDelay);
+          
+          return () => clearTimeout(timer);
+        } else {
+          // Original behavior for non-speech mode
+          const delays = getDelays(settings.level);
+          const timer = setTimeout(() => {
+            if (currentNumberIndex < currentNumbers.length - 1) {
+              setFlashingBetweenNumbers(true);
+            } else {
+              // No calculating sound played here
+              setDisplayNumber('Calculating...');
+              setCalculatingAnswer(true);
+            }
+          }, delays.numberDelay * 1000);
+          
+          return () => clearTimeout(timer);
+        }
       }
     }
-  }, [gameState, currentQuestion, currentNumberIndex, showingAnswer, calculatingAnswer, flashingBetweenNumbers, showingGetReady, currentNumbers, answer, settings, allQuestions, isPaused]);
+  }, [gameState, currentQuestion, currentNumberIndex, showingAnswer, calculatingAnswer, flashingBetweenNumbers, showingGetReady, currentNumbers, answer, settings, allQuestions, isPaused, displayNumber]);
+
+  // Load voices when component mounts
+  useEffect(() => {
+    if (settings.speechEnabled) {
+      // Load voices
+      const loadVoices = () => {
+        window.speechSynthesis.getVoices();
+      };
+      
+      loadVoices();
+      window.speechSynthesis.onvoiceschanged = loadVoices;
+    }
+  }, [settings.speechEnabled]);
 
   // Setup Screen
   if (gameState === 'setup') {
@@ -570,7 +688,7 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
                   }`}>
                     <div className="flex items-center gap-3">
                       <span className="text-2xl">🗣️</span>
-                      <span className="text-lg font-bold">Speech</span>
+                      <span className="text-lg font-bold">Voice</span>
                     </div>
                     <input
                       type="checkbox"
@@ -591,7 +709,7 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
                 {settings.speechEnabled && (
                   <div className="mt-3 p-3 bg-blue-100 rounded-lg">
                     <p className="text-sm text-blue-700">
-                      ℹ️ Speech mode limits difficulty to levels 1-3 for optimal experience
+                      ℹ️ Voice mode uses intelligent timing and limits difficulty to levels 1-3 for optimal experience
                     </p>
                   </div>
                 )}
@@ -795,7 +913,7 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
                 {settings.speechEnabled && (
                   <div className="mt-3 p-3 bg-blue-100 rounded-lg">
                     <p className="text-sm text-blue-700">
-                      ℹ️ Levels 4-5 are disabled in speech mode for better timing
+                      ℹ️ Levels 4-5 are disabled in voice mode for better timing
                     </p>
                   </div>
                 )}
