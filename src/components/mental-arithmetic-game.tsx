@@ -214,9 +214,8 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
           utterance.voice = preferredVoiceRef.current;
         }
         
-        // Enhanced settings for better speech quality
-        //utterance.rate = 0.75; // Slightly slower for better comprehension
-        utterance.rate = 0.9;
+        // Enhanced settings for better speech quality        
+        utterance.rate = 0.9; // Slightly slower for better comprehension
         utterance.volume = 0.9;
         utterance.pitch = 1.1; // Slightly higher pitch
 
@@ -332,6 +331,25 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
     const bufferTime = 500; // Increased base buffer time
     
     return baseDuration * multiplier + bufferTime;
+  };
+
+  // NEW: Calculate delay specifically for after answer announcement
+  const calculatePostAnswerDelay = (answerText: string): number => {
+    if (settings.speechEnabled) {
+      // For speech mode: ensure speech completes + brief pause
+      const speechDuration = estimateSpeechDuration(answerText);
+      return speechDuration + 1000; // Speech duration + 1 second pause
+    } else {
+      // For non-speech mode: slightly longer, level-based delays
+      const levelDelays = {
+        1: 2500,  // 2.5 seconds for beginners
+        2: 2100,  // 2.1 seconds
+        3: 1800,  // 1.8 seconds
+        4: 1500,  // 1.5 seconds
+        5: 1200   // 1.2 seconds for experts
+      };
+      return levelDelays[settings.level as keyof typeof levelDelays] || 1800;
+    }
   };
 
   // Sound functions (unchanged)
@@ -665,7 +683,7 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
     setCurrentOperations([]);
   };
 
-  // Enhanced game logic effect with proper speech timing
+  // Enhanced game logic effect with NEW post-answer delay mechanism
   useEffect(() => {
     if (gameState !== 'playing' || isPaused || showingGetReady) return;
     
@@ -673,9 +691,12 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
     if (!currentQ) return;
 
     if (showingAnswer) {
+      const answerText = `The answer is ${answer}`;
+      
       if (settings.speechEnabled) {
-        speak(`The answer is ${answer}`).then(() => {
-          const speechDelay = calculateSpeechDelay(`The answer is ${answer}`, settings.level);
+        speak(answerText).then(() => {
+          // Use the NEW post-answer delay calculation
+          const postAnswerDelay = calculatePostAnswerDelay(answerText);
           
           setTimeout(() => {
             playSound('questionComplete');
@@ -709,10 +730,11 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
               playSound('gameComplete');
               setGameState('results');
             }
-          }, speechDelay);
+          }, postAnswerDelay);
         });
       } else {
-        const delays = getDelays(settings.level);
+        // Use the NEW post-answer delay calculation for non-speech mode too
+        const postAnswerDelay = calculatePostAnswerDelay(answerText);
         const timer = setTimeout(() => {
           playSound('questionComplete');
           if (currentQuestion < allQuestions.length - 1) {
@@ -741,7 +763,7 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
             playSound('gameComplete');
             setGameState('results');
           }
-        }, delays.answerDelay * 1000);
+        }, postAnswerDelay);
         
         return () => clearTimeout(timer);
       }
