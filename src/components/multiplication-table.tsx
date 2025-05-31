@@ -350,13 +350,7 @@ const MultiplicationTable: React.FC<MultiplicationTableProps> = ({ onBackToHome 
       return 'bg-green-200 border-green-400 text-green-800';
     }
     
-    // Special colors for certain patterns
-    if (num1 === num2) return 'bg-yellow-100 border-yellow-300'; // Perfect squares
-    if (num1 === 1 || num2 === 1) return 'bg-blue-100 border-blue-300'; // Times 1
-    if (num1 === 10 || num2 === 10) return 'bg-purple-100 border-purple-300'; // Times 10
-    if (num1 === 5 || num2 === 5) return 'bg-pink-100 border-pink-300'; // Times 5
-    
-    return 'bg-gray-50 border-gray-200 hover:bg-gray-100';
+    return 'bg-white border-gray-200 hover:bg-gray-50';
   };
 
   const progress = getProgress();
@@ -562,57 +556,43 @@ const MultiplicationTable: React.FC<MultiplicationTableProps> = ({ onBackToHome 
           )}
 
           {/* Multiplication Table */}
-          <div className="w-full flex justify-center">
-            <div className="inline-block">
-              <table className="border-collapse">
-                <thead>
-                  <tr>
-                    <th className={`w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 ${currentTheme.headerBg} border border-gray-300 font-bold ${currentTheme.primary} text-sm sm:text-base md:text-lg`}>
-                      ×
-                    </th>
-                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(num => (
-                      <th key={num} className={`w-8 h-8 sm:w-10 sm:h-10 md:w-14 md:h-12 ${currentTheme.headerBg} border border-gray-300 font-bold ${currentTheme.primary} text-sm sm:text-base md:text-lg`}>
-                        {num}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(row => (
-                    <tr key={row}>
-                      <th className={`w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-14 ${currentTheme.headerBg} border border-gray-300 font-bold ${currentTheme.primary} text-sm sm:text-base md:text-lg`}>
-                        {row}
-                      </th>
-                      {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(col => {
-                        const product = row * col;
-                        const memorized = isMemorized(row, col);
-                        return (
-                          <td 
-                            key={col}
-                            className={`w-8 h-8 sm:w-10 sm:h-10 md:w-14 md:h-14 border cursor-pointer transition-all duration-200 active:scale-95 sm:hover:scale-105 sm:hover:shadow-lg ${getCellColor(row, col)} relative`}
-                            onClick={() => toggleMemorized(row, col)}
-                          >
-                            <div className="flex flex-col items-center justify-center h-full relative">
-                              {memorized && (
-                                <CheckCircle className="absolute top-0 right-0 w-2.5 h-2.5 sm:w-3 sm:h-3 md:w-4 md:h-4 text-green-600 transform translate-x-0.5 -translate-y-0.5" />
-                              )}
-                              <div className="text-xs sm:text-xs md:text-sm font-medium opacity-75 leading-none text-center">
-                                <div className="block sm:hidden">{row}{col}</div>
-                                <div className="hidden sm:block">{row}×{col}</div>
-                              </div>
-                              {settings.showAnswers && (
-                                <div className="text-xs sm:text-sm md:text-base font-bold leading-none mt-0.5 text-center">
-                                  {product}
-                                </div>
-                              )}
-                            </div>
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+          <div className="w-full">
+            {/* Card-based design for all screen sizes */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
+              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(num => (
+                <div key={num} className={`${currentTheme.headerBg} rounded-2xl p-3 sm:p-4 border-2 border-gray-300 shadow-lg hover:shadow-xl transition-all`}>
+                  <div className={`text-center text-base sm:text-lg font-bold ${currentTheme.primary} mb-3`}>
+                    {num} Times Table
+                  </div>
+                  <div className="space-y-2">
+                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(multiplier => {
+                      const product = num * multiplier;
+                      const memorized = isMemorized(num, multiplier);
+                      return (
+                        <div
+                          key={multiplier}
+                          onClick={() => toggleMemorized(num, multiplier)}
+                          className={`p-2 sm:p-3 rounded-xl cursor-pointer transition-all duration-200 active:scale-95 hover:scale-105 border-2 relative ${getCellColor(num, multiplier)}`}
+                        >
+                          {memorized && (
+                            <CheckCircle className="absolute top-1 right-1 w-3 h-3 sm:w-4 sm:h-4 text-green-600" />
+                          )}
+                          <div className="flex items-center justify-between">
+                            <span className="font-medium text-xs sm:text-sm">
+                              {num} × {multiplier}
+                            </span>
+                            {settings.showAnswers && (
+                              <span className="font-bold text-sm sm:text-base">
+                                = {product}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
 
@@ -624,10 +604,9 @@ const MultiplicationTable: React.FC<MultiplicationTableProps> = ({ onBackToHome 
             </h3>
             <ul className="text-blue-700 space-y-1 text-xs sm:text-sm">
               <li>• Tap any cell to mark it as memorized ✅</li>
-              <li>• Different colors show number patterns</li>
-              <li className="hidden sm:block">• Yellow = Perfect squares (1×1, 2×2, etc.)</li>
-              <li className="hidden sm:block">• Blue = Times 1, Pink = Times 5, Purple = Times 10</li>
+              <li>• Green cells show facts you've memorized</li>
               <li>• Track progress and unlock achievements! 🏆</li>
+              <li>• Practice one times table at a time on mobile</li>
             </ul>
           </div>
         </div>
