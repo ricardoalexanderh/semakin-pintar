@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Play, RefreshCw, Calculator, ArrowLeft } from 'lucide-react';
 import * as Tone from 'tone';
 
@@ -45,9 +45,8 @@ interface MentalArithmeticGameProps {
 }
 
 const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHome }) => {
-  // State declarations
-  const [gameState, setGameState] = useState<GameState>('setup');
-  const [settings, setSettings] = useState<GameSettings>({
+  // In-memory settings store
+  const settingsRef = useRef<GameSettings>({
     digitTypes: { '1digit': true, '2digit': true, '3digit': false, '4digit': false },
     operations: 'both',
     numQuestions: 10,
@@ -57,6 +56,24 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
     speechEnabled: false,
     soundEnabled: true
   });
+
+  // Load settings from memory on component mount
+  const [settings, setSettingsState] = useState<GameSettings>(() => {
+    try {
+      const stored = localStorage.getItem('mental-arithmetic-settings');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        settingsRef.current = { ...settingsRef.current, ...parsed };
+        return settingsRef.current;
+      }
+    } catch (error) {
+      console.log('Could not load settings from storage:', error);
+    }
+    return settingsRef.current;
+  });
+
+  // State declarations
+  const [gameState, setGameState] = useState<GameState>('setup');
   const [nextQuestionNumber, setNextQuestionNumber] = useState<number>(1);
   const [currentQuestion, setCurrentQuestion] = useState<number>(0);
   const [currentNumberIndex, setCurrentNumberIndex] = useState<number>(0);
@@ -70,14 +87,322 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
   const [allQuestions, setAllQuestions] = useState<Question[]>([]);
   const [displayNumber, setDisplayNumber] = useState<string>('');
   const [isPaused, setIsPaused] = useState<boolean>(false);
+  const [speechInitialized, setSpeechInitialized] = useState<boolean>(false);
 
-  // Save settings to memory (removed localStorage)
+  // Speech synthesis references
+  const speechUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+  const speechTimeoutRef = useRef<number | null>(null);
+  const preferredVoiceRef = useRef<SpeechSynthesisVoice | null>(null);
+
+  // Update settings function with memory persistence
   const updateSettings = (newSettings: GameSettings | ((prev: GameSettings) => GameSettings)): void => {
     const updatedSettings = typeof newSettings === 'function' ? newSettings(settings) : newSettings;
-    setSettings(updatedSettings);
+    settingsRef.current = updatedSettings;
+    setSettingsState(updatedSettings);
+    
+    // Save to localStorage with error handling
+    try {
+      localStorage.setItem('mental-arithmetic-settings', JSON.stringify(updatedSettings));
+    } catch (error) {
+      console.log('Could not save settings to storage:', error);
+    }
   };
 
-  // Theme configurations
+  // Initialize speech synthesis and find preferred female voice
+  const initializeSpeech = (): Promise<void> => {
+    return new Promise((resolve) => {
+      if (!('speechSynthesis' in window)) {
+        console.log('Speech synthesis not supported');
+        resolve();
+        return;
+      }
+
+      const setVoice = () => {
+        const voices = speechSynthesis.getVoices();
+        
+        // Enhanced female voice detection with more patterns and priorities
+        const femaleVoicePatterns = [
+          // iOS/Safari specific
+          { pattern: /samantha/i, priority: 10 },
+          { pattern: /karen/i, priority: 9 },
+          { pattern: /moira/i, priority: 8 },
+          { pattern: /tessa/i, priority: 7 },
+          { pattern: /serena/i, priority: 6 },
+          
+          // General patterns
+          { pattern: /female/i, priority: 15 },
+          { pattern: /woman/i, priority: 14 },
+          { pattern: /zira/i, priority: 13 },
+          { pattern: /susan/i, priority: 12 },
+          { pattern: /amelie/i, priority: 11 },
+          { pattern: /anna/i, priority: 5 },
+          { pattern: /carmit/i, priority: 4 },
+          { pattern: /lekha/i, priority: 3 },
+          { pattern: /mei-jia/i, priority: 2 },
+          { pattern: /sin-ji/i, priority: 1 },
+          
+          // Additional patterns
+          { pattern: /ting-ting/i, priority: 1 },
+          { pattern: /yuna/i, priority: 1 },
+          { pattern: /nicky/i, priority: 1 },
+          { pattern: /fiona/i, priority: 1 },
+          { pattern: /ellen/i, priority: 1 },
+          { pattern: /joana/i, priority: 1 },
+          { pattern: /helena/i, priority: 1 },
+          { pattern: /luciana/i, priority: 1 },
+          { pattern: /paulina/i, priority: 1 }
+        ];
+
+        let bestVoice: SpeechSynthesisVoice | null = null;
+        let bestPriority = -1;
+
+        voices.forEach(voice => {
+          femaleVoicePatterns.forEach(({ pattern, priority }) => {
+            if (pattern.test(voice.name) && priority > bestPriority) {
+              bestVoice = voice;
+              bestPriority = priority;
+            }
+          });
+        });
+
+        preferredVoiceRef.current = bestVoice;
+        setSpeechInitialized(true);
+        resolve();
+      };
+
+      if (speechSynthesis.getVoices().length > 0) {
+        setVoice();
+      } else {
+        speechSynthesis.onvoiceschanged = () => {
+          setVoice();
+          speechSynthesis.onvoiceschanged = null;
+        };
+        
+        // Fallback timeout for iOS
+        setTimeout(() => {
+          if (!speechInitialized) {
+            setVoice();
+          }
+        }, 1000);
+      }
+    });
+  };
+
+  // Enhanced speech function with better iOS/Safari support
+  const speak = (text: string): Promise<void> => {
+    return new Promise((resolve) => {
+      if (!settings.speechEnabled || !('speechSynthesis' in window)) {
+        resolve();
+        return;
+      }
+
+      // Cancel any ongoing speech
+      speechSynthesis.cancel();
+      
+      // Clear any existing timeout
+      if (speechTimeoutRef.current) {
+        clearTimeout(speechTimeoutRef.current);
+        speechTimeoutRef.current = null;
+      }
+
+      try {
+        const utterance = new SpeechSynthesisUtterance(text);
+        speechUtteranceRef.current = utterance;
+        
+        // Set preferred voice if available
+        if (preferredVoiceRef.current) {
+          utterance.voice = preferredVoiceRef.current;
+        }
+        
+        // Enhanced settings for better speech quality
+        utterance.rate = 0.75; // Slightly slower for better comprehension
+        utterance.volume = 0.9;
+        utterance.pitch = 1.1; // Slightly higher pitch
+
+        let resolved = false;
+        const resolveOnce = () => {
+          if (!resolved) {
+            resolved = true;
+            resolve();
+          }
+        };
+
+        utterance.onend = resolveOnce;
+        utterance.onerror = (event) => {
+          console.log('Speech error:', event.error);
+          resolveOnce();
+        };
+
+        // Fallback timeout based on estimated duration
+        const estimatedDuration = estimateSpeechDuration(text);
+        speechTimeoutRef.current = setTimeout(resolveOnce, estimatedDuration + 500);
+
+        // Start speaking
+        speechSynthesis.speak(utterance);
+        
+        // iOS Safari fix: resume if paused
+        setTimeout(() => {
+          if (speechSynthesis.paused) {
+            speechSynthesis.resume();
+          }
+        }, 100);
+
+      } catch (error) {
+        console.log('Speech synthesis error:', error);
+        resolve();
+      }
+    });
+  };
+
+  // Enhanced speech duration estimation with level-based speed adjustments
+  const estimateSpeechDuration = (text: string): number => {
+    // Base calculation for words (excluding numbers)
+    const wordsPerMinute = 100; // Base rate
+    const words = text.replace(/\d+/g, '').split(/\s+/).filter(word => word.length > 0);
+    
+    // Level-based speed adjustments for duration calculation
+    const speedMultipliers = {
+      1: 1.0,   // Normal duration for slow speech
+      2: 0.85,  // Shorter duration for medium speed  
+      3: 0.75   // Shortest duration for fast speech
+    };
+    
+    const speedMultiplier = speedMultipliers[settings.level as keyof typeof speedMultipliers] || 1.0;
+    let baseTime = (words.length / wordsPerMinute) * 60 * 1000 * speedMultiplier;
+
+    // Special handling for numbers and operators
+    const numbers = text.match(/\d+/g) || [];
+    const hasOperator = /minus/i.test(text);
+    const hasAnswerPhrase = /the answer is/i.test(text);
+    
+    // Add time for numbers based on digit count and complexity, adjusted for level
+    let numberTime = 0;
+    numbers.forEach(num => {
+      const digitCount = num.length;
+      if (digitCount === 1) {
+        numberTime += 500 * speedMultiplier; // Single digits
+      } else if (digitCount === 2) {
+        numberTime += 800 * speedMultiplier; // Two digits like "twenty-three"
+      } else if (digitCount === 3) {
+        numberTime += 1400 * speedMultiplier; // Three digits
+      } else if (digitCount === 4) {
+        numberTime += 2000 * speedMultiplier; // Four digits
+      }
+    });
+
+    // Add extra time for specific phrases and operators, adjusted for level
+    if (hasOperator) {
+      numberTime += 500 * speedMultiplier; // "minus" takes time to say
+    }
+    
+    if (hasAnswerPhrase) {
+      baseTime += 800 * speedMultiplier; // "The answer is" phrase
+    }
+
+    // Minimum time based on complexity - adjusted for speech speed
+    const minimumTime = Math.max(600 * speedMultiplier, text.length * 60 * speedMultiplier);
+    
+    return Math.max(minimumTime, baseTime + numberTime);
+  };
+
+  // Calculate dynamic delays based on level and speech duration
+  const calculateSpeechDelay = (text: string, level: number): number => {
+    if (!settings.speechEnabled) return 0;
+    
+    const baseDuration = estimateSpeechDuration(text);
+    
+    // Level-based multipliers for pause after speech - more generous for complex numbers
+    const levelMultipliers = {
+      1: 2.2,  // Much longer pause for beginners, especially with complex numbers
+      2: 1.8,  // Medium-long pause
+      3: 1.4   // Shorter but still safe pause for advanced
+    };
+    
+    // Extra multiplier for longer numbers
+    const numbers = text.match(/\d+/g) || [];
+    let complexityMultiplier = 1.0;
+    numbers.forEach(num => {
+      if (num.length >= 3) {
+        complexityMultiplier += 0.3; // Add extra time for 3+ digit numbers
+      }
+    });
+    
+    const multiplier = (levelMultipliers[level as keyof typeof levelMultipliers] || 1.4) * complexityMultiplier;
+    const bufferTime = 500; // Increased base buffer time
+    
+    return baseDuration * multiplier + bufferTime;
+  };
+
+  // Sound functions (unchanged)
+  const playSound = async (type: SoundType): Promise<void> => {
+    if (!settings.soundEnabled) return;
+    
+    try {
+      if (Tone.context.state !== 'running') {
+        await Tone.start();
+      }
+
+      const synth = new Tone.Synth().toDestination();
+      
+      switch (type) {
+        case 'getReady':
+          synth.triggerAttackRelease('C5', '0.3');
+          break;
+        case 'calculating':
+          break;
+        case 'answerReveal':
+          synth.triggerAttackRelease('C5', '0.2');
+          setTimeout(() => synth.triggerAttackRelease('E5', '0.2'), 100);
+          setTimeout(() => synth.triggerAttackRelease('G5', '0.3'), 200);
+          break;
+        case 'questionComplete':
+          synth.triggerAttackRelease('G4', '0.2');
+          setTimeout(() => synth.triggerAttackRelease('C5', '0.3'), 150);
+          break;
+        case 'gameStart':
+          synth.triggerAttackRelease('C4', '0.2');
+          setTimeout(() => synth.triggerAttackRelease('E4', '0.2'), 100);
+          setTimeout(() => synth.triggerAttackRelease('G4', '0.2'), 200);
+          setTimeout(() => synth.triggerAttackRelease('C5', '0.4'), 300);
+          break;
+        case 'gameComplete':
+          synth.triggerAttackRelease('C5', '0.2');
+          setTimeout(() => synth.triggerAttackRelease('E5', '0.2'), 100);
+          setTimeout(() => synth.triggerAttackRelease('G5', '0.2'), 200);
+          setTimeout(() => synth.triggerAttackRelease('C6', '0.2'), 300);
+          setTimeout(() => synth.triggerAttackRelease('E6', '0.4'), 400);
+          break;
+        case 'pause':
+          synth.triggerAttackRelease('F4', '0.3');
+          break;
+        case 'resume':
+          synth.triggerAttackRelease('G4', '0.2');
+          setTimeout(() => synth.triggerAttackRelease('C5', '0.3'), 100);
+          break;
+        case 'buttonClick':
+          synth.triggerAttackRelease('C4', '0.1');
+          break;
+        case 'settingChange':
+          synth.triggerAttackRelease('A4', '0.15');
+          break;
+      }
+    } catch (error) {
+      console.log('Audio not available:', error);
+    }
+  };
+
+  // Calculate delays based on level with speech consideration
+  const getDelays = (level: number) => {
+    const baseNumberDelay = Math.max(0.5, 2 - (level - 1) * 0.5);
+    const baseAnswerDelay = Math.max(0.8, 5 - (level - 1) * 0.6);
+    
+    return { 
+      numberDelay: baseNumberDelay, 
+      answerDelay: baseAnswerDelay
+    };
+  };
+
+  // Theme configurations (unchanged)
   const themes: Record<string, Theme> = {
     default: {
       name: 'Rainbow',
@@ -133,159 +458,7 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
 
   const currentTheme: Theme = themes[settings.theme] || themes.default;
 
-  // Enhanced speech function with female voice preference and duration estimation
-  const speak = (text: string): Promise<void> => {
-    if (!settings.speechEnabled) return Promise.resolve();
-    
-    return new Promise((resolve) => {
-      try {
-        // Cancel any ongoing speech
-        window.speechSynthesis.cancel();
-        
-        const utterance = new SpeechSynthesisUtterance(text);
-        
-        // Try to find a female voice
-        const voices = window.speechSynthesis.getVoices();
-        const femaleVoice = voices.find(voice => 
-          voice.name.toLowerCase().includes('female') ||
-          voice.name.toLowerCase().includes('woman') ||
-          voice.name.toLowerCase().includes('zira') ||
-          voice.name.toLowerCase().includes('samantha') ||
-          voice.name.toLowerCase().includes('susan') ||
-          voice.name.toLowerCase().includes('karen') ||
-          voice.name.toLowerCase().includes('moira') ||
-          voice.name.toLowerCase().includes('tessa') ||
-          voice.name.toLowerCase().includes('amelie') ||
-          voice.name.toLowerCase().includes('anna') ||
-          voice.name.toLowerCase().includes('carmit') ||
-          voice.name.toLowerCase().includes('lekha') ||
-          voice.name.toLowerCase().includes('mei-jia') ||
-          voice.name.toLowerCase().includes('sin-ji') ||
-          voice.name.toLowerCase().includes('ting-ting') ||
-          voice.name.toLowerCase().includes('yuna') ||
-          voice.name.toLowerCase().includes('nicky') ||
-          voice.name.toLowerCase().includes('fiona') ||
-          voice.name.toLowerCase().includes('ellen') ||
-          voice.name.toLowerCase().includes('joana') ||
-          voice.name.toLowerCase().includes('helena') ||
-          voice.name.toLowerCase().includes('luciana') ||
-          voice.name.toLowerCase().includes('paulina')
-        );
-        
-        if (femaleVoice) {
-          utterance.voice = femaleVoice;
-        }
-        
-        utterance.rate = 0.8; // Slightly slower for better comprehension
-        utterance.volume = 0.8;
-        utterance.pitch = 1.1; // Slightly higher pitch for female voice
-        
-        utterance.onend = () => resolve();
-        utterance.onerror = () => resolve();
-        
-        window.speechSynthesis.speak(utterance);
-      } catch (error) {
-        console.log('Speech synthesis not available:', error);
-        resolve();
-      }
-    });
-  };
-
-  // Function to estimate speech duration
-  const estimateSpeechDuration = (text: string): number => {
-    // Estimate based on text length and speech rate
-    // Average speaking rate is about 150-160 words per minute at normal speed
-    // With rate 0.8, it's slower, so roughly 120-130 words per minute
-    const wordsPerMinute = 125;
-    const words = text.split(' ').length;
-    const baseTime = (words / wordsPerMinute) * 60 * 1000; // Convert to milliseconds
-    
-    // Add extra time for numbers (they take longer to say)
-    const numberCount = (text.match(/\d+/g) || []).length;
-    const extraTimeForNumbers = numberCount * 200; // 200ms extra per number
-    
-    // Minimum time for single words/numbers
-    const minimumTime = Math.max(500, text.length * 50);
-    
-    return Math.max(minimumTime, baseTime + extraTimeForNumbers);
-  };
-
-  // Sound functions
-  const playSound = async (type: SoundType): Promise<void> => {
-    if (!settings.soundEnabled) return;
-    
-    try {
-      if (Tone.context.state !== 'running') {
-        await Tone.start();
-      }
-
-      const synth = new Tone.Synth().toDestination();
-      
-      switch (type) {
-        case 'getReady':
-          synth.triggerAttackRelease('C5', '0.3');
-          break;
-        case 'calculating':
-          // Removed calculating sound - no longer plays
-          break;
-        case 'answerReveal':
-          synth.triggerAttackRelease('C5', '0.2');
-          setTimeout(() => synth.triggerAttackRelease('E5', '0.2'), 100);
-          setTimeout(() => synth.triggerAttackRelease('G5', '0.3'), 200);
-          break;
-        case 'questionComplete':
-          synth.triggerAttackRelease('G4', '0.2');
-          setTimeout(() => synth.triggerAttackRelease('C5', '0.3'), 150);
-          break;
-        case 'gameStart':
-          synth.triggerAttackRelease('C4', '0.2');
-          setTimeout(() => synth.triggerAttackRelease('E4', '0.2'), 100);
-          setTimeout(() => synth.triggerAttackRelease('G4', '0.2'), 200);
-          setTimeout(() => synth.triggerAttackRelease('C5', '0.4'), 300);
-          break;
-        case 'gameComplete':
-          synth.triggerAttackRelease('C5', '0.2');
-          setTimeout(() => synth.triggerAttackRelease('E5', '0.2'), 100);
-          setTimeout(() => synth.triggerAttackRelease('G5', '0.2'), 200);
-          setTimeout(() => synth.triggerAttackRelease('C6', '0.2'), 300);
-          setTimeout(() => synth.triggerAttackRelease('E6', '0.4'), 400);
-          break;
-        case 'pause':
-          synth.triggerAttackRelease('F4', '0.3');
-          break;
-        case 'resume':
-          synth.triggerAttackRelease('G4', '0.2');
-          setTimeout(() => synth.triggerAttackRelease('C5', '0.3'), 100);
-          break;
-        case 'buttonClick':
-          synth.triggerAttackRelease('C4', '0.1');
-          break;
-        case 'settingChange':
-          synth.triggerAttackRelease('A4', '0.15');
-          break;
-      }
-    } catch (error) {
-      console.log('Audio not available:', error);
-    }
-  };
-
-  // Calculate delays based on level with speech consideration
-  const getDelays = (level: number) => {
-    const baseNumberDelay = Math.max(0.5, 2 - (level - 1) * 0.5);
-    const baseAnswerDelay = Math.max(0.8, 5 - (level - 1) * 0.6);
-    
-    // If speech is enabled, delays are handled by speech duration + buffer
-    if (settings.speechEnabled) {
-      return { 
-        numberDelay: 0, // Will be calculated dynamically based on speech
-        answerDelay: 0  // Will be calculated dynamically based on speech
-      };
-    }
-    
-    return { numberDelay: baseNumberDelay, answerDelay: baseAnswerDelay };
-  };
-
-  // Generate a random number based on enabled digit types
+  // Generate number and question functions (unchanged)
   const generateNumber = (): number => {
     const enabledTypes: DigitType[] = [];
     if (settings.digitTypes['1digit']) enabledTypes.push('1digit');
@@ -308,7 +481,6 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
     }
   };
 
-  // Generate a question ensuring no negative intermediate results
   const generateQuestion = (): Question => {
     const numbers: number[] = [];
     const operations: string[] = [];
@@ -369,6 +541,11 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
       return;
     }
 
+    // Initialize speech if enabled
+    if (settings.speechEnabled && !speechInitialized) {
+      await initializeSpeech();
+    }
+
     playSound('gameStart');
     const questions: Question[] = [];
     for (let i = 0; i < settings.numQuestions; i++) {
@@ -380,14 +557,12 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
     setCurrentNumberIndex(0);
     setCalculatingAnswer(false);
     setShowingAnswer(false);
-    setShowingGetReady(true); // Show get ready for first question
+    setShowingGetReady(true);
     setFlashingBetweenNumbers(false);
     setIsPaused(false);
     setGameState('playing');
     
-    // Add delay after game start sound, then show get ready (without sound for first question)
     setTimeout(() => {
-      // Don't play get ready sound for first question, but add delay after get ready screen
       setTimeout(() => {
         setShowingGetReady(false);
         if (questions.length > 0) {
@@ -396,23 +571,32 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
           setAnswer(questions[0].answer);
           setDisplayNumber(questions[0].numbers[0].toString());
           
-          // Speak the first number of the first question
           if (settings.speechEnabled) {
             speak(questions[0].numbers[0].toString());
           }
         }
-      }, 800); // 800ms delay after first get ready screen
-    }, 1000); // 1 second delay after game start sound
+      }, 800);
+    }, 1000);
   };
 
   const pauseGame = (): void => {
-    playSound('pause');
+    // Immediately stop all speech and timeouts
+    if (settings.speechEnabled) {
+      speechSynthesis.cancel();
+      if (speechTimeoutRef.current) {
+        clearTimeout(speechTimeoutRef.current);
+        speechTimeoutRef.current = null;
+      }
+    }
+    
+    // Set paused state first to stop useEffect loops
     setIsPaused(true);
     setGameState('paused');
-    // Cancel any ongoing speech
-    if (settings.speechEnabled) {
-      window.speechSynthesis.cancel();
-    }
+    
+    // Play pause sound after stopping everything else
+    setTimeout(() => {
+      playSound('pause');
+    }, 100);
   };
 
   const resumeGame = (): void => {
@@ -422,6 +606,16 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
   };
 
   const restartGame = (): void => {
+    // Cancel all ongoing speech and audio
+    if (settings.speechEnabled) {
+      speechSynthesis.cancel();
+      if (speechTimeoutRef.current) {
+        clearTimeout(speechTimeoutRef.current);
+        speechTimeoutRef.current = null;
+      }
+    }
+    
+    // Reset all game state
     setGameState('setup');
     setCurrentQuestion(0);
     setNextQuestionNumber(1);
@@ -432,13 +626,13 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
     setFlashingBetweenNumbers(false);
     setIsPaused(false);
     setAllQuestions([]);
-    // Cancel any ongoing speech
-    if (settings.speechEnabled) {
-      window.speechSynthesis.cancel();
-    }
+    setDisplayNumber('');
+    setAnswer(0);
+    setCurrentNumbers([]);
+    setCurrentOperations([]);
   };
 
-  // Game logic effect with improved speech timing
+  // Enhanced game logic effect with proper speech timing
   useEffect(() => {
     if (gameState !== 'playing' || isPaused || showingGetReady) return;
     
@@ -446,13 +640,9 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
     if (!currentQ) return;
 
     if (showingAnswer) {
-      // Speak the answer when it's revealed and wait for completion
       if (settings.speechEnabled) {
-        speak(answer.toString()).then(() => {
-          // Calculate delay based on speech duration and level
-          const speechDuration = estimateSpeechDuration(answer.toString());
-          const levelMultiplier = Math.max(0.3, 1.5 - (settings.level - 1) * 0.2);
-          const additionalDelay = speechDuration * levelMultiplier + 300; // Extra buffer
+        speak(`The answer is ${answer}`).then(() => {
+          const speechDelay = calculateSpeechDelay(`The answer is ${answer}`, settings.level);
           
           setTimeout(() => {
             playSound('questionComplete');
@@ -463,11 +653,9 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
               setCalculatingAnswer(false);
               setFlashingBetweenNumbers(false);
               
-              // Add delay after get ready sound for 2nd question and beyond
               setTimeout(() => {
                 playSound('getReady');
                 
-                // Add additional delay after get ready sound
                 setTimeout(() => {
                   const nextQuestionNum = currentQuestion + 1;
                   setCurrentQuestion(nextQuestionNum);
@@ -479,20 +667,18 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
                   setAnswer(nextQ.answer);
                   setDisplayNumber(nextQ.numbers[0].toString());
                   
-                  // Speak the first number of the next question
                   if (settings.speechEnabled) {
                     speak(nextQ.numbers[0].toString());
                   }
-                }, 800); // 800ms delay after get ready sound
+                }, 800);
               }, 1000);
             } else {
               playSound('gameComplete');
               setGameState('results');
             }
-          }, additionalDelay);
+          }, speechDelay);
         });
       } else {
-        // Original timer behavior when speech is disabled
         const delays = getDelays(settings.level);
         const timer = setTimeout(() => {
           playSound('questionComplete');
@@ -503,11 +689,9 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
             setCalculatingAnswer(false);
             setFlashingBetweenNumbers(false);
             
-            // Add delay after get ready sound for 2nd question and beyond
             setTimeout(() => {
               playSound('getReady');
               
-              // Add additional delay after get ready sound
               setTimeout(() => {
                 const nextQuestionNum = currentQuestion + 1;
                 setCurrentQuestion(nextQuestionNum);
@@ -518,13 +702,13 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
                 setCurrentOperations(nextQ.operations);
                 setAnswer(nextQ.answer);
                 setDisplayNumber(nextQ.numbers[0].toString());
-              }, 800); // 800ms delay after get ready sound
+              }, 800);
             }, 1000);
           } else {
             playSound('gameComplete');
             setGameState('results');
           }
-        }, 2000);
+        }, delays.answerDelay * 1000);
         
         return () => clearTimeout(timer);
       }
@@ -532,7 +716,6 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
       return;
     } else if (calculatingAnswer) {
       if (settings.speechEnabled) {
-        // Calculate delay based on level for calculating phase
         const levelDelay = Math.max(800, 3000 - (settings.level - 1) * 400);
         const timer = setTimeout(() => {
           setDisplayNumber(answer.toString());
@@ -544,7 +727,6 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
       } else {
         const delays = getDelays(settings.level);
         const timer = setTimeout(() => {
-          // Only play answer reveal sound if speech is disabled
           playSound('answerReveal');
           setDisplayNumber(answer.toString());
           setCalculatingAnswer(false);
@@ -561,7 +743,6 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
           const nextNumber = currentNumbers[currentNumberIndex + 1];
           setDisplayNumber(nextNumber.toString());
           
-          // Speak the operation (only minus) and then the next number
           if (settings.speechEnabled) {
             const operation = currentOperations[currentNumberIndex];
             if (operation === '-') {
@@ -571,7 +752,6 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
             }
           }
         } else {
-          // No calculating sound played here
           setDisplayNumber('Calculating...');
           setCalculatingAnswer(true);
         }
@@ -581,31 +761,25 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
     } else {
       if (currentNumberIndex < currentNumbers.length) {
         if (settings.speechEnabled) {
-          // For speech mode, calculate dynamic delay based on speech duration
           const currentText = displayNumber;
-          const speechDuration = estimateSpeechDuration(currentText);
-          const levelMultiplier = Math.max(0.4, 1.2 - (settings.level - 1) * 0.15);
-          const dynamicDelay = speechDuration * levelMultiplier + 200; // Small buffer
+          const speechDelay = calculateSpeechDelay(currentText, settings.level);
           
           const timer = setTimeout(() => {
             if (currentNumberIndex < currentNumbers.length - 1) {
               setFlashingBetweenNumbers(true);
             } else {
-              // No calculating sound played here
               setDisplayNumber('Calculating...');
               setCalculatingAnswer(true);
             }
-          }, dynamicDelay);
+          }, speechDelay);
           
           return () => clearTimeout(timer);
         } else {
-          // Original behavior for non-speech mode
           const delays = getDelays(settings.level);
           const timer = setTimeout(() => {
             if (currentNumberIndex < currentNumbers.length - 1) {
               setFlashingBetweenNumbers(true);
             } else {
-              // No calculating sound played here
               setDisplayNumber('Calculating...');
               setCalculatingAnswer(true);
             }
@@ -617,18 +791,22 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
     }
   }, [gameState, currentQuestion, currentNumberIndex, showingAnswer, calculatingAnswer, flashingBetweenNumbers, showingGetReady, currentNumbers, answer, settings, allQuestions, isPaused, displayNumber]);
 
-  // Load voices when component mounts
+  // Initialize speech on component mount if speech is enabled
   useEffect(() => {
-    if (settings.speechEnabled) {
-      // Load voices
-      const loadVoices = () => {
-        window.speechSynthesis.getVoices();
-      };
-      
-      loadVoices();
-      window.speechSynthesis.onvoiceschanged = loadVoices;
+    if (settings.speechEnabled && !speechInitialized) {
+      initializeSpeech();
     }
-  }, [settings.speechEnabled]);
+  }, [settings.speechEnabled, speechInitialized]);
+
+  // Cleanup effect
+  useEffect(() => {
+    return () => {
+      if (speechTimeoutRef.current) {
+        clearTimeout(speechTimeoutRef.current);
+      }
+      speechSynthesis.cancel();
+    };
+  }, []);
 
   // Setup Screen
   if (gameState === 'setup') {
