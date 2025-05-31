@@ -203,7 +203,6 @@ const MultiplicationTable: React.FC<MultiplicationTableProps> = ({ onBackToHome 
 
   // Generate achievements
   const generateAchievements = (): Achievement[] => {
-    const totalFacts = 100; // 10x10 table
     const memorizedCount = Object.values(memorizedFacts).filter(Boolean).length;
     
     return [
@@ -265,7 +264,7 @@ const MultiplicationTable: React.FC<MultiplicationTableProps> = ({ onBackToHome 
   };
 
   // Check for new achievements
-  const checkAchievements = (previousCount: number, newCount: number): void => {
+  const checkAchievements = (): void => {
     if (!settings.gamificationEnabled) return;
     
     const newAchievements = generateAchievements();
@@ -290,8 +289,6 @@ const MultiplicationTable: React.FC<MultiplicationTableProps> = ({ onBackToHome 
     const key1 = `${num1}x${num2}`;
     const key2 = `${num2}x${num1}`;
     
-    const previousCount = Object.values(memorizedFacts).filter(Boolean).length;
-    
     updateMemorizedFacts(prev => {
       const newFacts = { ...prev };
       const isCurrentlyMemorized = newFacts[key1] || false;
@@ -313,8 +310,7 @@ const MultiplicationTable: React.FC<MultiplicationTableProps> = ({ onBackToHome 
 
     // Check for achievements after state update
     setTimeout(() => {
-      const newCount = Object.values(memorizedFacts).filter(Boolean).length;
-      checkAchievements(previousCount, newCount);
+      checkAchievements();
     }, 100);
   };
 
@@ -333,12 +329,11 @@ const MultiplicationTable: React.FC<MultiplicationTableProps> = ({ onBackToHome 
 
   // Calculate progress
   const getProgress = () => {
-    const totalFacts = 100; // 10x10 table
     const memorizedCount = Object.values(memorizedFacts).filter(Boolean).length;
     return {
       memorized: memorizedCount,
-      total: totalFacts,
-      percentage: Math.round((memorizedCount / totalFacts) * 100)
+      total: 100,
+      percentage: Math.round((memorizedCount / 100) * 100)
     };
   };
 
