@@ -1,5 +1,5 @@
 import React from 'react';
-import { Calculator, Brain, Gamepad2, Trophy, X, Divide } from 'lucide-react';
+import { Calculator, Brain, Gamepad2, Star, Zap, Trophy, X, Divide, Grid3X3 } from 'lucide-react';
 
 // Import logo (replace with your actual logo file)
 import logo from '/logo.png';
@@ -30,12 +30,21 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGameSelect }) => {
             onClick: () => onGameSelect('mental-arithmetic-game')
         },
         {
+            id: 'multiplication-table',
+            name: 'Multiplication Table',
+            description: 'Memorize multiplication tables',
+            icon: <Grid3X3 className="w-12 h-12" />,
+            available: true,
+            gradient: 'from-teal-500 to-cyan-500',
+            onClick: () => onGameSelect('multiplication-table')
+        },
+        {
             id: 'mental-multiplication',
             name: 'Mental Multiplication',
             description: 'Master multiplication skills',
             icon: <X className="w-12 h-12" />,
             available: false,
-            gradient: 'from-teal-500 to-cyan-500',
+            gradient: 'from-yellow-500 to-orange-400',
             onClick: () => { }
         },
         {
@@ -44,7 +53,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGameSelect }) => {
             description: 'Perfect your division abilities',
             icon: <Divide className="w-12 h-12" />,
             available: false,
-            gradient: 'from-yellow-500 to-orange-400',
+            gradient: 'from-emerald-500 to-teal-500',
             onClick: () => { }
         },
         {
@@ -52,15 +61,6 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGameSelect }) => {
             name: 'Brain Trainer',
             description: 'Memory and logic puzzles',
             icon: <Brain className="w-12 h-12" />,
-            available: false,
-            gradient: 'from-emerald-500 to-teal-500',
-            onClick: () => { }
-        },
-        {
-            id: 'puzzle-master',
-            name: 'Puzzle Master',
-            description: 'Solve challenging puzzles',
-            icon: <Gamepad2 className="w-12 h-12" />,
             available: false,
             gradient: 'from-purple-500 to-pink-400',
             onClick: () => { }
@@ -141,7 +141,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGameSelect }) => {
 
                 {/* Games Section */}
                 <div className="bg-white/95 backdrop-blur-sm rounded-3xl p-6 md:p-8 shadow-xl border border-purple-100">
-                    <h3 className="text-xl md:text-2xl font-bold text-purple-700 mb-6 text-center">Choose Your Game</h3>
+                    <h3 className="text-xl md:text-2xl font-bold text-purple-700 mb-6 text-center">Explore Games & Learning Tools</h3>
 
                     {/* Games Grid */}
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 md:gap-6">

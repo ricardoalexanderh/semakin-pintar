@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import LandingPage from './components/landing-page';
 import MentalArithmeticGame from './components/mental-arithmetic-game';
+import MultiplicationTable from './components/multiplication-table';
 import './App.css';
 
-type AppState = 'landing-page' | 'mental-arithmetic-game';
+type AppState = 'landing-page' | 'mental-arithmetic-game' | 'multiplication-table';
 
 function App() {
   const [currentView, setCurrentView] = useState<AppState>('landing-page');
@@ -11,6 +12,8 @@ function App() {
   const handleGameSelect = (gameId: string) => {
     if (gameId === 'mental-arithmetic-game') {
       setCurrentView('mental-arithmetic-game');
+    } else if (gameId === 'multiplication-table') {
+      setCurrentView('multiplication-table');
     }
   };
 
@@ -27,6 +30,8 @@ function App() {
     switch (currentView) {
       case 'mental-arithmetic-game':
         return <MentalArithmeticGame onBackToHome={handleBackToHome} />;
+      case 'multiplication-table':
+        return <MultiplicationTable onBackToHome={handleBackToHome} />;
       case 'landing-page':
       default:
         return <LandingPage onGameSelect={handleGameSelect} />;
