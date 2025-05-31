@@ -145,7 +145,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGameSelect }) => {
 
                     {/* Games Grid */}
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6">
-                        {games.map((game, index) => (
+                        {games.map((game) => (
                             <div key={game.id} className="relative group">
                                 {/* Game Icon */}
                                 <button
