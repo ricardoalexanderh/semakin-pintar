@@ -334,11 +334,12 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
   };
 
   // NEW: Calculate delay specifically for after answer announcement
-  const calculatePostAnswerDelay = (answerText: string): number => {
+  const calculatePostAnswerDelay = (answerText: string): number => {    
     if (settings.speechEnabled) {
       // For speech mode: ensure speech completes + brief pause
       const speechDuration = estimateSpeechDuration(answerText);
-      return speechDuration + 100; // Speech duration + 1 second pause
+      //return speechDuration + 100; // Speech duration + 1 second pause      
+      return speechDuration - 500;
     } else {
       // For non-speech mode: slightly longer, level-based delays
       const levelDelays = {
