@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Grid, CheckCircle, Star, Trophy, Target, ArrowLeft, RotateCcw, Zap } from 'lucide-react';
+import { Grid, CheckCircle, Star, Trophy, Target, ArrowLeft, RotateCcw, Zap, ChevronDown, ChevronUp } from 'lucide-react';
 import * as Tone from 'tone';
 
 // Type definitions
@@ -80,6 +80,8 @@ const MultiplicationTable: React.FC<MultiplicationTableProps> = ({ onBackToHome 
   // Achievements state
   const [achievements, setAchievements] = useState<Achievement[]>([]);
   const [showAchievement, setShowAchievement] = useState<Achievement | null>(null);
+  // State for collapsible achievements
+  const [achievementsCollapsed, setAchievementsCollapsed] = useState(true);
 
   // Update settings function with memory persistence
   const updateSettings = (newSettings: TableSettings | ((prev: TableSettings) => TableSettings)): void => {
@@ -364,8 +366,9 @@ const MultiplicationTable: React.FC<MultiplicationTableProps> = ({ onBackToHome 
       <div className="max-w-7xl mx-auto">
         <div className={`${currentTheme.cardBg} rounded-3xl shadow-2xl p-6`}>
           {/* Header */}
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-6">
-            <div className="flex items-center gap-4 mb-4 lg:mb-0">
+          <div className="space-y-4 mb-6">
+            {/* Back Button and Title */}
+            <div className="space-y-3">
               {onBackToHome && (
                 <button
                   onClick={() => {
@@ -379,160 +382,196 @@ const MultiplicationTable: React.FC<MultiplicationTableProps> = ({ onBackToHome 
                 </button>
               )}
               <div className="flex items-center gap-3">
-                <Grid className={`w-8 h-8 ${currentTheme.secondary}`} />
+                <Grid className={`w-6 h-6 sm:w-8 sm:h-8 ${currentTheme.secondary}`} />
                 <div>
-                  <h1 className={`text-3xl font-bold ${currentTheme.primary}`}>Multiplication Table</h1>
-                  <p className={`text-lg ${currentTheme.secondary}`}>1 × 1 to 10 × 10</p>
+                  <h1 className={`text-xl sm:text-2xl lg:text-3xl font-bold ${currentTheme.primary}`}>Multiplication Table</h1>
+                  <p className={`text-sm sm:text-base lg:text-lg ${currentTheme.secondary}`}>1 × 1 to 10 × 10</p>
                 </div>
               </div>
             </div>
 
             {/* Settings Panel */}
-            <div className="flex flex-wrap gap-3">
-              {/* Theme Selector */}
-              <select
-                value={settings.theme}
-                onChange={(e) => {
-                  playSound('settingChange');
-                  updateSettings(prev => ({...prev, theme: e.target.value as TableSettings['theme']}));
-                }}
-                className="px-4 py-2 rounded-xl border-2 border-gray-200 focus:border-purple-400 focus:outline-none"
-              >
-                {Object.entries(themes).map(([key, theme]) => (
-                  <option key={key} value={key}>{theme.name}</option>
-                ))}
-              </select>
+            <div className="space-y-3">
+              {/* Theme Selector - Full Width on Mobile */}
+              <div className="w-full">
+                <select
+                  value={settings.theme}
+                  onChange={(e) => {
+                    playSound('settingChange');
+                    updateSettings(prev => ({...prev, theme: e.target.value as TableSettings['theme']}));
+                  }}
+                  className="w-full sm:w-auto px-3 py-2 text-sm sm:text-base rounded-xl border-2 border-gray-200 focus:border-purple-400 focus:outline-none"
+                >
+                  {Object.entries(themes).map(([key, theme]) => (
+                    <option key={key} value={key}>{theme.name} Theme</option>
+                  ))}
+                </select>
+              </div>
 
-              {/* Toggle Buttons */}
-              <button
-                onClick={() => {
-                  playSound('settingChange');
-                  updateSettings(prev => ({...prev, soundEnabled: !prev.soundEnabled}));
-                }}
-                className={`px-4 py-2 rounded-xl font-medium transition-all ${
-                  settings.soundEnabled 
-                    ? 'bg-purple-500 text-white' 
-                    : 'bg-gray-200 text-gray-600'
-                }`}
-              >
-                {settings.soundEnabled ? '🔊' : '🔇'} Sound
-              </button>
+              {/* Toggle Buttons - Grid Layout for Mobile */}
+              <div className="grid grid-cols-2 sm:flex gap-2 sm:gap-3">
+                <button
+                  onClick={() => {
+                    playSound('settingChange');
+                    updateSettings(prev => ({...prev, soundEnabled: !prev.soundEnabled}));
+                  }}
+                  className={`px-3 py-2 text-sm sm:text-base rounded-xl font-medium transition-all ${
+                    settings.soundEnabled 
+                      ? 'bg-purple-500 text-white' 
+                      : 'bg-gray-200 text-gray-600'
+                  }`}
+                >
+                  <span className="sm:hidden">{settings.soundEnabled ? '🔊' : '🔇'}</span>
+                  <span className="hidden sm:inline">{settings.soundEnabled ? '🔊' : '🔇'} Sound</span>
+                </button>
 
-              <button
-                onClick={() => {
-                  playSound('settingChange');
-                  updateSettings(prev => ({...prev, showAnswers: !prev.showAnswers}));
-                }}
-                className={`px-4 py-2 rounded-xl font-medium transition-all ${
-                  settings.showAnswers 
-                    ? 'bg-blue-500 text-white' 
-                    : 'bg-gray-200 text-gray-600'
-                }`}
-              >
-                {settings.showAnswers ? '👁️' : '🙈'} Answers
-              </button>
+                <button
+                  onClick={() => {
+                    playSound('settingChange');
+                    updateSettings(prev => ({...prev, showAnswers: !prev.showAnswers}));
+                  }}
+                  className={`px-3 py-2 text-sm sm:text-base rounded-xl font-medium transition-all ${
+                    settings.showAnswers 
+                      ? 'bg-blue-500 text-white' 
+                      : 'bg-gray-200 text-gray-600'
+                  }`}
+                >
+                  <span className="sm:hidden">{settings.showAnswers ? '👁️' : '🙈'}</span>
+                  <span className="hidden sm:inline">{settings.showAnswers ? '👁️' : '🙈'} Answers</span>
+                </button>
 
-              <button
-                onClick={() => {
-                  playSound('settingChange');
-                  updateSettings(prev => ({...prev, gamificationEnabled: !prev.gamificationEnabled}));
-                }}
-                className={`px-4 py-2 rounded-xl font-medium transition-all ${
-                  settings.gamificationEnabled 
-                    ? 'bg-yellow-500 text-white' 
-                    : 'bg-gray-200 text-gray-600'
-                }`}
-              >
-                {settings.gamificationEnabled ? '🏆' : '📚'} Goals
-              </button>
+                <button
+                  onClick={() => {
+                    playSound('settingChange');
+                    updateSettings(prev => ({...prev, gamificationEnabled: !prev.gamificationEnabled}));
+                  }}
+                  className={`px-3 py-2 text-sm sm:text-base rounded-xl font-medium transition-all ${
+                    settings.gamificationEnabled 
+                      ? 'bg-yellow-500 text-white' 
+                      : 'bg-gray-200 text-gray-600'
+                  }`}
+                >
+                  <span className="sm:hidden">{settings.gamificationEnabled ? '🏆' : '📚'}</span>
+                  <span className="hidden sm:inline">{settings.gamificationEnabled ? '🏆' : '📚'} Goals</span>
+                </button>
 
-              <button
-                onClick={clearAllMemorized}
-                className="px-4 py-2 rounded-xl bg-red-500 text-white hover:bg-red-600 transition-all flex items-center gap-2"
-              >
-                <RotateCcw className="w-4 h-4" />
-                Reset
-              </button>
+                <button
+                  onClick={clearAllMemorized}
+                  className="px-3 py-2 text-sm sm:text-base rounded-xl bg-red-500 text-white hover:bg-red-600 transition-all flex items-center justify-center gap-1 sm:gap-2"
+                >
+                  <RotateCcw className="w-3 h-3 sm:w-4 sm:h-4" />
+                  <span className="hidden sm:inline">Reset</span>
+                </button>
+              </div>
             </div>
           </div>
 
           {/* Progress Bar and Stats */}
-          <div className={`${currentTheme.headerBg} rounded-2xl p-4 mb-6`}>
-            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-2">
-                  <Target className={`w-6 h-6 ${currentTheme.primary}`} />
-                  <span className={`text-lg font-bold ${currentTheme.primary}`}>
-                    Progress: {progress.memorized}/{progress.total} ({progress.percentage}%)
-                  </span>
-                </div>
-                <div className="flex-1 min-w-48">
-                  <div className="w-full bg-gray-200 rounded-full h-3">
-                    <div 
-                      className="bg-gradient-to-r from-green-400 to-green-600 h-3 rounded-full transition-all duration-500"
-                      style={{ width: `${progress.percentage}%` }}
-                    ></div>
+          <div className={`${currentTheme.headerBg} rounded-2xl p-3 sm:p-4 mb-4 sm:mb-6`}>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 min-w-0 flex-1">
+                  <Target className={`w-4 h-4 sm:w-5 sm:h-5 ${currentTheme.primary} flex-shrink-0`} />
+                  <div className="min-w-0 flex-1">
+                    <div className={`text-sm sm:text-base font-bold ${currentTheme.primary} truncate`}>
+                      Progress: {progress.memorized}/{progress.total}
+                    </div>
+                    <div className={`text-xs sm:text-sm ${currentTheme.secondary}`}>
+                      {progress.percentage}% Complete
+                    </div>
                   </div>
                 </div>
+                {progress.percentage === 100 && (
+                  <div className="flex items-center gap-1 text-yellow-600 animate-pulse flex-shrink-0">
+                    <Trophy className="w-4 h-4 sm:w-5 sm:h-5" />
+                    <span className="text-xs sm:text-sm font-bold">MASTER!</span>
+                  </div>
+                )}
               </div>
-              
-              {progress.percentage === 100 && (
-                <div className="flex items-center gap-2 text-yellow-600 animate-pulse">
-                  <Trophy className="w-6 h-6" />
-                  <span className="font-bold">MASTER COMPLETED!</span>
-                </div>
-              )}
+              <div className="w-full bg-gray-200 rounded-full h-2 sm:h-3">
+                <div 
+                  className="bg-gradient-to-r from-green-400 to-green-600 h-2 sm:h-3 rounded-full transition-all duration-500"
+                  style={{ width: `${progress.percentage}%` }}
+                ></div>
+              </div>
             </div>
           </div>
 
           {/* Achievements Panel */}
           {settings.gamificationEnabled && (
-            <div className="mb-6">
-              <h2 className={`text-xl font-bold ${currentTheme.primary} mb-3 flex items-center gap-2`}>
-                <Star className="w-5 h-5" />
-                Achievements
-              </h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {achievements.map(achievement => (
-                  <div 
-                    key={achievement.id}
-                    className={`p-3 rounded-xl border-2 transition-all ${
-                      achievement.unlocked 
-                        ? 'bg-yellow-100 border-yellow-400 text-yellow-800' 
-                        : 'bg-gray-100 border-gray-300 text-gray-600'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-lg">{achievement.icon}</span>
-                      <span className="font-bold text-sm">{achievement.title}</span>
-                      {achievement.unlocked && <CheckCircle className="w-4 h-4" />}
-                    </div>
-                    <p className="text-xs mb-2">{achievement.description}</p>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div 
-                        className={`h-2 rounded-full transition-all ${
-                          achievement.unlocked ? 'bg-yellow-500' : 'bg-gray-400'
-                        }`}
-                        style={{ width: `${(achievement.progress / achievement.maxProgress) * 100}%` }}
-                      ></div>
+            <div className="mb-4 sm:mb-6">
+              <button
+                onClick={() => {
+                  playSound('buttonClick');
+                  setAchievementsCollapsed(!achievementsCollapsed);
+                }}
+                className={`w-full text-left p-3 rounded-xl border-2 transition-all hover:shadow-md ${
+                  achievementsCollapsed 
+                    ? 'bg-gray-50 border-gray-200 hover:bg-gray-100' 
+                    : `${currentTheme.headerBg} border-gray-300`
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Star className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-500" />
+                    <span className={`text-lg sm:text-xl font-bold ${currentTheme.primary}`}>
+                      Achievements
+                    </span>
+                    <div className="text-xs sm:text-sm px-2 py-1 bg-yellow-200 text-yellow-800 rounded-full font-bold">
+                      {achievements.filter(a => a.unlocked).length}/{achievements.length}
                     </div>
                   </div>
-                ))}
-              </div>
+                  {achievementsCollapsed ? (
+                    <ChevronDown className="w-5 h-5 text-gray-500" />
+                  ) : (
+                    <ChevronUp className="w-5 h-5 text-gray-500" />
+                  )}
+                </div>
+              </button>
+              
+              {!achievementsCollapsed && (
+                <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2 sm:gap-3">
+                  {achievements.map(achievement => (
+                    <div 
+                      key={achievement.id}
+                      className={`p-2 sm:p-3 rounded-xl border-2 transition-all ${
+                        achievement.unlocked 
+                          ? 'bg-yellow-100 border-yellow-400 text-yellow-800' 
+                          : 'bg-gray-100 border-gray-300 text-gray-600'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-base sm:text-lg">{achievement.icon}</span>
+                        <span className="font-bold text-xs sm:text-sm">{achievement.title}</span>
+                        {achievement.unlocked && <CheckCircle className="w-3 h-3 sm:w-4 sm:h-4" />}
+                      </div>
+                      <p className="text-xs mb-2 line-clamp-2">{achievement.description}</p>
+                      <div className="w-full bg-gray-200 rounded-full h-1.5 sm:h-2">
+                        <div 
+                          className={`h-1.5 sm:h-2 rounded-full transition-all ${
+                            achievement.unlocked ? 'bg-yellow-500' : 'bg-gray-400'
+                          }`}
+                          style={{ width: `${(achievement.progress / achievement.maxProgress) * 100}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
           {/* Multiplication Table */}
-          <div className="overflow-x-auto">
-            <div className="min-w-fit">
-              <table className="w-full border-collapse">
+          <div className="w-full flex justify-center">
+            <div className="inline-block">
+              <table className="border-collapse">
                 <thead>
                   <tr>
-                    <th className={`w-12 h-12 ${currentTheme.headerBg} border-2 border-gray-300 font-bold ${currentTheme.primary} text-xl`}>
+                    <th className={`w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 ${currentTheme.headerBg} border border-gray-300 font-bold ${currentTheme.primary} text-sm sm:text-base md:text-lg`}>
                       ×
                     </th>
                     {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(num => (
-                      <th key={num} className={`w-16 h-12 ${currentTheme.headerBg} border-2 border-gray-300 font-bold ${currentTheme.primary} text-xl`}>
+                      <th key={num} className={`w-8 h-8 sm:w-10 sm:h-10 md:w-14 md:h-12 ${currentTheme.headerBg} border border-gray-300 font-bold ${currentTheme.primary} text-sm sm:text-base md:text-lg`}>
                         {num}
                       </th>
                     ))}
@@ -541,7 +580,7 @@ const MultiplicationTable: React.FC<MultiplicationTableProps> = ({ onBackToHome 
                 <tbody>
                   {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(row => (
                     <tr key={row}>
-                      <th className={`w-12 h-16 ${currentTheme.headerBg} border-2 border-gray-300 font-bold ${currentTheme.primary} text-xl`}>
+                      <th className={`w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-14 ${currentTheme.headerBg} border border-gray-300 font-bold ${currentTheme.primary} text-sm sm:text-base md:text-lg`}>
                         {row}
                       </th>
                       {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(col => {
@@ -550,18 +589,19 @@ const MultiplicationTable: React.FC<MultiplicationTableProps> = ({ onBackToHome 
                         return (
                           <td 
                             key={col}
-                            className={`w-16 h-16 border-2 cursor-pointer transition-all duration-200 hover:scale-105 hover:shadow-lg ${getCellColor(row, col)}`}
+                            className={`w-8 h-8 sm:w-10 sm:h-10 md:w-14 md:h-14 border cursor-pointer transition-all duration-200 active:scale-95 sm:hover:scale-105 sm:hover:shadow-lg ${getCellColor(row, col)} relative`}
                             onClick={() => toggleMemorized(row, col)}
                           >
                             <div className="flex flex-col items-center justify-center h-full relative">
                               {memorized && (
-                                <CheckCircle className="absolute top-1 right-1 w-4 h-4 text-green-600" />
+                                <CheckCircle className="absolute top-0 right-0 w-2.5 h-2.5 sm:w-3 sm:h-3 md:w-4 md:h-4 text-green-600 transform translate-x-0.5 -translate-y-0.5" />
                               )}
-                              <div className="text-xs font-medium opacity-75">
-                                {row}×{col}
+                              <div className="text-xs sm:text-xs md:text-sm font-medium opacity-75 leading-none text-center">
+                                <div className="block sm:hidden">{row}{col}</div>
+                                <div className="hidden sm:block">{row}×{col}</div>
                               </div>
                               {settings.showAnswers && (
-                                <div className="text-lg font-bold">
+                                <div className="text-xs sm:text-sm md:text-base font-bold leading-none mt-0.5 text-center">
                                   {product}
                                 </div>
                               )}
@@ -577,17 +617,17 @@ const MultiplicationTable: React.FC<MultiplicationTableProps> = ({ onBackToHome 
           </div>
 
           {/* Instructions */}
-          <div className="mt-6 p-4 bg-blue-50 rounded-2xl">
-            <h3 className="font-bold text-blue-800 mb-2 flex items-center gap-2">
-              <Zap className="w-5 h-5" />
+          <div className="mt-4 sm:mt-6 p-3 sm:p-4 bg-blue-50 rounded-2xl">
+            <h3 className="font-bold text-blue-800 mb-2 flex items-center gap-2 text-sm sm:text-base">
+              <Zap className="w-4 h-4 sm:w-5 sm:h-5" />
               How to Use:
             </h3>
-            <ul className="text-blue-700 space-y-1 text-sm">
-              <li>• Click on any cell to mark it as memorized ✅</li>
-              <li>• Different colors represent different number patterns</li>
-              <li>• Yellow cells = Perfect squares (1×1, 2×2, etc.)</li>
-              <li>• Blue cells = Times 1, Pink cells = Times 5, Purple cells = Times 10</li>
-              <li>• Track your progress and unlock achievements! 🏆</li>
+            <ul className="text-blue-700 space-y-1 text-xs sm:text-sm">
+              <li>• Tap any cell to mark it as memorized ✅</li>
+              <li>• Different colors show number patterns</li>
+              <li className="hidden sm:block">• Yellow = Perfect squares (1×1, 2×2, etc.)</li>
+              <li className="hidden sm:block">• Blue = Times 1, Pink = Times 5, Purple = Times 10</li>
+              <li>• Track progress and unlock achievements! 🏆</li>
             </ul>
           </div>
         </div>
@@ -596,11 +636,11 @@ const MultiplicationTable: React.FC<MultiplicationTableProps> = ({ onBackToHome 
       {/* Achievement Popup */}
       {showAchievement && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-3xl p-8 text-center max-w-sm w-full transform animate-bounce">
-            <div className="text-6xl mb-4">{showAchievement.icon}</div>
-            <h2 className="text-2xl font-bold text-yellow-600 mb-2">Achievement Unlocked!</h2>
-            <h3 className="text-xl font-bold text-gray-800 mb-2">{showAchievement.title}</h3>
-            <p className="text-gray-600">{showAchievement.description}</p>
+          <div className="bg-white rounded-3xl p-6 sm:p-8 text-center max-w-xs sm:max-w-sm w-full transform animate-bounce">
+            <div className="text-4xl sm:text-6xl mb-3 sm:mb-4">{showAchievement.icon}</div>
+            <h2 className="text-lg sm:text-2xl font-bold text-yellow-600 mb-1 sm:mb-2">Achievement Unlocked!</h2>
+            <h3 className="text-base sm:text-xl font-bold text-gray-800 mb-1 sm:mb-2">{showAchievement.title}</h3>
+            <p className="text-sm sm:text-base text-gray-600">{showAchievement.description}</p>
           </div>
         </div>
       )}

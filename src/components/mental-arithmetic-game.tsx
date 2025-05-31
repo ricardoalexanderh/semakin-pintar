@@ -99,7 +99,7 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
     const updatedSettings = typeof newSettings === 'function' ? newSettings(settings) : newSettings;
     settingsRef.current = updatedSettings;
     setSettingsState(updatedSettings);
-    
+
     // Save to localStorage with error handling
     try {
       localStorage.setItem('mental-arithmetic-settings', JSON.stringify(updatedSettings));
@@ -119,7 +119,7 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
 
       const setVoice = () => {
         const voices = speechSynthesis.getVoices();
-        
+
         // Enhanced female voice detection with more patterns and priorities
         const femaleVoicePatterns = [
           // iOS/Safari specific
@@ -128,7 +128,7 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
           { pattern: /moira/i, priority: 8 },
           { pattern: /tessa/i, priority: 7 },
           { pattern: /serena/i, priority: 6 },
-          
+
           // General patterns
           { pattern: /female/i, priority: 15 },
           { pattern: /woman/i, priority: 14 },
@@ -140,7 +140,7 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
           { pattern: /lekha/i, priority: 3 },
           { pattern: /mei-jia/i, priority: 2 },
           { pattern: /sin-ji/i, priority: 1 },
-          
+
           // Additional patterns
           { pattern: /ting-ting/i, priority: 1 },
           { pattern: /yuna/i, priority: 1 },
@@ -177,7 +177,7 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
           setVoice();
           speechSynthesis.onvoiceschanged = null;
         };
-        
+
         // Fallback timeout for iOS
         setTimeout(() => {
           if (!speechInitialized) {
@@ -198,7 +198,7 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
 
       // Cancel any ongoing speech
       speechSynthesis.cancel();
-      
+
       // Clear any existing timeout
       if (speechTimeoutRef.current) {
         clearTimeout(speechTimeoutRef.current);
@@ -208,12 +208,12 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
       try {
         const utterance = new SpeechSynthesisUtterance(text);
         speechUtteranceRef.current = utterance;
-        
+
         // Set preferred voice if available
         if (preferredVoiceRef.current) {
           utterance.voice = preferredVoiceRef.current;
         }
-        
+
         // Enhanced settings for better speech quality        
         utterance.rate = 1.0; // Slightly slower for better comprehension
         utterance.volume = 0.9;
@@ -239,7 +239,7 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
 
         // Start speaking
         speechSynthesis.speak(utterance);
-        
+
         // iOS Safari fix: resume if paused
         setTimeout(() => {
           if (speechSynthesis.paused) {
@@ -259,14 +259,14 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
     // Base calculation for words (excluding numbers)
     const wordsPerMinute = 100; // Base rate
     const words = text.replace(/\d+/g, '').split(/\s+/).filter(word => word.length > 0);
-    
+
     // Level-based speed adjustments for duration calculation
     const speedMultipliers = {
       1: 1.0,   // Normal duration for slow speech
       2: 0.85,  // Shorter duration for medium speed  
       3: 0.75   // Shortest duration for fast speech
     };
-    
+
     const speedMultiplier = speedMultipliers[settings.level as keyof typeof speedMultipliers] || 1.0;
     let baseTime = (words.length / wordsPerMinute) * 60 * 1000 * speedMultiplier;
 
@@ -274,7 +274,7 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
     const numbers = text.match(/\d+/g) || [];
     const hasOperator = /minus/i.test(text);
     const hasAnswerPhrase = /the answer is/i.test(text);
-    
+
     // Add time for numbers based on digit count and complexity, adjusted for level
     let numberTime = 0;
     numbers.forEach(num => {
@@ -294,30 +294,30 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
     if (hasOperator) {
       numberTime += 500 * speedMultiplier; // "minus" takes time to say
     }
-    
+
     if (hasAnswerPhrase) {
       baseTime += 800 * speedMultiplier; // "The answer is" phrase
     }
 
     // Minimum time based on complexity - adjusted for speech speed
     const minimumTime = Math.max(600 * speedMultiplier, text.length * 60 * speedMultiplier);
-    
+
     return Math.max(minimumTime, baseTime + numberTime);
   };
 
   // Calculate dynamic delays based on level and speech duration
   const calculateSpeechDelay = (text: string, level: number): number => {
     if (!settings.speechEnabled) return 0;
-    
+
     const baseDuration = estimateSpeechDuration(text);
-    
+
     // Level-based multipliers for pause after speech - more generous for complex numbers
     const levelMultipliers = {
       1: 2.2,  // Much longer pause for beginners, especially with complex numbers
       2: 1.8,  // Medium-long pause
       3: 1.4   // Shorter but still safe pause for advanced
     };
-    
+
     // Extra multiplier for longer numbers
     const numbers = text.match(/\d+/g) || [];
     let complexityMultiplier = 1.0;
@@ -326,15 +326,15 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
         complexityMultiplier += 0.3; // Add extra time for 3+ digit numbers
       }
     });
-    
+
     const multiplier = (levelMultipliers[level as keyof typeof levelMultipliers] || 1.4) * complexityMultiplier;
     const bufferTime = 500; // Increased base buffer time
-    
+
     return baseDuration * multiplier + bufferTime;
   };
 
   // NEW: Calculate delay specifically for after answer announcement
-  const calculatePostAnswerDelay = (answerText: string): number => {    
+  const calculatePostAnswerDelay = (answerText: string): number => {
     if (settings.speechEnabled) {
       // For speech mode: ensure speech completes + brief pause
       const speechDuration = estimateSpeechDuration(answerText);
@@ -356,14 +356,14 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
   // Sound functions (unchanged)
   const playSound = async (type: SoundType): Promise<void> => {
     if (!settings.soundEnabled) return;
-    
+
     try {
       if (Tone.context.state !== 'running') {
         await Tone.start();
       }
 
       const synth = new Tone.Synth().toDestination();
-      
+
       switch (type) {
         case 'getReady':
           synth.triggerAttackRelease('C5', '0.3');
@@ -415,9 +415,9 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
   const getDelays = (level: number) => {
     const baseNumberDelay = Math.max(0.5, 2 - (level - 1) * 0.5);
     const baseAnswerDelay = Math.max(0.8, 5 - (level - 1) * 0.6);
-    
-    return { 
-      numberDelay: baseNumberDelay, 
+
+    return {
+      numberDelay: baseNumberDelay,
       answerDelay: baseAnswerDelay
     };
   };
@@ -485,11 +485,11 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
     if (settings.digitTypes['2digit']) enabledTypes.push('2digit');
     if (settings.digitTypes['3digit']) enabledTypes.push('3digit');
     if (settings.digitTypes['4digit']) enabledTypes.push('4digit');
-    
+
     if (enabledTypes.length === 0) enabledTypes.push('1digit');
-    
+
     const randomType = enabledTypes[Math.floor(Math.random() * enabledTypes.length)];
-    
+
     if (randomType === '1digit') {
       return Math.floor(Math.random() * 9) + 1;
     } else if (randomType === '2digit') {
@@ -504,14 +504,14 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
   const generateQuestion = (): Question => {
     const numbers: number[] = [];
     const operations: string[] = [];
-    
+
     let runningTotal = generateNumber();
     numbers.push(runningTotal);
-    
+
     for (let i = 1; i < settings.numbersPerQuestion; i++) {
       let nextNumber = generateNumber();
       let op: string;
-      
+
       if (settings.operations === 'addition') {
         op = '+';
       } else {
@@ -521,7 +521,7 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
           op = '+';
         }
       }
-      
+
       if (op === '-' && runningTotal - nextNumber < 0) {
         if (runningTotal > 1) {
           nextNumber = Math.floor(Math.random() * (runningTotal - 1)) + 1;
@@ -529,17 +529,17 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
           op = '+';
         }
       }
-      
+
       operations.push(op);
       numbers.push(nextNumber);
-      
+
       if (op === '+') {
         runningTotal += nextNumber;
       } else {
         runningTotal -= nextNumber;
       }
     }
-    
+
     return { numbers, operations, answer: runningTotal };
   };
 
@@ -581,7 +581,7 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
     setFlashingBetweenNumbers(false);
     setIsPaused(false);
     setGameState('playing');
-    
+
     setTimeout(() => {
       setTimeout(() => {
         setShowingGetReady(false);
@@ -590,7 +590,7 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
           setCurrentOperations(questions[0].operations);
           setAnswer(questions[0].answer);
           setDisplayNumber(questions[0].numbers[0].toString());
-          
+
           if (settings.speechEnabled) {
             speak(questions[0].numbers[0].toString());
           }
@@ -602,18 +602,18 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
   const pauseGame = (): void => {
     // Immediately stop all speech and audio
     speechSynthesis.cancel();
-    
+
     // Clear all possible timeouts and intervals
     if (speechTimeoutRef.current) {
       clearTimeout(speechTimeoutRef.current);
       speechTimeoutRef.current = null;
     }
-    
+
     // Clear any other timeouts that might be running
     for (let i = 1; i < 99999; i++) {
       clearTimeout(i);
     }
-    
+
     // Stop any Tone.js audio
     try {
       if (Tone.context.state === 'running') {
@@ -623,11 +623,11 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
     } catch (error) {
       // Ignore Tone.js errors
     }
-    
+
     // Set paused state first to stop useEffect loops
     setIsPaused(true);
     setGameState('paused');
-    
+
     // Play pause sound after stopping everything else
     setTimeout(() => {
       playSound('pause');
@@ -643,18 +643,18 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
   const restartGame = (): void => {
     // Immediately stop all speech and audio
     speechSynthesis.cancel();
-    
+
     // Clear all possible timeouts and intervals
     if (speechTimeoutRef.current) {
       clearTimeout(speechTimeoutRef.current);
       speechTimeoutRef.current = null;
     }
-    
+
     // Clear any other timeouts that might be running
     for (let i = 1; i < 99999; i++) {
       clearTimeout(i);
     }
-    
+
     // Stop any Tone.js audio
     try {
       if (Tone.context.state === 'running') {
@@ -664,11 +664,11 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
     } catch (error) {
       // Ignore Tone.js errors
     }
-    
+
     // Set game state to setup first to stop useEffect loops
     setGameState('setup');
     setIsPaused(false);
-    
+
     // Reset all game state variables
     setCurrentQuestion(0);
     setNextQuestionNumber(1);
@@ -687,18 +687,18 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
   // Enhanced game logic effect with NEW post-answer delay mechanism
   useEffect(() => {
     if (gameState !== 'playing' || isPaused || showingGetReady) return;
-    
+
     const currentQ = allQuestions[currentQuestion];
     if (!currentQ) return;
 
     if (showingAnswer) {
       const answerText = `The answer is ${answer}`;
-      
+
       if (settings.speechEnabled) {
         speak(answerText).then(() => {
           // Use the NEW post-answer delay calculation
           const postAnswerDelay = calculatePostAnswerDelay(answerText);
-          
+
           setTimeout(() => {
             playSound('questionComplete');
             if (currentQuestion < allQuestions.length - 1) {
@@ -707,10 +707,10 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
               setShowingAnswer(false);
               setCalculatingAnswer(false);
               setFlashingBetweenNumbers(false);
-              
+
               setTimeout(() => {
                 playSound('getReady');
-                
+
                 setTimeout(() => {
                   const nextQuestionNum = currentQuestion + 1;
                   setCurrentQuestion(nextQuestionNum);
@@ -721,7 +721,7 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
                   setCurrentOperations(nextQ.operations);
                   setAnswer(nextQ.answer);
                   setDisplayNumber(nextQ.numbers[0].toString());
-                  
+
                   if (settings.speechEnabled) {
                     speak(nextQ.numbers[0].toString());
                   }
@@ -744,10 +744,10 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
             setShowingAnswer(false);
             setCalculatingAnswer(false);
             setFlashingBetweenNumbers(false);
-            
+
             setTimeout(() => {
               playSound('getReady');
-              
+
               setTimeout(() => {
                 const nextQuestionNum = currentQuestion + 1;
                 setCurrentQuestion(nextQuestionNum);
@@ -765,10 +765,10 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
             setGameState('results');
           }
         }, postAnswerDelay);
-        
+
         return () => clearTimeout(timer);
       }
-      
+
       return;
     } else if (calculatingAnswer) {
       if (settings.speechEnabled) {
@@ -778,7 +778,7 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
           setCalculatingAnswer(false);
           setShowingAnswer(true);
         }, levelDelay);
-        
+
         return () => clearTimeout(timer);
       } else {
         const delays = getDelays(settings.level);
@@ -788,7 +788,7 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
           setCalculatingAnswer(false);
           setShowingAnswer(true);
         }, delays.answerDelay * 1000);
-        
+
         return () => clearTimeout(timer);
       }
     } else if (flashingBetweenNumbers) {
@@ -798,7 +798,7 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
           setCurrentNumberIndex(prev => prev + 1);
           const nextNumber = currentNumbers[currentNumberIndex + 1];
           setDisplayNumber(nextNumber.toString());
-          
+
           if (settings.speechEnabled) {
             const operation = currentOperations[currentNumberIndex];
             if (operation === '-') {
@@ -812,14 +812,14 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
           setCalculatingAnswer(true);
         }
       }, 200);
-      
+
       return () => clearTimeout(timer);
     } else {
       if (currentNumberIndex < currentNumbers.length) {
         if (settings.speechEnabled) {
           const currentText = displayNumber;
           const speechDelay = calculateSpeechDelay(currentText, settings.level);
-          
+
           const timer = setTimeout(() => {
             if (currentNumberIndex < currentNumbers.length - 1) {
               setFlashingBetweenNumbers(true);
@@ -828,7 +828,7 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
               setCalculatingAnswer(true);
             }
           }, speechDelay);
-          
+
           return () => clearTimeout(timer);
         } else {
           const delays = getDelays(settings.level);
@@ -840,7 +840,7 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
               setCalculatingAnswer(true);
             }
           }, delays.numberDelay * 1000);
-          
+
           return () => clearTimeout(timer);
         }
       }
@@ -883,7 +883,7 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
                 <span className="font-medium">Back to Games</span>
               </button>
             )}
-            
+
             <div className="text-center mb-8">
               <Calculator className={`w-16 h-16 mx-auto ${currentTheme.secondary} mb-4`} />
               <h1 className={`text-4xl font-bold ${currentTheme.primary} mb-2`}>Mental Arithmetic Game</h1>
@@ -895,11 +895,10 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
               <div className="bg-purple-50 rounded-2xl p-6">
                 <label className="block text-2xl font-bold text-purple-800 mb-4">Audio Settings:</label>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <label className={`flex items-center justify-between p-4 rounded-xl cursor-pointer transition-all transform hover:scale-105 border-2 ${
-                    settings.soundEnabled 
-                      ? 'bg-purple-100 border-purple-300 text-purple-800 shadow-lg' 
+                  <label className={`flex items-center justify-between p-4 rounded-xl cursor-pointer transition-all transform hover:scale-105 border-2 ${settings.soundEnabled
+                      ? 'bg-purple-100 border-purple-300 text-purple-800 shadow-lg'
                       : 'bg-white border-gray-200 hover:bg-gray-50'
-                  }`}>
+                    }`}>
                     <div className="flex items-center gap-3">
                       <span className="text-2xl">🔊</span>
                       <span className="text-lg font-bold">Sound Effects</span>
@@ -909,17 +908,16 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
                       checked={settings.soundEnabled}
                       onChange={(e) => {
                         playSound('settingChange');
-                        updateSettings(prev => ({...prev, soundEnabled: e.target.checked}));
+                        updateSettings(prev => ({ ...prev, soundEnabled: e.target.checked }));
                       }}
                       className="w-6 h-6 text-purple-600 rounded"
                     />
                   </label>
-                  
-                  <label className={`flex items-center justify-between p-4 rounded-xl cursor-pointer transition-all transform hover:scale-105 border-2 ${
-                    settings.speechEnabled 
-                      ? 'bg-purple-100 border-purple-300 text-purple-800 shadow-lg' 
+
+                  <label className={`flex items-center justify-between p-4 rounded-xl cursor-pointer transition-all transform hover:scale-105 border-2 ${settings.speechEnabled
+                      ? 'bg-purple-100 border-purple-300 text-purple-800 shadow-lg'
                       : 'bg-white border-gray-200 hover:bg-gray-50'
-                  }`}>
+                    }`}>
                     <div className="flex items-center gap-3">
                       <span className="text-2xl">🗣️</span>
                       <span className="text-lg font-bold">Voice</span>
@@ -930,7 +928,7 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
                       onChange={(e) => {
                         playSound('settingChange');
                         updateSettings(prev => ({
-                          ...prev, 
+                          ...prev,
                           speechEnabled: e.target.checked,
                           // Reset level to 1 if speech is enabled and current level is above 3
                           level: e.target.checked && prev.level > 3 ? 1 : prev.level
@@ -958,13 +956,12 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
                       key={key}
                       onClick={() => {
                         playSound('settingChange');
-                        updateSettings(prev => ({...prev, theme: key as GameSettings['theme']}));
+                        updateSettings(prev => ({ ...prev, theme: key as GameSettings['theme'] }));
                       }}
-                      className={`p-3 rounded-xl font-bold text-center transition-all transform hover:scale-105 border-2 ${
-                        settings.theme === key
+                      className={`p-3 rounded-xl font-bold text-center transition-all transform hover:scale-105 border-2 ${settings.theme === key
                           ? `bg-gradient-to-r ${theme.setupBg} text-white shadow-lg border-white`
                           : 'bg-white text-gray-700 border-gray-200 hover:shadow-md'
-                      }`}
+                        }`}
                     >
                       <div className="text-sm">{theme.name}</div>
                     </button>
@@ -982,13 +979,12 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
                     { value: '3digit' as DigitType, label: '3 Digits', range: '100-999', color: 'bg-purple-100 border-purple-300 text-purple-800' },
                     { value: '4digit' as DigitType, label: '4 Digits', range: '1000-9999', color: 'bg-red-100 border-red-300 text-red-800' }
                   ].map(option => (
-                    <label 
-                      key={option.value} 
-                      className={`flex flex-col items-center p-4 rounded-xl cursor-pointer transition-all transform hover:scale-105 border-2 ${
-                        settings.digitTypes[option.value] 
-                          ? `${option.color} shadow-lg border-opacity-100` 
+                    <label
+                      key={option.value}
+                      className={`flex flex-col items-center p-4 rounded-xl cursor-pointer transition-all transform hover:scale-105 border-2 ${settings.digitTypes[option.value]
+                          ? `${option.color} shadow-lg border-opacity-100`
                           : 'bg-white border-gray-200 hover:bg-gray-50'
-                      }`}
+                        }`}
                     >
                       <input
                         type="checkbox"
@@ -1023,13 +1019,12 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
                       key={option.value}
                       onClick={() => {
                         playSound('settingChange');
-                        updateSettings(prev => ({...prev, operations: option.value}));
+                        updateSettings(prev => ({ ...prev, operations: option.value }));
                       }}
-                      className={`p-4 rounded-xl text-lg font-bold transition-all ${
-                        settings.operations === option.value
+                      className={`p-4 rounded-xl text-lg font-bold transition-all ${settings.operations === option.value
                           ? 'bg-green-500 text-white shadow-lg transform scale-105'
                           : 'bg-white text-green-600 hover:bg-green-100'
-                      }`}
+                        }`}
                     >
                       {option.label}
                     </button>
@@ -1049,17 +1044,17 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
                     onChange={(e) => {
                       const value = e.target.value;
                       if (value === '') {
-                        updateSettings(prev => ({...prev, numQuestions: 0}));
+                        updateSettings(prev => ({ ...prev, numQuestions: 0 }));
                       } else {
                         const num = parseInt(value);
                         if (!isNaN(num) && num >= 0) {
-                          updateSettings(prev => ({...prev, numQuestions: Math.min(50, Math.max(0, num))}));
+                          updateSettings(prev => ({ ...prev, numQuestions: Math.min(50, Math.max(0, num)) }));
                         }
                       }
                     }}
                     onBlur={() => {
                       if (settings.numQuestions === 0) {
-                        updateSettings(prev => ({...prev, numQuestions: 1}));
+                        updateSettings(prev => ({ ...prev, numQuestions: 1 }));
                       }
                     }}
                     className="w-full p-4 text-2xl font-bold text-center rounded-xl border-4 border-orange-200 focus:border-orange-400 focus:outline-none"
@@ -1077,17 +1072,17 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
                     onChange={(e) => {
                       const value = e.target.value;
                       if (value === '') {
-                        updateSettings(prev => ({...prev, numbersPerQuestion: 0}));
+                        updateSettings(prev => ({ ...prev, numbersPerQuestion: 0 }));
                       } else {
                         const num = parseInt(value);
                         if (!isNaN(num) && num >= 0) {
-                          updateSettings(prev => ({...prev, numbersPerQuestion: Math.min(20, Math.max(0, num))}));
+                          updateSettings(prev => ({ ...prev, numbersPerQuestion: Math.min(20, Math.max(0, num)) }));
                         }
                       }
                     }}
                     onBlur={() => {
                       if (settings.numbersPerQuestion < 2) {
-                        updateSettings(prev => ({...prev, numbersPerQuestion: 2}));
+                        updateSettings(prev => ({ ...prev, numbersPerQuestion: 2 }));
                       }
                     }}
                     className="w-full p-4 text-2xl font-bold text-center rounded-xl border-4 border-red-200 focus:border-red-400 focus:outline-none"
@@ -1104,7 +1099,7 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
                     const levelNames = ['Beginner', 'Easy', 'Medium', 'Hard', 'Expert'];
                     const levelColors = [
                       'bg-green-100 border-green-400 text-green-800',
-                      'bg-yellow-100 border-yellow-400 text-yellow-800', 
+                      'bg-yellow-100 border-yellow-400 text-yellow-800',
                       'bg-orange-100 border-orange-400 text-orange-800',
                       'bg-red-100 border-red-400 text-red-800',
                       'bg-purple-100 border-purple-400 text-purple-800'
@@ -1112,31 +1107,30 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
                     const selectedColor = [
                       'bg-green-500 text-white shadow-lg',
                       'bg-yellow-500 text-white shadow-lg',
-                      'bg-orange-500 text-white shadow-lg', 
+                      'bg-orange-500 text-white shadow-lg',
                       'bg-red-500 text-white shadow-lg',
                       'bg-purple-500 text-white shadow-lg'
                     ];
-                    
+
                     // Disable levels 4 and 5 when speech is enabled
                     const isDisabled = settings.speechEnabled && level > 3;
-                    
+
                     return (
                       <button
                         key={level}
                         onClick={() => {
                           if (!isDisabled) {
                             playSound('settingChange');
-                            updateSettings(prev => ({...prev, level: level as GameSettings['level']}));
+                            updateSettings(prev => ({ ...prev, level: level as GameSettings['level'] }));
                           }
                         }}
                         disabled={isDisabled}
-                        className={`p-3 sm:p-4 rounded-xl font-bold text-center transition-all border-2 min-h-[80px] sm:min-h-[90px] flex flex-col items-center justify-center ${
-                          isDisabled 
+                        className={`p-3 sm:p-4 rounded-xl font-bold text-center transition-all border-2 min-h-[80px] sm:min-h-[90px] flex flex-col items-center justify-center ${isDisabled
                             ? 'bg-gray-100 border-gray-300 text-gray-400 cursor-not-allowed opacity-50'
-                            : settings.level === level 
+                            : settings.level === level
                               ? `${selectedColor[level - 1]} transform hover:scale-105`
                               : `${levelColors[level - 1]} hover:shadow-md transform hover:scale-105`
-                        }`}
+                          }`}
                       >
                         <div className="text-xl sm:text-2xl mb-1 leading-none">{level}</div>
                         <div className="text-xs sm:text-sm leading-tight">{levelNames[level - 1]}</div>
@@ -1210,7 +1204,7 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
               </div>
 
               <div className="w-full bg-purple-200 rounded-full h-4 mb-6">
-                <div 
+                <div
                   className="bg-purple-600 h-4 rounded-full transition-all duration-300"
                   style={{
                     width: `${((currentQuestion * currentNumbers.length + currentNumberIndex + (showingAnswer ? 1 : 0)) / (settings.numQuestions * settings.numbersPerQuestion)) * 100}%`
@@ -1288,8 +1282,12 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
         <div className="max-w-4xl mx-auto">
           <div className={`${currentTheme.cardBg} rounded-3xl shadow-2xl p-8`}>
             <div className="text-center mb-8">
-              <h1 className="text-4xl font-bold text-green-800 mb-4">🎉 Great Job! 🎉</h1>
-              <p className="text-2xl text-green-600">Here are all your questions and answers:</p>
+              <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-green-800 mb-4 leading-tight">
+                <span className="text-2xl sm:text-3xl md:text-4xl">🎉</span>
+                <span className="mx-2 sm:mx-3">Great Job!</span>
+                <span className="text-2xl sm:text-3xl md:text-4xl">🎉</span>
+              </h1>
+              <p className="text-lg sm:text-xl md:text-2xl text-green-600 px-2">Here are all your questions and answers:</p>
             </div>
 
             <div className="space-y-6 mb-8 max-h-96 overflow-y-auto">
@@ -1300,7 +1298,7 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
                   </div>
                   <div className="text-2xl font-bold text-purple-700 mb-2">
                     {question.numbers[0]}
-                    {question.operations.map((op, opIndex) => 
+                    {question.operations.map((op, opIndex) =>
                       ` ${op} ${question.numbers[opIndex + 1]}`
                     ).join('')} = {question.answer}
                   </div>
@@ -1313,10 +1311,10 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
                 playSound('buttonClick');
                 restartGame();
               }}
-              className="w-full bg-gradient-to-r from-green-500 to-blue-500 text-white text-3xl font-bold py-6 rounded-2xl hover:from-green-600 hover:to-blue-600 transition-all shadow-xl hover:shadow-2xl transform hover:scale-105 flex items-center justify-center gap-4"
+              className="w-full bg-gradient-to-r from-green-500 to-blue-500 text-white text-xl sm:text-2xl md:text-3xl font-bold py-4 sm:py-5 md:py-6 px-4 rounded-2xl hover:from-green-600 hover:to-blue-600 transition-all shadow-xl hover:shadow-2xl transform hover:scale-105 flex items-center justify-center gap-2 sm:gap-3 md:gap-4"
             >
-              <RefreshCw className="w-8 h-8" />
-              Start New Game!
+              <RefreshCw className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 flex-shrink-0" />
+              <span className="leading-tight">Start New Game!</span>
             </button>
           </div>
         </div>
