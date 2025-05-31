@@ -15,6 +15,8 @@ interface GameSettings {
   numbersPerQuestion: number;
   level: 1 | 2 | 3 | 4 | 5;
   theme: 'default' | 'ocean' | 'forest' | 'sunset' | 'lavender';
+  speechEnabled: boolean;
+  soundEnabled: boolean;
 }
 
 interface Question {
@@ -51,7 +53,9 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
     numQuestions: 10,
     numbersPerQuestion: 10,
     level: 1,
-    theme: 'default'
+    theme: 'default',
+    speechEnabled: false,
+    soundEnabled: true
   });
   const [nextQuestionNumber, setNextQuestionNumber] = useState<number>(1);
   const [currentQuestion, setCurrentQuestion] = useState<number>(0);
@@ -129,8 +133,35 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
 
   const currentTheme: Theme = themes[settings.theme] || themes.default;
 
+  // Speech function
+  const speak = (text: string): Promise<void> => {
+    if (!settings.speechEnabled) return Promise.resolve();
+    
+    return new Promise((resolve) => {
+      try {
+        // Cancel any ongoing speech
+        window.speechSynthesis.cancel();
+        
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.rate = 0.8; // Slightly slower for better comprehension
+        utterance.volume = 0.7;
+        utterance.pitch = 1.0;
+        
+        utterance.onend = () => resolve();
+        utterance.onerror = () => resolve();
+        
+        window.speechSynthesis.speak(utterance);
+      } catch (error) {
+        console.log('Speech synthesis not available:', error);
+        resolve();
+      }
+    });
+  };
+
   // Sound functions
   const playSound = async (type: SoundType): Promise<void> => {
+    if (!settings.soundEnabled) return;
+    
     try {
       if (Tone.context.state !== 'running') {
         await Tone.start();
@@ -288,19 +319,28 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
     setCurrentNumberIndex(0);
     setCalculatingAnswer(false);
     setShowingAnswer(false);
-    setShowingGetReady(false); // Don't show get ready for first question
+    setShowingGetReady(true); // Show get ready for first question
     setFlashingBetweenNumbers(false);
     setIsPaused(false);
     setGameState('playing');
     
-    // Add delay after game start sound before starting first question
+    // Add delay after game start sound, then show get ready (without sound for first question)
     setTimeout(() => {
-      if (questions.length > 0) {
-        setCurrentNumbers(questions[0].numbers);
-        setCurrentOperations(questions[0].operations);
-        setAnswer(questions[0].answer);
-        setDisplayNumber(questions[0].numbers[0].toString());
-      }
+      // Don't play get ready sound for first question, but add delay after get ready screen
+      setTimeout(() => {
+        setShowingGetReady(false);
+        if (questions.length > 0) {
+          setCurrentNumbers(questions[0].numbers);
+          setCurrentOperations(questions[0].operations);
+          setAnswer(questions[0].answer);
+          setDisplayNumber(questions[0].numbers[0].toString());
+          
+          // Speak the first number of the first question
+          if (settings.speechEnabled) {
+            speak(questions[0].numbers[0].toString());
+          }
+        }
+      }, 800); // 800ms delay after first get ready screen
     }, 1000); // 1 second delay after game start sound
   };
 
@@ -337,43 +377,92 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
     if (!currentQ) return;
 
     if (showingAnswer) {
-      const timer = setTimeout(() => {
-        playSound('questionComplete');
-        if (currentQuestion < allQuestions.length - 1) {
-          setNextQuestionNumber(currentQuestion + 2);
-          setShowingGetReady(true);
-          setShowingAnswer(false);
-          setCalculatingAnswer(false);
-          setFlashingBetweenNumbers(false);
-          
-          // Add delay after get ready sound for 2nd question and beyond
+      // Speak the answer when it's revealed and wait for completion
+      if (settings.speechEnabled) {
+        speak(answer.toString()).then(() => {
+          // Wait additional time after speech completes before moving to next question
           setTimeout(() => {
-            playSound('getReady');
+            playSound('questionComplete');
+            if (currentQuestion < allQuestions.length - 1) {
+              setNextQuestionNumber(currentQuestion + 2);
+              setShowingGetReady(true);
+              setShowingAnswer(false);
+              setCalculatingAnswer(false);
+              setFlashingBetweenNumbers(false);
+              
+              // Add delay after get ready sound for 2nd question and beyond
+              setTimeout(() => {
+                playSound('getReady');
+                
+                // Add additional delay after get ready sound
+                setTimeout(() => {
+                  const nextQuestionNum = currentQuestion + 1;
+                  setCurrentQuestion(nextQuestionNum);
+                  setCurrentNumberIndex(0);
+                  setShowingGetReady(false);
+                  const nextQ = allQuestions[nextQuestionNum];
+                  setCurrentNumbers(nextQ.numbers);
+                  setCurrentOperations(nextQ.operations);
+                  setAnswer(nextQ.answer);
+                  setDisplayNumber(nextQ.numbers[0].toString());
+                  
+                  // Speak the first number of the next question
+                  if (settings.speechEnabled) {
+                    speak(nextQ.numbers[0].toString());
+                  }
+                }, 800); // 800ms delay after get ready sound
+              }, 1000);
+            } else {
+              playSound('gameComplete');
+              setGameState('results');
+            }
+          }, 500); // 500ms additional delay after speech completes
+        });
+      } else {
+        // Original timer behavior when speech is disabled
+        const timer = setTimeout(() => {
+          playSound('questionComplete');
+          if (currentQuestion < allQuestions.length - 1) {
+            setNextQuestionNumber(currentQuestion + 2);
+            setShowingGetReady(true);
+            setShowingAnswer(false);
+            setCalculatingAnswer(false);
+            setFlashingBetweenNumbers(false);
             
-            // Add additional delay after get ready sound
+            // Add delay after get ready sound for 2nd question and beyond
             setTimeout(() => {
-              const nextQuestionNum = currentQuestion + 1;
-              setCurrentQuestion(nextQuestionNum);
-              setCurrentNumberIndex(0);
-              setShowingGetReady(false);
-              const nextQ = allQuestions[nextQuestionNum];
-              setCurrentNumbers(nextQ.numbers);
-              setCurrentOperations(nextQ.operations);
-              setAnswer(nextQ.answer);
-              setDisplayNumber(nextQ.numbers[0].toString());
-            }, 800); // 800ms delay after get ready sound
-          }, 1000);
-        } else {
-          playSound('gameComplete');
-          setGameState('results');
-        }
-      }, 2000);
+              playSound('getReady');
+              
+              // Add additional delay after get ready sound
+              setTimeout(() => {
+                const nextQuestionNum = currentQuestion + 1;
+                setCurrentQuestion(nextQuestionNum);
+                setCurrentNumberIndex(0);
+                setShowingGetReady(false);
+                const nextQ = allQuestions[nextQuestionNum];
+                setCurrentNumbers(nextQ.numbers);
+                setCurrentOperations(nextQ.operations);
+                setAnswer(nextQ.answer);
+                setDisplayNumber(nextQ.numbers[0].toString());
+              }, 800); // 800ms delay after get ready sound
+            }, 1000);
+          } else {
+            playSound('gameComplete');
+            setGameState('results');
+          }
+        }, 2000);
+        
+        return () => clearTimeout(timer);
+      }
       
-      return () => clearTimeout(timer);
+      return;
     } else if (calculatingAnswer) {
       const delays = getDelays(settings.level);
       const timer = setTimeout(() => {
-        playSound('answerReveal');
+        // Only play answer reveal sound if speech is disabled
+        if (!settings.speechEnabled) {
+          playSound('answerReveal');
+        }
         setDisplayNumber(answer.toString());
         setCalculatingAnswer(false);
         setShowingAnswer(true);
@@ -385,7 +474,18 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
         setFlashingBetweenNumbers(false);
         if (currentNumberIndex < currentNumbers.length - 1) {
           setCurrentNumberIndex(prev => prev + 1);
-          setDisplayNumber(currentNumbers[currentNumberIndex + 1].toString());
+          const nextNumber = currentNumbers[currentNumberIndex + 1];
+          setDisplayNumber(nextNumber.toString());
+          
+          // Speak the operation (only minus) and then the next number
+          if (settings.speechEnabled) {
+            const operation = currentOperations[currentNumberIndex];
+            if (operation === '-') {
+              speak(`minus ${nextNumber}`);
+            } else {
+              speak(nextNumber.toString());
+            }
+          }
         } else {
           // No calculating sound played here
           setDisplayNumber('Calculating...');
@@ -439,6 +539,64 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
             </div>
 
             <div className="space-y-6">
+              {/* Audio & Speech Settings */}
+              <div className="bg-purple-50 rounded-2xl p-6">
+                <label className="block text-2xl font-bold text-purple-800 mb-4">Audio Settings:</label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <label className={`flex items-center justify-between p-4 rounded-xl cursor-pointer transition-all transform hover:scale-105 border-2 ${
+                    settings.soundEnabled 
+                      ? 'bg-purple-100 border-purple-300 text-purple-800 shadow-lg' 
+                      : 'bg-white border-gray-200 hover:bg-gray-50'
+                  }`}>
+                    <div className="flex items-center gap-3">
+                      <span className="text-2xl">🔊</span>
+                      <span className="text-lg font-bold">Sound Effects</span>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={settings.soundEnabled}
+                      onChange={(e) => {
+                        playSound('settingChange');
+                        updateSettings(prev => ({...prev, soundEnabled: e.target.checked}));
+                      }}
+                      className="w-6 h-6 text-purple-600 rounded"
+                    />
+                  </label>
+                  
+                  <label className={`flex items-center justify-between p-4 rounded-xl cursor-pointer transition-all transform hover:scale-105 border-2 ${
+                    settings.speechEnabled 
+                      ? 'bg-purple-100 border-purple-300 text-purple-800 shadow-lg' 
+                      : 'bg-white border-gray-200 hover:bg-gray-50'
+                  }`}>
+                    <div className="flex items-center gap-3">
+                      <span className="text-2xl">🗣️</span>
+                      <span className="text-lg font-bold">Speech</span>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={settings.speechEnabled}
+                      onChange={(e) => {
+                        playSound('settingChange');
+                        updateSettings(prev => ({
+                          ...prev, 
+                          speechEnabled: e.target.checked,
+                          // Reset level to 1 if speech is enabled and current level is above 3
+                          level: e.target.checked && prev.level > 3 ? 1 : prev.level
+                        }));
+                      }}
+                      className="w-6 h-6 text-purple-600 rounded"
+                    />
+                  </label>
+                </div>
+                {settings.speechEnabled && (
+                  <div className="mt-3 p-3 bg-blue-100 rounded-lg">
+                    <p className="text-sm text-blue-700">
+                      ℹ️ Speech mode limits difficulty to levels 1-3 for optimal experience
+                    </p>
+                  </div>
+                )}
+              </div>
+
               {/* Theme Selector */}
               <div className="bg-gray-50 rounded-2xl p-6">
                 <label className="block text-2xl font-bold text-gray-800 mb-4">Theme:</label>
@@ -502,7 +660,6 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
                 </div>
               </div>
 
-              {/* Operations */}
               <div className="bg-green-50 rounded-2xl p-6">
                 <label className="block text-2xl font-bold text-green-800 mb-4">Operations:</label>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -608,17 +765,25 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
                       'bg-purple-500 text-white shadow-lg'
                     ];
                     
+                    // Disable levels 4 and 5 when speech is enabled
+                    const isDisabled = settings.speechEnabled && level > 3;
+                    
                     return (
                       <button
                         key={level}
                         onClick={() => {
-                          playSound('settingChange');
-                          updateSettings(prev => ({...prev, level: level as GameSettings['level']}));
+                          if (!isDisabled) {
+                            playSound('settingChange');
+                            updateSettings(prev => ({...prev, level: level as GameSettings['level']}));
+                          }
                         }}
-                        className={`p-3 sm:p-4 rounded-xl font-bold text-center transition-all transform hover:scale-105 border-2 min-h-[80px] sm:min-h-[90px] flex flex-col items-center justify-center ${
-                          settings.level === level 
-                            ? selectedColor[level - 1]
-                            : `${levelColors[level - 1]} hover:shadow-md`
+                        disabled={isDisabled}
+                        className={`p-3 sm:p-4 rounded-xl font-bold text-center transition-all border-2 min-h-[80px] sm:min-h-[90px] flex flex-col items-center justify-center ${
+                          isDisabled 
+                            ? 'bg-gray-100 border-gray-300 text-gray-400 cursor-not-allowed opacity-50'
+                            : settings.level === level 
+                              ? `${selectedColor[level - 1]} transform hover:scale-105`
+                              : `${levelColors[level - 1]} hover:shadow-md transform hover:scale-105`
                         }`}
                       >
                         <div className="text-xl sm:text-2xl mb-1 leading-none">{level}</div>
@@ -627,6 +792,13 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
                     );
                   })}
                 </div>
+                {settings.speechEnabled && (
+                  <div className="mt-3 p-3 bg-blue-100 rounded-lg">
+                    <p className="text-sm text-blue-700">
+                      ℹ️ Levels 4-5 are disabled in speech mode for better timing
+                    </p>
+                  </div>
+                )}
               </div>
 
               <button
