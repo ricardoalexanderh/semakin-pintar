@@ -1,5 +1,5 @@
 import React from 'react';
-import { Calculator, Brain, Gamepad2, Star, Zap, Trophy, X, Divide } from 'lucide-react';
+import { Calculator, Brain, Gamepad2, Trophy, X, Divide } from 'lucide-react';
 
 // Import logo (replace with your actual logo file)
 import logo from '/logo.png';
