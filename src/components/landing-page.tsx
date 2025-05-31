@@ -80,25 +80,25 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGameSelect }) => {
         <div className="min-h-screen bg-gradient-to-br from-orange-100 via-yellow-50 to-purple-100 p-4">
             <div className="max-w-4xl mx-auto">
                 {/* Header with Logo */}
-                <div className="text-center mb-12 pt-8">
+                <div className="text-center mb-8 md:mb-12 pt-4 md:pt-8">
                     {/* Logo */}
-                    <div className="mb-8 flex justify-center">
+                    <div className="mb-6 md:mb-8 flex justify-center">
                         <div className="relative">
-                            {/* Logo Background Circle */}
-                            <div className="w-[500px] h-[500px] bg-gradient-to-br from-orange-50 to-purple-50 rounded-full shadow-2xl flex items-center justify-center relative overflow-hidden border-4 border-white">
-                                {/* Decorative Elements matching logo style */}
+                            {/* Logo Background Circle - Responsive sizes */}
+                            <div className="w-[280px] h-[280px] sm:w-[350px] sm:h-[350px] md:w-[420px] md:h-[420px] lg:w-[500px] lg:h-[500px] bg-gradient-to-br from-orange-50 to-purple-50 rounded-full shadow-2xl flex items-center justify-center relative overflow-hidden border-4 border-white">
+                                {/* Decorative Elements matching logo style - Responsive */}
                                 <div className="absolute inset-0 opacity-20">
-                                    <div className="absolute top-16 left-16 w-16 h-16 bg-purple-400 rounded-lg rotate-12"></div>
-                                    <div className="absolute top-24 right-20 w-12 h-12 bg-teal-400 rounded-full"></div>
-                                    <div className="absolute bottom-24 left-24 w-20 h-20 bg-yellow-400 rounded-lg -rotate-12"></div>
-                                    <div className="absolute bottom-20 right-16 w-14 h-14 bg-orange-400 rounded-full"></div>
-                                    <div className="absolute top-1/3 right-1/4 w-10 h-10 bg-red-400 rounded-lg rotate-45"></div>
+                                    <div className="absolute top-8 left-8 md:top-16 md:left-16 w-8 h-8 md:w-16 md:h-16 bg-purple-400 rounded-lg rotate-12"></div>
+                                    <div className="absolute top-12 right-10 md:top-24 md:right-20 w-6 h-6 md:w-12 md:h-12 bg-teal-400 rounded-full"></div>
+                                    <div className="absolute bottom-12 left-12 md:bottom-24 md:left-24 w-10 h-10 md:w-20 md:h-20 bg-yellow-400 rounded-lg -rotate-12"></div>
+                                    <div className="absolute bottom-10 right-8 md:bottom-20 md:right-16 w-7 h-7 md:w-14 md:h-14 bg-orange-400 rounded-full"></div>
+                                    <div className="absolute top-1/3 right-1/4 w-5 h-5 md:w-10 md:h-10 bg-red-400 rounded-lg rotate-45"></div>
                                 </div>
 
                                 {/* Main Logo Content */}
                                 <div className="text-center z-10">
-                                    {/* Logo Image Placeholder */}
-                                    <div className="w-80 h-80 mx-auto mb-6 relative">                                        
+                                    {/* Logo Image Placeholder - Responsive */}
+                                    <div className="w-48 h-48 sm:w-60 sm:h-60 md:w-72 md:h-72 lg:w-80 lg:h-80 mx-auto mb-4 md:mb-6 relative">                                        
                                         {
                                             <img
                                                 src={logo}
@@ -113,11 +113,11 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGameSelect }) => {
                     </div>
 
                     {/* Website Description */}
-                    <div className="bg-white/95 backdrop-blur-sm rounded-3xl p-8 shadow-xl max-w-6xl mx-auto border border-purple-100">
-                        <h2 className="text-3xl font-bold text-purple-700 mb-4">
+                    <div className="bg-white/95 backdrop-blur-sm rounded-3xl p-6 md:p-8 shadow-xl max-w-6xl mx-auto border border-purple-100">
+                        <h2 className="text-2xl md:text-3xl font-bold text-purple-700 mb-4">
                             Welcome to Your Learning Adventure! 🚀
                         </h2>
-                        <div className="text-lg text-gray-700 leading-relaxed space-y-4">
+                        <div className="text-base md:text-lg text-gray-700 leading-relaxed space-y-4">
                             <p>
                                 <strong>Hi, I'm a father of three and passionate coder.</strong> This journey started when I watched my youngest child light up while solving math problems. That spark has inspired me to create educational games that turn learning into play, combining my coding skills with real parent insights.
                             </p>
@@ -140,18 +140,18 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGameSelect }) => {
                 </div>
 
                 {/* Games Section */}
-                <div className="bg-white/95 backdrop-blur-sm rounded-3xl p-8 shadow-xl border border-purple-100">
-                    <h3 className="text-2xl font-bold text-purple-700 mb-6 text-center">Choose Your Game</h3>
+                <div className="bg-white/95 backdrop-blur-sm rounded-3xl p-6 md:p-8 shadow-xl border border-purple-100">
+                    <h3 className="text-xl md:text-2xl font-bold text-purple-700 mb-6 text-center">Choose Your Game</h3>
 
                     {/* Games Grid */}
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6">
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 md:gap-6">
                         {games.map((game) => (
                             <div key={game.id} className="relative group">
                                 {/* Game Icon */}
                                 <button
                                     onClick={game.onClick}
                                     disabled={!game.available}
-                                    className={`w-full aspect-square rounded-3xl shadow-lg transition-all duration-300 transform hover:scale-105 hover:-translate-y-2 flex flex-col items-center justify-center p-4 text-white font-bold relative overflow-hidden ${game.available
+                                    className={`w-full aspect-square rounded-3xl shadow-lg transition-all duration-300 transform hover:scale-105 hover:-translate-y-2 flex flex-col items-center justify-center p-3 md:p-4 text-white font-bold relative overflow-hidden ${game.available
                                             ? `bg-gradient-to-br ${game.gradient} hover:shadow-2xl active:scale-95`
                                             : 'bg-gray-300 cursor-not-allowed opacity-60'
                                         }`}
@@ -162,19 +162,19 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGameSelect }) => {
                                     )}
 
                                     {/* Icon */}
-                                    <div className="mb-3 relative z-10">
+                                    <div className="mb-2 md:mb-3 relative z-10">
                                         {game.icon}
                                     </div>
 
                                     {/* Game Name */}
-                                    <div className="text-sm font-bold text-center leading-tight relative z-10">
+                                    <div className="text-xs md:text-sm font-bold text-center leading-tight relative z-10">
                                         {game.name}
                                     </div>
 
                                     {/* Coming Soon Badge - Diagonal Ribbon */}
                                     {!game.available && (
-                                        <div className="absolute top-3 right-3 z-20">
-                                            <div className="bg-orange-400 text-white text-xs font-bold px-2 py-1 rounded-md shadow-lg border border-orange-500 transform rotate-12 origin-center">
+                                        <div className="absolute top-2 right-2 md:top-3 md:right-3 z-20">
+                                            <div className="bg-orange-400 text-white text-xs font-bold px-1.5 py-0.5 md:px-2 md:py-1 rounded-md shadow-lg border border-orange-500 transform rotate-12 origin-center">
                                                 Soon
                                             </div>
                                         </div>
@@ -192,21 +192,21 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGameSelect }) => {
                         ))}
                     </div>
 
-                    {/* Featured Game Highlight */}
-                    <div className="mt-8 p-6 bg-gradient-to-r from-purple-100 to-teal-100 rounded-2xl border-2 border-purple-200">
-                        <div className="flex items-center justify-between flex-wrap gap-4">
-                            <div className="flex items-center gap-4">
-                                <div className="bg-gradient-to-r from-purple-500 to-indigo-500 text-white w-16 h-16 rounded-2xl flex items-center justify-center shadow-lg">
-                                    <Calculator className="w-8 h-8" />
+                    {/* Featured Game Highlight - Mobile Responsive */}
+                    <div className="mt-8 p-4 md:p-6 bg-gradient-to-r from-purple-100 to-teal-100 rounded-2xl border-2 border-purple-200">
+                        <div className="flex flex-col md:flex-row items-center md:justify-between gap-4">
+                            <div className="flex flex-col sm:flex-row items-center gap-4 text-center sm:text-left">
+                                <div className="bg-gradient-to-r from-purple-500 to-indigo-500 text-white w-12 h-12 md:w-16 md:h-16 rounded-2xl flex items-center justify-center shadow-lg flex-shrink-0">
+                                    <Calculator className="w-6 h-6 md:w-8 md:h-8" />
                                 </div>
                                 <div>
-                                    <h4 className="text-xl font-bold text-purple-700">Featured: Mental Arithmetic Game</h4>
-                                    <p className="text-teal-700">Start your learning journey with our most popular game!</p>
+                                    <h4 className="text-lg md:text-xl font-bold text-purple-700">Featured: Mental Arithmetic Game</h4>
+                                    <p className="text-sm md:text-base text-teal-700">Start your learning journey with our most popular game!</p>
                                 </div>
                             </div>
                             <button
                                 onClick={() => onGameSelect('mental-arithmetic-game')}
-                                className="bg-gradient-to-r from-purple-500 to-teal-500 text-white px-6 py-3 rounded-xl font-bold hover:from-purple-600 hover:to-teal-600 transition-all shadow-lg hover:shadow-xl transform hover:scale-105"
+                                className="bg-gradient-to-r from-purple-500 to-teal-500 text-white px-6 py-3 rounded-xl font-bold hover:from-purple-600 hover:to-teal-600 transition-all shadow-lg hover:shadow-xl transform hover:scale-105 w-full sm:w-auto"
                             >
                                 Play Now →
                             </button>
@@ -216,17 +216,17 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGameSelect }) => {
 
                 {/* Footer */}
                 <div className="text-center mt-8 text-purple-700/80">
-                    <p className="text-lg mb-8">
+                    <p className="text-base md:text-lg mb-8">
                         More games coming soon! Stay tuned for new adventures. ✨
                     </p>
                 </div>
 
                 {/* Donate Section */}
                 <div id="donate-section" className="mt-12 mb-8">
-                    <div className="bg-gradient-to-r from-purple-100 to-orange-100 rounded-3xl p-8 shadow-xl border border-purple-200 max-w-2xl mx-auto">
+                    <div className="bg-gradient-to-r from-purple-100 to-orange-100 rounded-3xl p-6 md:p-8 shadow-xl border border-purple-200 max-w-2xl mx-auto">
                         <div className="text-center">
-                            <h3 className="text-2xl font-bold text-purple-700 mb-4">☕️ Support Our Mission</h3>
-                            <p className="text-gray-700 mb-6 leading-relaxed">
+                            <h3 className="text-xl md:text-2xl font-bold text-purple-700 mb-4">☕️ Support Our Mission</h3>
+                            <p className="text-sm md:text-base text-gray-700 mb-6 leading-relaxed">
                                 Your support helps me dedicate more time to creating educational games that make learning fun for families worldwide. Every contribution, no matter the size, helps keep this project growing!
                             </p>
 
@@ -237,34 +237,14 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGameSelect }) => {
                                     href="https://saweria.co/semakinpintar"
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="bg-gradient-to-r from-yellow-400 to-orange-400 text-white px-6 py-3 rounded-xl font-bold hover:from-yellow-500 hover:to-orange-500 transition-all shadow-lg hover:shadow-xl transform hover:scale-105 flex items-center gap-2"
+                                    className="bg-gradient-to-r from-yellow-400 to-orange-400 text-white px-4 md:px-6 py-3 rounded-xl font-bold hover:from-yellow-500 hover:to-orange-500 transition-all shadow-lg hover:shadow-xl transform hover:scale-105 flex items-center gap-2 text-sm md:text-base w-full sm:w-auto justify-center"
                                 >
                                     ☕️ Buy Me a Coffee - Indonesia
                                 </a>
-
-                                {/* PayPal Donate Button */}
-                                {/*<a
-                                    href="https://www.paypal.com/donate/?hosted_button_id=YOUR_BUTTON_ID"
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-6 py-3 rounded-xl font-bold hover:from-blue-600 hover:to-blue-700 transition-all shadow-lg hover:shadow-xl transform hover:scale-105 flex items-center gap-2"
-                                >
-                                    💝 Donate via PayPal
-                                </a>*/}
-
-                                {/* Ko-fi Button */}
-                                {/*<a
-                                    href="https://ko-fi.com/yourusername"
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="bg-gradient-to-r from-red-400 to-pink-400 text-white px-6 py-3 rounded-xl font-bold hover:from-red-500 hover:to-pink-500 transition-all shadow-lg hover:shadow-xl transform hover:scale-105 flex items-center gap-2"
-                                >
-                                    ❤️ Support on Ko-fi
-                                </a>*/}
                             </div>
 
                             {/* Additional Message */}
-                            <p className="text-sm text-gray-600 mt-4 italic">
+                            <p className="text-xs md:text-sm text-gray-600 mt-4 italic">
                                 Thank you for believing in educational technology that makes a difference! 🙏
                             </p>
                         </div>
