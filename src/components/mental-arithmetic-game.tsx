@@ -43,29 +43,16 @@ interface MentalArithmeticGameProps {
 }
 
 const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHome }) => {
-  // Load settings from localStorage or use defaults
-  const loadSettings = (): GameSettings => {
-    try {
-      const saved = localStorage.getItem('mentalMathSettings');
-      if (saved) {
-        return JSON.parse(saved) as GameSettings;
-      }
-    } catch (error) {
-      console.log('Could not load saved settings');
-    }
-    return {
-      digitTypes: { '1digit': true, '2digit': true, '3digit': false, '4digit': false },
-      operations: 'both',
-      numQuestions: 10,
-      numbersPerQuestion: 10,
-      level: 1,
-      theme: 'default'
-    };
-  };
-
   // State declarations
   const [gameState, setGameState] = useState<GameState>('setup');
-  const [settings, setSettings] = useState<GameSettings>(loadSettings());
+  const [settings, setSettings] = useState<GameSettings>({
+    digitTypes: { '1digit': true, '2digit': true, '3digit': false, '4digit': false },
+    operations: 'both',
+    numQuestions: 10,
+    numbersPerQuestion: 10,
+    level: 1,
+    theme: 'default'
+  });
   const [nextQuestionNumber, setNextQuestionNumber] = useState<number>(1);
   const [currentQuestion, setCurrentQuestion] = useState<number>(0);
   const [currentNumberIndex, setCurrentNumberIndex] = useState<number>(0);
@@ -80,15 +67,10 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
   const [displayNumber, setDisplayNumber] = useState<string>('');
   const [isPaused, setIsPaused] = useState<boolean>(false);
 
-  // Save settings to localStorage
+  // Save settings to memory (removed localStorage)
   const updateSettings = (newSettings: GameSettings | ((prev: GameSettings) => GameSettings)): void => {
     const updatedSettings = typeof newSettings === 'function' ? newSettings(settings) : newSettings;
     setSettings(updatedSettings);
-    try {
-      localStorage.setItem('mentalMathSettings', JSON.stringify(updatedSettings));
-    } catch (error) {
-      console.log('Could not save settings');
-    }
   };
 
   // Theme configurations
@@ -161,10 +143,7 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
           synth.triggerAttackRelease('C5', '0.3');
           break;
         case 'calculating':
-          const seq = new Tone.Sequence((time) => {
-            synth.triggerAttackRelease('A4', '0.1', time);
-          }, ['A4'], '0.2').start(0);
-          seq.stop('+1');
+          // Removed calculating sound - no longer plays
           break;
         case 'answerReveal':
           synth.triggerAttackRelease('C5', '0.2');
@@ -309,21 +288,20 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
     setCurrentNumberIndex(0);
     setCalculatingAnswer(false);
     setShowingAnswer(false);
-    setShowingGetReady(true);
+    setShowingGetReady(false); // Don't show get ready for first question
     setFlashingBetweenNumbers(false);
     setIsPaused(false);
     setGameState('playing');
     
+    // Add delay after game start sound before starting first question
     setTimeout(() => {
-      playSound('getReady');
-      setShowingGetReady(false);
       if (questions.length > 0) {
         setCurrentNumbers(questions[0].numbers);
         setCurrentOperations(questions[0].operations);
         setAnswer(questions[0].answer);
         setDisplayNumber(questions[0].numbers[0].toString());
       }
-    }, 1000);
+    }, 1000); // 1 second delay after game start sound
   };
 
   const pauseGame = (): void => {
@@ -368,17 +346,22 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
           setCalculatingAnswer(false);
           setFlashingBetweenNumbers(false);
           
+          // Add delay after get ready sound for 2nd question and beyond
           setTimeout(() => {
             playSound('getReady');
-            const nextQuestionNum = currentQuestion + 1;
-            setCurrentQuestion(nextQuestionNum);
-            setCurrentNumberIndex(0);
-            setShowingGetReady(false);
-            const nextQ = allQuestions[nextQuestionNum];
-            setCurrentNumbers(nextQ.numbers);
-            setCurrentOperations(nextQ.operations);
-            setAnswer(nextQ.answer);
-            setDisplayNumber(nextQ.numbers[0].toString());
+            
+            // Add additional delay after get ready sound
+            setTimeout(() => {
+              const nextQuestionNum = currentQuestion + 1;
+              setCurrentQuestion(nextQuestionNum);
+              setCurrentNumberIndex(0);
+              setShowingGetReady(false);
+              const nextQ = allQuestions[nextQuestionNum];
+              setCurrentNumbers(nextQ.numbers);
+              setCurrentOperations(nextQ.operations);
+              setAnswer(nextQ.answer);
+              setDisplayNumber(nextQ.numbers[0].toString());
+            }, 800); // 800ms delay after get ready sound
           }, 1000);
         } else {
           playSound('gameComplete');
@@ -404,7 +387,7 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
           setCurrentNumberIndex(prev => prev + 1);
           setDisplayNumber(currentNumbers[currentNumberIndex + 1].toString());
         } else {
-          playSound('calculating');
+          // No calculating sound played here
           setDisplayNumber('Calculating...');
           setCalculatingAnswer(true);
         }
@@ -418,7 +401,7 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
           if (currentNumberIndex < currentNumbers.length - 1) {
             setFlashingBetweenNumbers(true);
           } else {
-            playSound('calculating');
+            // No calculating sound played here
             setDisplayNumber('Calculating...');
             setCalculatingAnswer(true);
           }
