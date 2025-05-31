@@ -580,13 +580,28 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
   };
 
   const pauseGame = (): void => {
-    // Immediately stop all speech and timeouts
-    if (settings.speechEnabled) {
-      speechSynthesis.cancel();
-      if (speechTimeoutRef.current) {
-        clearTimeout(speechTimeoutRef.current);
-        speechTimeoutRef.current = null;
+    // Immediately stop all speech and audio
+    speechSynthesis.cancel();
+    
+    // Clear all possible timeouts and intervals
+    if (speechTimeoutRef.current) {
+      clearTimeout(speechTimeoutRef.current);
+      speechTimeoutRef.current = null;
+    }
+    
+    // Clear any other timeouts that might be running
+    for (let i = 1; i < 99999; i++) {
+      clearTimeout(i);
+    }
+    
+    // Stop any Tone.js audio
+    try {
+      if (Tone.context.state === 'running') {
+        Tone.Transport.stop();
+        Tone.Transport.cancel();
       }
+    } catch (error) {
+      // Ignore Tone.js errors
     }
     
     // Set paused state first to stop useEffect loops
@@ -606,17 +621,35 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
   };
 
   const restartGame = (): void => {
-    // Cancel all ongoing speech and audio
-    if (settings.speechEnabled) {
-      speechSynthesis.cancel();
-      if (speechTimeoutRef.current) {
-        clearTimeout(speechTimeoutRef.current);
-        speechTimeoutRef.current = null;
-      }
+    // Immediately stop all speech and audio
+    speechSynthesis.cancel();
+    
+    // Clear all possible timeouts and intervals
+    if (speechTimeoutRef.current) {
+      clearTimeout(speechTimeoutRef.current);
+      speechTimeoutRef.current = null;
     }
     
-    // Reset all game state
+    // Clear any other timeouts that might be running
+    for (let i = 1; i < 99999; i++) {
+      clearTimeout(i);
+    }
+    
+    // Stop any Tone.js audio
+    try {
+      if (Tone.context.state === 'running') {
+        Tone.Transport.stop();
+        Tone.Transport.cancel();
+      }
+    } catch (error) {
+      // Ignore Tone.js errors
+    }
+    
+    // Set game state to setup first to stop useEffect loops
     setGameState('setup');
+    setIsPaused(false);
+    
+    // Reset all game state variables
     setCurrentQuestion(0);
     setNextQuestionNumber(1);
     setCurrentNumberIndex(0);
@@ -624,7 +657,6 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
     setCalculatingAnswer(false);
     setShowingGetReady(false);
     setFlashingBetweenNumbers(false);
-    setIsPaused(false);
     setAllQuestions([]);
     setDisplayNumber('');
     setAnswer(0);
