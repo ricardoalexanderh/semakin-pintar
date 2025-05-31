@@ -215,9 +215,9 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
         }
         
         // Enhanced settings for better speech quality        
-        utterance.rate = 0.9; // Slightly slower for better comprehension
+        utterance.rate = 1.0; // Slightly slower for better comprehension
         utterance.volume = 0.9;
-        utterance.pitch = 1.1; // Slightly higher pitch
+        utterance.pitch = 1.2; // Slightly higher pitch
 
         let resolved = false;
         const resolveOnce = () => {
@@ -286,7 +286,7 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
       } else if (digitCount === 3) {
         numberTime += 1400 * speedMultiplier; // Three digits
       } else if (digitCount === 4) {
-        numberTime += 2000 * speedMultiplier; // Four digits
+        numberTime += 1800 * speedMultiplier; // Four digits
       }
     });
 
@@ -338,7 +338,7 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
     if (settings.speechEnabled) {
       // For speech mode: ensure speech completes + brief pause
       const speechDuration = estimateSpeechDuration(answerText);
-      return speechDuration + 1000; // Speech duration + 1 second pause
+      return speechDuration + 100; // Speech duration + 1 second pause
     } else {
       // For non-speech mode: slightly longer, level-based delays
       const levelDelays = {
