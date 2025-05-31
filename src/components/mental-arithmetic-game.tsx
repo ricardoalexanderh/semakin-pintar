@@ -215,7 +215,8 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
         }
         
         // Enhanced settings for better speech quality
-        utterance.rate = 0.75; // Slightly slower for better comprehension
+        //utterance.rate = 0.75; // Slightly slower for better comprehension
+        utterance.rate = 0.9;
         utterance.volume = 0.9;
         utterance.pitch = 1.1; // Slightly higher pitch
 
