@@ -234,12 +234,24 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGameSelect }) => {
                             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
                                 {/* Buy Me a Coffee Button */}
                                 <a
+                                    href="https://ko-fi.com/semakinpintar"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="bg-gradient-to-r from-yellow-400 to-orange-400 text-white px-4 md:px-6 py-3 rounded-xl font-bold hover:from-yellow-500 hover:to-orange-500 transition-all shadow-lg hover:shadow-xl transform hover:scale-105 flex items-center gap-2 text-sm md:text-base w-full sm:w-auto justify-center"
+                                >
+                                    ☕️ Buy Me a Coffee - International ($)
+                                </a>
+                            </div>
+
+                            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+                                {/* Buy Me a Coffee Button */}
+                                <a
                                     href="https://saweria.co/semakinpintar"
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="bg-gradient-to-r from-yellow-400 to-orange-400 text-white px-4 md:px-6 py-3 rounded-xl font-bold hover:from-yellow-500 hover:to-orange-500 transition-all shadow-lg hover:shadow-xl transform hover:scale-105 flex items-center gap-2 text-sm md:text-base w-full sm:w-auto justify-center"
                                 >
-                                    ☕️ Buy Me a Coffee - Indonesia
+                                    ☕️ Buy Me a Coffee - Indonesia (Rp.)
                                 </a>
                             </div>
 
