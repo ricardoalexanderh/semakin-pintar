@@ -82,6 +82,8 @@ const MultiplicationTable: React.FC<MultiplicationTableProps> = ({ onBackToHome 
   const [showAchievement, setShowAchievement] = useState<Achievement | null>(null);
   // State for collapsible achievements
   const [achievementsCollapsed, setAchievementsCollapsed] = useState(true);
+  // State for collapsible instructions
+  const [instructionsCollapsed, setInstructionsCollapsed] = useState(false);
 
   // Update settings function with memory persistence
   const updateSettings = (newSettings: TableSettings | ((prev: TableSettings) => TableSettings)): void => {
@@ -415,7 +417,7 @@ const MultiplicationTable: React.FC<MultiplicationTableProps> = ({ onBackToHome 
                       : 'bg-gray-200 text-gray-600'
                   }`}
                 >
-                  <span className="sm:hidden">{settings.soundEnabled ? '🔊' : '🔇'}</span>
+                  <span className="block sm:hidden">{settings.soundEnabled ? '🔊 Sound' : '🔇 Sound'}</span>
                   <span className="hidden sm:inline">{settings.soundEnabled ? '🔊' : '🔇'} Sound</span>
                 </button>
 
@@ -430,7 +432,7 @@ const MultiplicationTable: React.FC<MultiplicationTableProps> = ({ onBackToHome 
                       : 'bg-gray-200 text-gray-600'
                   }`}
                 >
-                  <span className="sm:hidden">{settings.showAnswers ? '👁️' : '🙈'}</span>
+                  <span className="block sm:hidden">{settings.showAnswers ? '👁️ Answers' : '🙈 Answers'}</span>
                   <span className="hidden sm:inline">{settings.showAnswers ? '👁️' : '🙈'} Answers</span>
                 </button>
 
@@ -445,7 +447,7 @@ const MultiplicationTable: React.FC<MultiplicationTableProps> = ({ onBackToHome 
                       : 'bg-gray-200 text-gray-600'
                   }`}
                 >
-                  <span className="sm:hidden">{settings.gamificationEnabled ? '🏆' : '📚'}</span>
+                  <span className="block sm:hidden">{settings.gamificationEnabled ? '🏆 Goals' : '📚 Goals'}</span>
                   <span className="hidden sm:inline">{settings.gamificationEnabled ? '🏆' : '📚'} Goals</span>
                 </button>
 
@@ -454,10 +456,52 @@ const MultiplicationTable: React.FC<MultiplicationTableProps> = ({ onBackToHome 
                   className="px-3 py-2 text-sm sm:text-base rounded-xl bg-red-500 text-white hover:bg-red-600 transition-all flex items-center justify-center gap-1 sm:gap-2"
                 >
                   <RotateCcw className="w-3 h-3 sm:w-4 sm:h-4" />
+                  <span className="block sm:hidden">Reset</span>
                   <span className="hidden sm:inline">Reset</span>
                 </button>
               </div>
             </div>
+          </div>
+
+          {/* Instructions Panel */}
+          <div className="mb-4 sm:mb-6">
+            <button
+              onClick={() => {
+                playSound('buttonClick');
+                setInstructionsCollapsed(!instructionsCollapsed);
+              }}
+              className={`w-full text-left p-3 rounded-xl border-2 transition-all hover:shadow-md ${
+                instructionsCollapsed 
+                  ? 'bg-gray-50 border-gray-200 hover:bg-gray-100' 
+                  : 'bg-blue-50 border-blue-300'
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Zap className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
+                  <span className="text-lg sm:text-xl font-bold text-blue-800">
+                    How to Use
+                  </span>
+                </div>
+                {instructionsCollapsed ? (
+                  <ChevronDown className="w-5 h-5 text-gray-500" />
+                ) : (
+                  <ChevronUp className="w-5 h-5 text-gray-500" />
+                )}
+              </div>
+            </button>
+            
+            {!instructionsCollapsed && (
+              <div className="mt-3 p-3 sm:p-4 bg-blue-50 rounded-xl">
+                <ul className="text-blue-700 space-y-1 text-xs sm:text-sm">
+                  <li>• Tap any cell to mark it as memorized</li>
+                  <li>• Green cells show facts you've memorized</li>
+                  <li>• Track progress and unlock achievements! 🏆</li>
+                  <li>• Practice one times table at a time</li>
+                  <li>• Use the toggle buttons to customize your experience</li>
+                </ul>
+              </div>
+            )}
           </div>
 
           {/* Progress Bar and Stats */}
@@ -574,9 +618,6 @@ const MultiplicationTable: React.FC<MultiplicationTableProps> = ({ onBackToHome 
                           onClick={() => toggleMemorized(num, multiplier)}
                           className={`p-2 sm:p-3 rounded-xl cursor-pointer transition-all duration-200 active:scale-95 hover:scale-105 border-2 relative ${getCellColor(num, multiplier)}`}
                         >
-                          {memorized && (
-                            <CheckCircle className="absolute top-1 right-1 w-3 h-3 sm:w-4 sm:h-4 text-green-600" />
-                          )}
                           <div className="flex items-center justify-between">
                             <span className="font-medium text-xs sm:text-sm">
                               {num} × {multiplier}
@@ -594,20 +635,6 @@ const MultiplicationTable: React.FC<MultiplicationTableProps> = ({ onBackToHome 
                 </div>
               ))}
             </div>
-          </div>
-
-          {/* Instructions */}
-          <div className="mt-4 sm:mt-6 p-3 sm:p-4 bg-blue-50 rounded-2xl">
-            <h3 className="font-bold text-blue-800 mb-2 flex items-center gap-2 text-sm sm:text-base">
-              <Zap className="w-4 h-4 sm:w-5 sm:h-5" />
-              How to Use:
-            </h3>
-            <ul className="text-blue-700 space-y-1 text-xs sm:text-sm">
-              <li>• Tap any cell to mark it as memorized ✅</li>
-              <li>• Green cells show facts you've memorized</li>
-              <li>• Track progress and unlock achievements! 🏆</li>
-              <li>• Practice one times table at a time on mobile</li>
-            </ul>
           </div>
         </div>
       </div>
