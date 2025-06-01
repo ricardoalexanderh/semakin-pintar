@@ -30,8 +30,7 @@
     "deploy:build": "npm run lint && npm run build && npm run sitemap && npm run deploy:copy",
     "deploy:copy": "node scripts/copy-assets.js",
     "deploy:full": "node scripts/deploy.js",
-    "deploy:dry-run": "npm run deploy:build && echo 'Dry run completed. Check dist/ folder.'",
-    "postbuild": "npm run sitemap"
+    "deploy:dry-run": "npm run deploy:build && echo 'Dry run completed. Check dist/ folder.'"
   },
   "dependencies": {
     "lucide-react": "^0.511.0",
