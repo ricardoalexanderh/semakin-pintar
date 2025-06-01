@@ -1,0 +1,17 @@
+/* TEAM */
+Developer: Semakin Pintar Team
+Site: https://www.semakinpintar.com
+Contact: ricardoalexanderh@gmail.com
+Location: Indonesia
+
+/* SITE */
+Last update: 2025/06/01
+Language: English / Bahasa Indonesia
+Standards: HTML5, CSS3, TypeScript, React
+Components: React, Vite, TailwindCSS, Lucide Icons, Tone.js
+IDE: Visual Studio Code
+
+/* THANKS */
+Free educational game inspiration from real parent experiences
+Built with love for families learning together
+Special thanks to the open-source community

@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Grid, CheckCircle, Star, Trophy, Target, ArrowLeft, RotateCcw, Zap, ChevronDown, ChevronUp } from 'lucide-react';
-import * as Tone from 'tone';
+import { Grid, CheckCircle, Star, Trophy, Target, RotateCcw, Zap, ChevronDown, ChevronUp } from 'lucide-react';
 
 // Type definitions
 interface TableSettings {
@@ -36,11 +35,7 @@ interface Achievement {
 
 type SoundType = 'check' | 'uncheck' | 'achievement' | 'complete' | 'buttonClick' | 'settingChange';
 
-interface MultiplicationTableProps {
-  onBackToHome?: () => void;
-}
-
-const MultiplicationTable: React.FC<MultiplicationTableProps> = ({ onBackToHome }) => {
+const MultiplicationTable: React.FC = () => {
   // In-memory settings store
   const settingsRef = useRef<TableSettings>({
     theme: 'default',
@@ -51,29 +46,11 @@ const MultiplicationTable: React.FC<MultiplicationTableProps> = ({ onBackToHome 
 
   // Load settings from memory on component mount
   const [settings, setSettingsState] = useState<TableSettings>(() => {
-    try {
-      const stored = localStorage.getItem('multiplication-table-settings');
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        settingsRef.current = { ...settingsRef.current, ...parsed };
-        return settingsRef.current;
-      }
-    } catch (error) {
-      console.log('Could not load settings from storage:', error);
-    }
     return settingsRef.current;
   });
 
   // Load memorized facts from memory
   const [memorizedFacts, setMemorizedFactsState] = useState<MemorizedFacts>(() => {
-    try {
-      const stored = localStorage.getItem('multiplication-table-memorized');
-      if (stored) {
-        return JSON.parse(stored);
-      }
-    } catch (error) {
-      console.log('Could not load memorized facts from storage:', error);
-    }
     return {};
   });
 
@@ -90,68 +67,19 @@ const MultiplicationTable: React.FC<MultiplicationTableProps> = ({ onBackToHome 
     const updatedSettings = typeof newSettings === 'function' ? newSettings(settings) : newSettings;
     settingsRef.current = updatedSettings;
     setSettingsState(updatedSettings);
-    
-    try {
-      localStorage.setItem('multiplication-table-settings', JSON.stringify(updatedSettings));
-    } catch (error) {
-      console.log('Could not save settings to storage:', error);
-    }
   };
 
   // Update memorized facts function with memory persistence
   const updateMemorizedFacts = (newFacts: MemorizedFacts | ((prev: MemorizedFacts) => MemorizedFacts)): void => {
     const updatedFacts = typeof newFacts === 'function' ? newFacts(memorizedFacts) : newFacts;
     setMemorizedFactsState(updatedFacts);
-    
-    try {
-      localStorage.setItem('multiplication-table-memorized', JSON.stringify(updatedFacts));
-    } catch (error) {
-      console.log('Could not save memorized facts to storage:', error);
-    }
   };
 
   // Sound functions
   const playSound = async (type: SoundType): Promise<void> => {
     if (!settings.soundEnabled) return;
-    
-    try {
-      if (Tone.context.state !== 'running') {
-        await Tone.start();
-      }
-
-      const synth = new Tone.Synth().toDestination();
-      
-      switch (type) {
-        case 'check':
-          synth.triggerAttackRelease('C5', '0.2');
-          setTimeout(() => synth.triggerAttackRelease('E5', '0.2'), 100);
-          break;
-        case 'uncheck':
-          synth.triggerAttackRelease('A4', '0.2');
-          break;
-        case 'achievement':
-          synth.triggerAttackRelease('C5', '0.2');
-          setTimeout(() => synth.triggerAttackRelease('E5', '0.2'), 100);
-          setTimeout(() => synth.triggerAttackRelease('G5', '0.2'), 200);
-          setTimeout(() => synth.triggerAttackRelease('C6', '0.4'), 300);
-          break;
-        case 'complete':
-          synth.triggerAttackRelease('C4', '0.2');
-          setTimeout(() => synth.triggerAttackRelease('E4', '0.2'), 100);
-          setTimeout(() => synth.triggerAttackRelease('G4', '0.2'), 200);
-          setTimeout(() => synth.triggerAttackRelease('C5', '0.2'), 300);
-          setTimeout(() => synth.triggerAttackRelease('E5', '0.4'), 400);
-          break;
-        case 'buttonClick':
-          synth.triggerAttackRelease('C4', '0.1');
-          break;
-        case 'settingChange':
-          synth.triggerAttackRelease('A4', '0.15');
-          break;
-      }
-    } catch (error) {
-      console.log('Audio not available:', error);
-    }
+    // Sound implementation would go here
+    console.log(`Playing sound: ${type}`);
   };
 
   // Theme configurations
@@ -358,25 +286,13 @@ const MultiplicationTable: React.FC<MultiplicationTableProps> = ({ onBackToHome 
   const progress = getProgress();
 
   return (
-    <div className={`min-h-screen bg-gradient-to-br ${currentTheme.bg} p-4`}>
+    <div className={`min-h-screen bg-gradient-to-br ${currentTheme.bg} p-4 pt-8`}>
       <div className="max-w-7xl mx-auto">
         <div className={`${currentTheme.cardBg} rounded-3xl shadow-2xl p-6`}>
           {/* Header */}
           <div className="space-y-4 mb-6">
-            {/* Back Button and Title */}
+            {/* Title */}
             <div className="space-y-3">
-              {onBackToHome && (
-                <button
-                  onClick={() => {
-                    playSound('buttonClick');
-                    onBackToHome();
-                  }}
-                  className="flex items-center gap-2 text-gray-600 hover:text-gray-800 transition-colors"
-                >
-                  <ArrowLeft className="w-5 h-5" />
-                  <span className="font-medium">Back to Games</span>
-                </button>
-              )}
               <div className="flex items-center gap-3">
                 <Grid className={`w-6 h-6 sm:w-8 sm:h-8 ${currentTheme.secondary}`} />
                 <div>
@@ -452,7 +368,9 @@ const MultiplicationTable: React.FC<MultiplicationTableProps> = ({ onBackToHome 
                 </button>
 
                 <button
-                  onClick={clearAllMemorized}
+                  onClick={() => {
+                    clearAllMemorized();
+                  }}
                   className="px-3 py-2 text-sm sm:text-base rounded-xl bg-red-500 text-white hover:bg-red-600 transition-all flex items-center justify-center gap-1 sm:gap-2"
                 >
                   <RotateCcw className="w-3 h-3 sm:w-4 sm:h-4" />
@@ -614,7 +532,9 @@ const MultiplicationTable: React.FC<MultiplicationTableProps> = ({ onBackToHome 
                       return (
                         <div
                           key={multiplier}
-                          onClick={() => toggleMemorized(num, multiplier)}
+                          onClick={() => {
+                            toggleMemorized(num, multiplier);
+                          }}
                           className={`p-2 sm:p-3 rounded-xl cursor-pointer transition-all duration-200 active:scale-95 hover:scale-105 border-2 relative ${getCellColor(num, multiplier)}`}
                         >
                           <div className="flex items-center justify-between">

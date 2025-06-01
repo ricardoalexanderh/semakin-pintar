@@ -1,0 +1,7 @@
+Contact: mailto:ricardoalexanderh@gmail.com
+Contact: https://www.semakinpintar.com/contact
+Preferred-Languages: en, id
+Canonical: https://www.semakinpintar.com/.well-known/security.txt
+Expires: 2025-12-31T23:59:59.999Z
+Acknowledgments: https://www.semakinpintar.com/security-acknowledgments
+Policy: https://www.semakinpintar.com/security-policy

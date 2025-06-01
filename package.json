@@ -1,25 +1,50 @@
 {
   "name": "semakin-pintar",
-  "description": "Semakin Pintar",
+  "description": "Semakin Pintar - Free Educational Games for Kids & Family Learning",
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "keywords": [
+    "educational games",
+    "mental math",
+    "multiplication table",
+    "kids learning",
+    "brain training",
+    "math practice",
+    "cognitive skills",
+    "family learning",
+    "free educational apps"
+  ],
+  "author": "Semakin Pintar Team",
+  "homepage": "https://www.semakinpintar.com",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/semakinpintar/semakin-pintar"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "sitemap": "node scripts/generate-sitemap.js",
+    "deploy:build": "npm run lint && npm run build && npm run sitemap && npm run deploy:copy",
+    "deploy:copy": "node scripts/copy-assets.js",
+    "deploy:full": "node scripts/deploy.js",
+    "deploy:dry-run": "npm run deploy:build && echo 'Dry run completed. Check dist/ folder.'",
+    "postbuild": "npm run sitemap"
   },
   "dependencies": {
     "lucide-react": "^0.511.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
+    "react-router-dom": "^7.6.1",
     "tone": "^15.1.22"
   },
   "devDependencies": {
     "@eslint/js": "^9.25.0",
     "@types/react": "^19.1.2",
     "@types/react-dom": "^19.1.2",
+    "@types/react-router-dom": "^5.3.3",
     "@vitejs/plugin-react": "^4.4.1",
     "autoprefixer": "^10.4.21",
     "eslint": "^9.25.0",
