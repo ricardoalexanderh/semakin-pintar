@@ -25,10 +25,7 @@
     "noUnusedParameters": true,
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true,
-    "noUncheckedSideEffectImports": true    
+    "noUncheckedSideEffectImports": true,
   },
-  "include": [
-    "src",
-    "src/types/**/*"
-  ]
+  "include": ["src"]
 }

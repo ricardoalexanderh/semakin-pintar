@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from 'react'
-// @ts-expect-error - Virtual module from vite-plugin-pwa
 import { useRegisterSW } from 'virtual:pwa-register/react'
 
 interface BeforeInstallPromptEvent extends Event {
