@@ -9,7 +9,7 @@ import SEOHead from './components/seo-head';
 import { trackPageView, initGA, setupPWAAnalytics } from './utils/analytics';
 import './App.css';
 import PWARouteHandler from './components/pwa-route-handler';
-import InstallButton from './components/install-button';
+import InstallBanner from './components/install-banner';
 import UpdateNotification from './components/update-notification';
 import OfflineStatus from './components/offline-status';
 
@@ -200,8 +200,8 @@ function App() {
         
         {/* PWA Components */}
         <OfflineStatus />
-        <UpdateNotification />
-        <InstallButton />
+        <UpdateNotification />        
+        <InstallBanner />
         
         {/* Your existing Routes component */}
         <Routes>
