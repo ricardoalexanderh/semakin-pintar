@@ -41,6 +41,8 @@ type GameState = 'setup' | 'playing' | 'paused' | 'results';
 type SoundType = 'getReady' | 'calculating' | 'answerReveal' | 'questionComplete' | 'gameStart' | 'gameComplete' | 'pause' | 'resume' | 'buttonClick' | 'settingChange';
 type DigitType = '1digit' | '2digit' | '3digit' | '4digit';
 
+const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+
 interface MentalArithmeticGameProps {
   onBackToHome?: () => void;
 }
@@ -99,18 +101,18 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
   // Update settings function with memory persistence and analytics
   const updateSettings = (newSettings: GameSettings | ((prev: GameSettings) => GameSettings)): void => {
     const updatedSettings = typeof newSettings === 'function' ? newSettings(settings) : newSettings;
-    
+
     // Track which setting changed (async, non-blocking)
     setTimeout(() => {
-      const changedSetting = Object.keys(updatedSettings).find(key => 
-        JSON.stringify(updatedSettings[key as keyof GameSettings]) !== 
+      const changedSetting = Object.keys(updatedSettings).find(key =>
+        JSON.stringify(updatedSettings[key as keyof GameSettings]) !==
         JSON.stringify(settings[key as keyof GameSettings])
       );
-      
+
       if (changedSetting) {
         trackSettingsChange(
-          changedSetting, 
-          updatedSettings[changedSetting as keyof GameSettings], 
+          changedSetting,
+          updatedSettings[changedSetting as keyof GameSettings],
           'mental-arithmetic'
         );
       }
@@ -128,7 +130,7 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
   };
 
   // Initialize speech synthesis and find preferred female voice
-  const initializeSpeech = (): Promise<void> => {
+  /*const initializeSpeech = (): Promise<void> => {
     return new Promise((resolve) => {
       if (!('speechSynthesis' in window)) {
         console.log('Speech synthesis not supported');
@@ -205,7 +207,7 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
         }, 1000);
       }
     });
-  };
+  };*/
 
   // Enhanced speech function with better iOS/Safari support
   const speak = (text: string): Promise<void> => {
@@ -233,10 +235,12 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
           utterance.voice = preferredVoiceRef.current;
         }
 
-        // Enhanced settings for better speech quality        
-        utterance.rate = 1.0; // Slightly slower for better comprehension
+        // Enhanced settings for better speech quality                        
+        //utterance.rate = 1.0; // Slightly slower for better comprehension
+        utterance.rate = isIOS ? 0.8 : 1.0;
         utterance.volume = 0.9;
-        utterance.pitch = 1.2; // Slightly higher pitch
+        //utterance.pitch = 1.2; // Slightly higher pitch
+        utterance.pitch = isIOS ? 1.0 : 1.2;
 
         let resolved = false;
         const resolveOnce = () => {
@@ -259,12 +263,19 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
         // Start speaking
         speechSynthesis.speak(utterance);
 
+        // iOS Safari fix
+        if (isIOS) {
+          setTimeout(() => {
+            if (speechSynthesis.paused) speechSynthesis.resume();
+          }, 100);
+        }
+
         // iOS Safari fix: resume if paused
-        setTimeout(() => {
+        /*setTimeout(() => {
           if (speechSynthesis.paused) {
             speechSynthesis.resume();
           }
-        }, 100);
+        }, 100);*/
 
       } catch (error) {
         console.log('Speech synthesis error:', error);
@@ -356,7 +367,7 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
   const calculatePostAnswerDelay = (answerText: string): number => {
     if (settings.speechEnabled) {
       // For speech mode: ensure speech completes + brief pause
-      const speechDuration = estimateSpeechDuration(answerText);      
+      const speechDuration = estimateSpeechDuration(answerText);
       return speechDuration - 1000; // Speech duration - 1 second
     } else {
       // For non-speech mode: slightly longer, level-based delays
@@ -431,9 +442,9 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
 
   // Calculate delays based on level with speech consideration
   const getDelays = (level: number) => {
-    const baseNumberDelay = Math.max(0.5, 2 - (level - 1) * 0.5);
-    //TODO:Adjust answer delay for voice off
-    const baseAnswerDelay = Math.max(0.8, 5 - (level - 1) * 0.6);
+    const baseNumberDelay = Math.max(0.5, 2 - (level - 1) * 0.5);    
+    //const baseAnswerDelay = Math.max(0.8, 5 - (level - 1) * 0.6);
+    const baseAnswerDelay = Math.max(1.25, 5 - (level) * 0.75);
 
     return {
       numberDelay: baseNumberDelay,
@@ -562,6 +573,60 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
     return { numbers, operations, answer: runningTotal };
   };
 
+  const initializeSpeechSync = () => {
+    if (!('speechSynthesis' in window)) {
+      console.log('Speech synthesis not supported');
+      return false;
+    }
+  
+    const setVoice = () => {
+      const voices = speechSynthesis.getVoices();
+  
+      // Enhanced female voice detection with iOS-specific patterns
+      const femaleVoicePatterns = [
+        { pattern: /samantha/i, priority: 15 },
+        { pattern: /victoria/i, priority: 14 }, // iOS specific
+        { pattern: /allison/i, priority: 13 }, // iOS specific
+        { pattern: /female/i, priority: 12 },
+        { pattern: /woman/i, priority: 11 },
+        { pattern: /karen/i, priority: 10 },
+        { pattern: /zira/i, priority: 9 }
+      ];
+  
+      let bestVoice = null;
+      let bestPriority = -1;
+  
+      voices.forEach(voice => {
+        femaleVoicePatterns.forEach(({ pattern, priority }) => {
+          if (pattern.test(voice.name) && priority > bestPriority) {
+            bestVoice = voice;
+            bestPriority = priority;
+          }
+        });
+      });
+  
+      preferredVoiceRef.current = bestVoice;
+      setSpeechInitialized(true);
+      return true;
+    };
+  
+    // Try immediate voice setting
+    if (speechSynthesis.getVoices().length > 0) {
+      return setVoice();
+    } else {
+      // For iOS: try a quick fallback
+      setTimeout(() => {
+        if (speechSynthesis.getVoices().length > 0) {
+          setVoice();
+        }
+      }, 100);
+      
+      // Set a basic fallback
+      setSpeechInitialized(true);
+      return true;
+    }
+  };
+
   // Game functions with analytics
   const startGame = async (): Promise<void> => {
     const hasDigitType = Object.values(settings.digitTypes).some(enabled => enabled);
@@ -595,8 +660,15 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
     }, 0);
 
     // Initialize speech if enabled
-    if (settings.speechEnabled && !speechInitialized) {
+    /*if (settings.speechEnabled && !speechInitialized) {
       await initializeSpeech();
+    }*/
+
+    // CRITICAL: Initialize speech SYNCHRONOUSLY in user gesture for iOS
+    if (settings.speechEnabled) {
+      if (speechSynthesis.getVoices().length > 0) {
+        initializeSpeechSync(); // Create this new function
+      }
     }
 
     playSound('gameStart');
@@ -683,7 +755,7 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
         totalQuestions: settings.numQuestions
       });
     }, 0);
-    
+
     playSound('resume');
     setIsPaused(false);
     setGameState('playing');
@@ -843,9 +915,9 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
 
       return;
     } else if (calculatingAnswer) {
-      if (settings.speechEnabled) {
-        //TODO:Adjust answer delay for voice on
-        const levelDelay = Math.max(800, 3000 - (settings.level - 1) * 400);
+      if (settings.speechEnabled) {        
+        //const levelDelay = Math.max(800, 3000 - (settings.level - 1) * 400);
+        const levelDelay = Math.max(1200, 3000 - settings.level * 600);
         const timer = setTimeout(() => {
           setDisplayNumber(answer.toString());
           setCalculatingAnswer(false);
@@ -921,11 +993,11 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
   }, [gameState, currentQuestion, currentNumberIndex, showingAnswer, calculatingAnswer, flashingBetweenNumbers, showingGetReady, currentNumbers, answer, settings, allQuestions, isPaused, displayNumber]);
 
   // Initialize speech on component mount if speech is enabled
-  useEffect(() => {
+  /*useEffect(() => {
     if (settings.speechEnabled && !speechInitialized) {
       initializeSpeech();
     }
-  }, [settings.speechEnabled, speechInitialized]);
+  }, [settings.speechEnabled, speechInitialized]);*/
 
   // Cleanup effect
   useEffect(() => {
@@ -970,8 +1042,8 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
                 <label className="block text-2xl font-bold text-purple-800 mb-4">Audio Settings:</label>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <label className={`flex items-center justify-between p-4 rounded-xl cursor-pointer transition-all transform hover:scale-105 border-2 ${settings.soundEnabled
-                      ? 'bg-purple-100 border-purple-300 text-purple-800 shadow-lg'
-                      : 'bg-white border-gray-200 hover:bg-gray-50'
+                    ? 'bg-purple-100 border-purple-300 text-purple-800 shadow-lg'
+                    : 'bg-white border-gray-200 hover:bg-gray-50'
                     }`}>
                     <div className="flex items-center gap-3">
                       <span className="text-2xl">🔊</span>
@@ -989,8 +1061,8 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
                   </label>
 
                   <label className={`flex items-center justify-between p-4 rounded-xl cursor-pointer transition-all transform hover:scale-105 border-2 ${settings.speechEnabled
-                      ? 'bg-purple-100 border-purple-300 text-purple-800 shadow-lg'
-                      : 'bg-white border-gray-200 hover:bg-gray-50'
+                    ? 'bg-purple-100 border-purple-300 text-purple-800 shadow-lg'
+                    : 'bg-white border-gray-200 hover:bg-gray-50'
                     }`}>
                     <div className="flex items-center gap-3">
                       <span className="text-2xl">🗣️</span>
@@ -1033,8 +1105,8 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
                         updateSettings(prev => ({ ...prev, theme: key as GameSettings['theme'] }));
                       }}
                       className={`p-3 rounded-xl font-bold text-center transition-all transform hover:scale-105 border-2 ${settings.theme === key
-                          ? `bg-gradient-to-r ${theme.setupBg} text-white shadow-lg border-white`
-                          : 'bg-white text-gray-700 border-gray-200 hover:shadow-md'
+                        ? `bg-gradient-to-r ${theme.setupBg} text-white shadow-lg border-white`
+                        : 'bg-white text-gray-700 border-gray-200 hover:shadow-md'
                         }`}
                     >
                       <div className="text-sm">{theme.name}</div>
@@ -1056,8 +1128,8 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
                     <label
                       key={option.value}
                       className={`flex flex-col items-center p-4 rounded-xl cursor-pointer transition-all transform hover:scale-105 border-2 ${settings.digitTypes[option.value]
-                          ? `${option.color} shadow-lg border-opacity-100`
-                          : 'bg-white border-gray-200 hover:bg-gray-50'
+                        ? `${option.color} shadow-lg border-opacity-100`
+                        : 'bg-white border-gray-200 hover:bg-gray-50'
                         }`}
                     >
                       <input
@@ -1096,8 +1168,8 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
                         updateSettings(prev => ({ ...prev, operations: option.value }));
                       }}
                       className={`p-4 rounded-xl text-lg font-bold transition-all ${settings.operations === option.value
-                          ? 'bg-green-500 text-white shadow-lg transform scale-105'
-                          : 'bg-white text-green-600 hover:bg-green-100'
+                        ? 'bg-green-500 text-white shadow-lg transform scale-105'
+                        : 'bg-white text-green-600 hover:bg-green-100'
                         }`}
                     >
                       {option.label}
@@ -1192,8 +1264,8 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
                             updateSettings(prev => ({ ...prev, level: level as GameSettings['level'] }));
                           }}
                           className={`p-3 sm:p-4 rounded-xl font-bold text-center transition-all border-2 min-h-[80px] sm:min-h-[90px] flex flex-col items-center justify-center ${settings.level === level
-                              ? `${selectedColor[level - 1]} transform hover:scale-105`
-                              : `${levelColors[level - 1]} hover:shadow-md transform hover:scale-105`
+                            ? `${selectedColor[level - 1]} transform hover:scale-105`
+                            : `${levelColors[level - 1]} hover:shadow-md transform hover:scale-105`
                             }`}
                         >
                           <div className="text-xl sm:text-2xl mb-1 leading-none">{level}</div>
@@ -1228,8 +1300,8 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
                             updateSettings(prev => ({ ...prev, level: level as GameSettings['level'] }));
                           }}
                           className={`p-3 sm:p-4 rounded-xl font-bold text-center transition-all border-2 min-h-[80px] sm:min-h-[90px] flex flex-col items-center justify-center ${settings.level === level
-                              ? `${selectedColor[level - 1]} transform hover:scale-105`
-                              : `${levelColors[level - 1]} hover:shadow-md transform hover:scale-105`
+                            ? `${selectedColor[level - 1]} transform hover:scale-105`
+                            : `${levelColors[level - 1]} hover:shadow-md transform hover:scale-105`
                             }`}
                         >
                           <div className="text-xl sm:text-2xl mb-1 leading-none">{level}</div>
