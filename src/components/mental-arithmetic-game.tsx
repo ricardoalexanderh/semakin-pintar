@@ -257,7 +257,7 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
   
           // iOS-optimized settings
           if (isIOS) {
-            utterance.rate = 0.7; // Slower for iOS
+            utterance.rate = 0.9; // Slower for iOS
             utterance.volume = 1.0; // Full volume for iOS
             utterance.pitch = 1.0; // Normal pitch for iOS
           } else {
