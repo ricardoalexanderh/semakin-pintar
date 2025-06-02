@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Calculator, Brain, Trophy, X, Divide, Grid3X3, Lightbulb, Puzzle, Mail, ExternalLink, Layers, Search, Target, Workflow } from 'lucide-react';
+import { Calculator, Shapes, ImageIcon, X, Divide, Grid3X3, Lightbulb, Puzzle, Mail, ExternalLink, Layers, Search, Target, Workflow } from 'lucide-react';
 import { trackButtonClick, trackDonationClick } from '../utils/analytics';
 import FloatingButtons from './floating-buttons';
 
@@ -60,22 +60,22 @@ const LandingPage: React.FC<LandingPageProps> = () => {
             path: '/games/mental-division'
         },
         {
-            id: 'brain-trainer',
-            name: 'Brain Trainer',
-            description: 'Memory and logic puzzles',
-            icon: <Brain className="w-12 h-12" />,
+            id: 'patterns',
+            name: 'Patterns',
+            description: 'Discover and complete patterns',
+            icon: <Shapes className="w-12 h-12" />,
             available: false,
             gradient: 'from-purple-500 to-pink-400',
-            path: '/games/brain-trainer'
+            path: '/games/patterns'
         },
         {
-            id: 'champion-mode',
-            name: 'Champion Mode',
-            description: 'Compete for the highest score',
-            icon: <Trophy className="w-12 h-12" />,
+            id: 'picture-algebra',
+            name: 'Picture Algebra',
+            description: 'Solve equations with pictures',
+            icon: <ImageIcon className="w-12 h-12" />,
             available: false,
             gradient: 'from-orange-500 to-red-400',
-            path: '/games/champion-mode'
+            path: '/games/picture-algebra'
         }
     ];
 
@@ -321,7 +321,7 @@ const LandingPage: React.FC<LandingPageProps> = () => {
                             <div className="relative w-48 h-48 md:w-64 md:h-64">
                                 {/* Central Brain */}
                                 <div className="absolute inset-0 bg-gradient-to-br from-purple-400 to-pink-400 rounded-full flex items-center justify-center shadow-xl">
-                                    <Brain className="w-16 h-16 md:w-20 md:h-20 text-white" />
+                                    <Shapes className="w-16 h-16 md:w-20 md:h-20 text-white" />
                                 </div>
 
                                 {/* Orbiting Elements - Icons for 4 CT skills */}

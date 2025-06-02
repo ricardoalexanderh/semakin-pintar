@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Calculator, Grid3X3, X, Divide, Brain, Trophy, ArrowLeft, Play } from 'lucide-react';
+import { Calculator, Grid3X3, X, Divide, Shapes, ImageIcon, Play, Home } from 'lucide-react';
 import { trackButtonClick } from '../utils/analytics';
 import FloatingButtons from './floating-buttons';
 import Breadcrumb from './breadcrumb';
@@ -72,49 +72,48 @@ const GamesIndex: React.FC = () => {
       duration: '10-20 minutes'
     },
     {
-      id: 'brain-trainer',
-      name: 'Brain Trainer',
-      description: 'Memory and logic puzzles',
-      longDescription: 'Comprehensive brain training with memory games, pattern recognition, and logical reasoning challenges.',
-      icon: <Brain className="w-8 h-8" />,
+      id: 'patterns',
+      name: 'Patterns',
+      description: 'Discover and complete patterns',
+      longDescription: 'Enhance pattern recognition skills through engaging visual and logical sequence challenges. Perfect for developing analytical thinking.',
+      icon: <Shapes className="w-8 h-8" />,
       available: false,
       gradient: 'from-purple-500 to-pink-400',
-      path: '/games/brain-trainer',
+      path: '/games/patterns',
       difficulty: 'All Levels',
       duration: '5-30 minutes'
     },
     {
-      id: 'champion-mode',
-      name: 'Champion Mode',
-      description: 'Compete for high scores',
-      longDescription: 'Test your skills against the clock and compete for the highest scores. Perfect for those who love a challenge!',
-      icon: <Trophy className="w-8 h-8" />,
+      id: 'picture-algebra',
+      name: 'Picture Algebra',
+      description: 'Solve equations with pictures',
+      longDescription: 'Learn algebraic thinking through visual puzzles and picture-based equations. Build foundational skills for advanced mathematics.',
+      icon: <ImageIcon className="w-8 h-8" />,
       available: false,
       gradient: 'from-orange-500 to-red-400',
-      path: '/games/champion-mode',
-      difficulty: 'Advanced',
-      duration: '15-30 minutes'
+      path: '/games/picture-algebra',
+      difficulty: 'Intermediate',
+      duration: '10-25 minutes'
     }
   ];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-100 via-purple-50 to-pink-100 p-4">
       <div className="max-w-6xl mx-auto">
-        {/* Breadcrumb */}
-        <div className="mb-4">
+        {/* Breadcrumb with Home Icon */}
+        <div className="mb-4 flex items-center gap-3">
+          <Link
+            to="/"
+            onClick={() => trackButtonClick('home-icon', 'breadcrumb')}
+            className="text-gray-600 hover:text-gray-800 transition-colors p-2 rounded-lg hover:bg-gray-100 sm:hidden"
+          >
+            <Home className="w-5 h-5" />
+          </Link>
           <Breadcrumb />
         </div>
         
         {/* Header */}
         <div className="mb-8">
-          <Link
-            to="/"
-            onClick={() => trackButtonClick('back-to-home', 'games-index')}
-            className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-800 transition-colors mb-6"
-          >
-            <ArrowLeft className="w-5 h-5" />
-            <span className="font-medium">Back to Home</span>
-          </Link>
           
           {/* Website Logo */}
           <div className="text-center mb-6">
@@ -216,7 +215,7 @@ const GamesIndex: React.FC = () => {
                       disabled
                       className="w-full bg-gray-300 text-gray-500 font-bold py-3 px-6 rounded-xl cursor-not-allowed flex items-center justify-center gap-2"
                     >
-                      <Trophy className="w-5 h-5" />
+                      <Shapes className="w-5 h-5" />
                       Coming Soon
                     </button>
                   )}

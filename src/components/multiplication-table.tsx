@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Grid, CheckCircle, Star, Trophy, Target, RotateCcw, Zap, ChevronDown, ChevronUp } from 'lucide-react';
+import { Grid, CheckCircle, Star, Trophy, Target, ArrowLeft, RotateCcw, Zap, ChevronDown, ChevronUp } from 'lucide-react';
+import { trackGameEvent, trackSettingsChange, trackButtonClick } from '../utils/analytics';
+import * as Tone from 'tone';
 
 // Type definitions
 interface TableSettings {
@@ -35,7 +37,11 @@ interface Achievement {
 
 type SoundType = 'check' | 'uncheck' | 'achievement' | 'complete' | 'buttonClick' | 'settingChange';
 
-const MultiplicationTable: React.FC = () => {
+interface MultiplicationTableProps {
+  onBackToHome?: () => void;
+}
+
+const MultiplicationTable: React.FC<MultiplicationTableProps> = ({ onBackToHome }) => {
   // In-memory settings store
   const settingsRef = useRef<TableSettings>({
     theme: 'default',
@@ -46,11 +52,29 @@ const MultiplicationTable: React.FC = () => {
 
   // Load settings from memory on component mount
   const [settings, setSettingsState] = useState<TableSettings>(() => {
+    try {
+      const stored = localStorage.getItem('multiplication-table-settings');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        settingsRef.current = { ...settingsRef.current, ...parsed };
+        return settingsRef.current;
+      }
+    } catch (error) {
+      console.log('Could not load settings from storage:', error);
+    }
     return settingsRef.current;
   });
 
   // Load memorized facts from memory
   const [memorizedFacts, setMemorizedFactsState] = useState<MemorizedFacts>(() => {
+    try {
+      const stored = localStorage.getItem('multiplication-table-memorized');
+      if (stored) {
+        return JSON.parse(stored);
+      }
+    } catch (error) {
+      console.log('Could not load memorized facts from storage:', error);
+    }
     return {};
   });
 
@@ -62,24 +86,90 @@ const MultiplicationTable: React.FC = () => {
   // State for collapsible instructions
   const [instructionsCollapsed, setInstructionsCollapsed] = useState(false);
 
-  // Update settings function with memory persistence
+  // Update settings function with memory persistence and analytics
   const updateSettings = (newSettings: TableSettings | ((prev: TableSettings) => TableSettings)): void => {
     const updatedSettings = typeof newSettings === 'function' ? newSettings(settings) : newSettings;
+    
+    // Track which setting changed (async, non-blocking)
+    setTimeout(() => {
+      const changedSetting = Object.keys(updatedSettings).find(key => 
+        JSON.stringify(updatedSettings[key as keyof TableSettings]) !== 
+        JSON.stringify(settings[key as keyof TableSettings])
+      );
+      
+      if (changedSetting) {
+        trackSettingsChange(
+          changedSetting, 
+          updatedSettings[changedSetting as keyof TableSettings], 
+          'multiplication-table'
+        );
+      }
+    }, 0);
+
     settingsRef.current = updatedSettings;
     setSettingsState(updatedSettings);
+    
+    try {
+      localStorage.setItem('multiplication-table-settings', JSON.stringify(updatedSettings));
+    } catch (error) {
+      console.log('Could not save settings to storage:', error);
+    }
   };
 
   // Update memorized facts function with memory persistence
   const updateMemorizedFacts = (newFacts: MemorizedFacts | ((prev: MemorizedFacts) => MemorizedFacts)): void => {
     const updatedFacts = typeof newFacts === 'function' ? newFacts(memorizedFacts) : newFacts;
     setMemorizedFactsState(updatedFacts);
+    
+    try {
+      localStorage.setItem('multiplication-table-memorized', JSON.stringify(updatedFacts));
+    } catch (error) {
+      console.log('Could not save memorized facts to storage:', error);
+    }
   };
 
   // Sound functions
   const playSound = async (type: SoundType): Promise<void> => {
     if (!settings.soundEnabled) return;
-    // Sound implementation would go here
-    console.log(`Playing sound: ${type}`);
+    
+    try {
+      if (Tone.context.state !== 'running') {
+        await Tone.start();
+      }
+
+      const synth = new Tone.Synth().toDestination();
+      
+      switch (type) {
+        case 'check':
+          synth.triggerAttackRelease('C5', '0.2');
+          setTimeout(() => synth.triggerAttackRelease('E5', '0.2'), 100);
+          break;
+        case 'uncheck':
+          synth.triggerAttackRelease('A4', '0.2');
+          break;
+        case 'achievement':
+          synth.triggerAttackRelease('C5', '0.2');
+          setTimeout(() => synth.triggerAttackRelease('E5', '0.2'), 100);
+          setTimeout(() => synth.triggerAttackRelease('G5', '0.2'), 200);
+          setTimeout(() => synth.triggerAttackRelease('C6', '0.4'), 300);
+          break;
+        case 'complete':
+          synth.triggerAttackRelease('C4', '0.2');
+          setTimeout(() => synth.triggerAttackRelease('E4', '0.2'), 100);
+          setTimeout(() => synth.triggerAttackRelease('G4', '0.2'), 200);
+          setTimeout(() => synth.triggerAttackRelease('C5', '0.2'), 300);
+          setTimeout(() => synth.triggerAttackRelease('E5', '0.4'), 400);
+          break;
+        case 'buttonClick':
+          synth.triggerAttackRelease('C4', '0.1');
+          break;
+        case 'settingChange':
+          synth.triggerAttackRelease('A4', '0.15');
+          break;
+      }
+    } catch (error) {
+      console.log('Audio not available:', error);
+    }
   };
 
   // Theme configurations
@@ -208,6 +298,16 @@ const MultiplicationTable: React.FC = () => {
       if (achievement.unlocked && !wasUnlocked) {
         setShowAchievement(achievement);
         playSound('achievement');
+        
+        // Track achievement unlock (async, non-blocking)
+        setTimeout(() => {
+          trackGameEvent('multiplication-table', 'achievement_unlocked', {
+            achievementId: achievement.id,
+            achievementTitle: achievement.title,
+            memorizedCount: Object.values(memorizedFacts).filter(Boolean).length
+          });
+        }, 0);
+        
         setTimeout(() => setShowAchievement(null), 3000);
         break; // Show one achievement at a time
       }
@@ -230,11 +330,27 @@ const MultiplicationTable: React.FC = () => {
         delete newFacts[key1];
         delete newFacts[key2];
         playSound('uncheck');
+        
+        // Track fact unmemorized (async, non-blocking)
+        setTimeout(() => {
+          trackGameEvent('multiplication-table', 'fact_unmemorized', {
+            fact: `${num1}x${num2}`,
+            totalMemorized: Object.values(newFacts).filter(Boolean).length
+          });
+        }, 0);
       } else {
         // Check both directions (since multiplication is commutative)
         newFacts[key1] = true;
         newFacts[key2] = true;
         playSound('check');
+        
+        // Track fact memorized (async, non-blocking)
+        setTimeout(() => {
+          trackGameEvent('multiplication-table', 'fact_memorized', {
+            fact: `${num1}x${num2}`,
+            totalMemorized: Object.values(newFacts).filter(Boolean).length
+          });
+        }, 0);
       }
       
       return newFacts;
@@ -254,6 +370,13 @@ const MultiplicationTable: React.FC = () => {
 
   // Clear all memorized facts
   const clearAllMemorized = (): void => {
+    // Track reset progress (async, non-blocking)
+    setTimeout(() => {
+      trackGameEvent('multiplication-table', 'reset_progress', {
+        previousMemorizedCount: Object.values(memorizedFacts).filter(Boolean).length
+      });
+    }, 0);
+    
     updateMemorizedFacts({});
     setAchievements(generateAchievements());
     playSound('buttonClick');
@@ -269,7 +392,19 @@ const MultiplicationTable: React.FC = () => {
     };
   };
 
-  // Initialize achievements on component mount
+  // Initialize achievements on component mount and track view
+  useEffect(() => {
+    setAchievements(generateAchievements());
+    
+    // Track table view (async, non-blocking)
+    setTimeout(() => {
+      trackGameEvent('multiplication-table', 'view', {
+        memorizedCount: Object.values(memorizedFacts).filter(Boolean).length
+      });
+    }, 0);
+  }, []);
+
+  // Update achievements when memorized facts change
   useEffect(() => {
     setAchievements(generateAchievements());
   }, [memorizedFacts]);
@@ -286,13 +421,26 @@ const MultiplicationTable: React.FC = () => {
   const progress = getProgress();
 
   return (
-    <div className={`min-h-screen bg-gradient-to-br ${currentTheme.bg} p-4 pt-8`}>
+    <div className={`min-h-screen bg-gradient-to-br ${currentTheme.bg} p-4`}>
       <div className="max-w-7xl mx-auto">
         <div className={`${currentTheme.cardBg} rounded-3xl shadow-2xl p-6`}>
           {/* Header */}
           <div className="space-y-4 mb-6">
-            {/* Title */}
+            {/* Back Button and Title */}
             <div className="space-y-3">
+              {onBackToHome && (
+                <button
+                  onClick={() => {
+                    trackButtonClick('back-to-home', 'multiplication-table');
+                    playSound('buttonClick');
+                    onBackToHome();
+                  }}
+                  className="flex items-center gap-2 text-gray-600 hover:text-gray-800 transition-colors"
+                >
+                  <ArrowLeft className="w-5 h-5" />
+                  <span className="font-medium">Back to Games</span>
+                </button>
+              )}
               <div className="flex items-center gap-3">
                 <Grid className={`w-6 h-6 sm:w-8 sm:h-8 ${currentTheme.secondary}`} />
                 <div>
@@ -369,6 +517,7 @@ const MultiplicationTable: React.FC = () => {
 
                 <button
                   onClick={() => {
+                    trackButtonClick('reset-all', 'multiplication-table');
                     clearAllMemorized();
                   }}
                   className="px-3 py-2 text-sm sm:text-base rounded-xl bg-red-500 text-white hover:bg-red-600 transition-all flex items-center justify-center gap-1 sm:gap-2"
@@ -385,6 +534,7 @@ const MultiplicationTable: React.FC = () => {
           <div className="mb-4 sm:mb-6">
             <button
               onClick={() => {
+                trackButtonClick('toggle-instructions', 'multiplication-table');
                 playSound('buttonClick');
                 setInstructionsCollapsed(!instructionsCollapsed);
               }}
@@ -458,6 +608,7 @@ const MultiplicationTable: React.FC = () => {
             <div className="mb-4 sm:mb-6">
               <button
                 onClick={() => {
+                  trackButtonClick('toggle-achievements', 'multiplication-table');
                   playSound('buttonClick');
                   setAchievementsCollapsed(!achievementsCollapsed);
                 }}
@@ -532,9 +683,7 @@ const MultiplicationTable: React.FC = () => {
                       return (
                         <div
                           key={multiplier}
-                          onClick={() => {
-                            toggleMemorized(num, multiplier);
-                          }}
+                          onClick={() => toggleMemorized(num, multiplier)}
                           className={`p-2 sm:p-3 rounded-xl cursor-pointer transition-all duration-200 active:scale-95 hover:scale-105 border-2 relative ${getCellColor(num, multiplier)}`}
                         >
                           <div className="flex items-center justify-between">

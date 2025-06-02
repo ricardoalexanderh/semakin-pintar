@@ -72,37 +72,53 @@ const Breadcrumb: React.FC = () => {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
       />
       
-      {/* Breadcrumb Navigation - Single responsive version */}
-      <nav aria-label="Breadcrumb" className="w-full">
-        <ol className="flex items-center space-x-1 sm:space-x-2 text-xs sm:text-sm text-gray-600 overflow-x-auto scrollbar-hide">
-          {breadcrumbs.map((item, index) => (
-            <li key={item.path} className="flex items-center flex-shrink-0">
-              {index > 0 && (
-                <ChevronRight className="w-3 h-3 sm:w-4 sm:h-4 mx-1 sm:mx-2 text-gray-400 flex-shrink-0" />
-              )}
-              
-              {item.current ? (
-                <span 
-                  className="text-purple-700 font-medium bg-purple-50 px-2 py-1 rounded-md truncate max-w-[120px] sm:max-w-none"
-                  aria-current="page"
-                  title={item.label}
-                >
-                  {index === 0 && <Home className="w-3 h-3 sm:w-4 sm:h-4 inline mr-1 flex-shrink-0" />}
-                  <span className="truncate">{item.label}</span>
-                </span>
-              ) : (
-                <Link
-                  to={item.path}
-                  className="text-gray-600 hover:text-purple-700 transition-colors flex items-center bg-gray-50 hover:bg-gray-100 px-2 py-1 rounded-md truncate max-w-[100px] sm:max-w-none"
-                  title={item.label}
-                >
-                  {index === 0 && <Home className="w-3 h-3 sm:w-4 sm:h-4 mr-1 flex-shrink-0" />}
-                  <span className="truncate">{item.label}</span>
-                </Link>
-              )}
+      {/* Breadcrumb Navigation - Mobile-first responsive design */}
+      <nav aria-label="Breadcrumb" className="w-full px-2 sm:px-0">
+        {/* Mobile version: Show only current page */}
+        <div className="block sm:hidden">
+          <ol className="flex items-center text-sm">
+            <li className="flex items-center min-w-0 flex-1">
+              <span 
+                className="text-purple-700 font-medium bg-purple-50 px-3 py-1.5 rounded-md truncate"
+                aria-current="page"
+                title={breadcrumbs[breadcrumbs.length - 1].label}
+              >
+                {breadcrumbs[breadcrumbs.length - 1].label}
+              </span>
             </li>
-          ))}
-        </ol>
+          </ol>
+        </div>
+
+        {/* Desktop version: Full breadcrumb trail */}
+        <div className="hidden sm:block">
+          <ol className="flex items-center flex-wrap gap-1 text-sm text-gray-600">
+            {breadcrumbs.map((item, index) => (
+              <li key={item.path} className="flex items-center">
+                {index > 0 && (
+                  <ChevronRight className="w-4 h-4 mx-2 text-gray-400 flex-shrink-0" />
+                )}
+                
+                {item.current ? (
+                  <span 
+                    className="text-purple-700 font-medium bg-purple-50 px-3 py-1.5 rounded-md"
+                    aria-current="page"
+                  >
+                    {index === 0 && <Home className="w-4 h-4 inline mr-2" />}
+                    {item.label}
+                  </span>
+                ) : (
+                  <Link
+                    to={item.path}
+                    className="text-gray-600 hover:text-purple-700 transition-colors flex items-center bg-gray-50 hover:bg-gray-100 px-3 py-1.5 rounded-md"
+                  >
+                    {index === 0 && <Home className="w-4 h-4 mr-2" />}
+                    {item.label}
+                  </Link>
+                )}
+              </li>
+            ))}
+          </ol>
+        </div>
       </nav>
     </>
   );

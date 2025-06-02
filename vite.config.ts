@@ -1,9 +1,21 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import generateSitemap from 'vite-plugin-sitemap'
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(),
+  generateSitemap({
+    hostname: 'https://www.semakinpintar.com',
+    dynamicRoutes: [
+      '/',
+      '/games',
+      '/games/mental-arithmetic',
+      '/games/multiplication-table'
+    ],
+    lastmod: new Date(),
+  })
+  ],
   build: {
     rollupOptions: {
       output: {
