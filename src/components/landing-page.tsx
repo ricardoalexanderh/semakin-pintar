@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Calculator, Shapes, ImageIcon, X, Divide, Grid3X3, Lightbulb, Puzzle, Mail, ExternalLink, Layers, Search, Target, Workflow } from 'lucide-react';
 import { trackButtonClick, trackDonationClick } from '../utils/analytics';
@@ -18,10 +18,12 @@ interface Game {
 }
 
 interface LandingPageProps {
-    // No props needed anymore since we use React Router directly
+  // No props needed anymore since we use React Router directly
 }
 
 const LandingPage: React.FC<LandingPageProps> = () => {
+    const timeoutRef = useRef<number | null>(null);
+
     const games: Game[] = [
         {
             id: 'mental-arithmetic-game',
@@ -79,6 +81,18 @@ const LandingPage: React.FC<LandingPageProps> = () => {
         }
     ];
 
+    // Simple debounced scroll function using useRef
+    const scrollToSection = useCallback((selector: string) => {
+        if (timeoutRef.current) {
+            clearTimeout(timeoutRef.current);
+        }
+        
+        timeoutRef.current = window.setTimeout(() => {
+            const element = document.querySelector(selector);
+            element?.scrollIntoView({ behavior: 'smooth' });
+        }, 100);
+    }, []);
+
     return (
         <div className="min-h-screen bg-gradient-to-br from-orange-100 via-yellow-50 to-purple-100 p-4">
             <div className="max-w-4xl mx-auto">
@@ -86,28 +100,30 @@ const LandingPage: React.FC<LandingPageProps> = () => {
                 <header className="text-center mb-8 pt-4 md:pt-8">
                     {/* Logo */}
                     <div className="mb-6 md:mb-8 flex justify-center">
-                        <div className="relative">
+                        <div className="relative will-change-transform">
                             {/* Logo Background Circle - Responsive sizes */}
                             <div className="w-[280px] h-[280px] sm:w-[350px] sm:h-[350px] md:w-[420px] md:h-[420px] lg:w-[500px] lg:h-[500px] bg-gradient-to-br from-orange-50 to-purple-50 rounded-full shadow-2xl flex items-center justify-center relative overflow-hidden border-4 border-white">
                                 {/* Decorative Elements matching logo style - Responsive */}
                                 <div className="absolute inset-0 opacity-20">
-                                    <div className="absolute top-8 left-8 md:top-16 md:left-16 w-8 h-8 md:w-16 md:h-16 bg-purple-400 rounded-lg rotate-12"></div>
-                                    <div className="absolute top-12 right-10 md:top-24 md:right-20 w-6 h-6 md:w-12 md:h-12 bg-teal-400 rounded-full"></div>
-                                    <div className="absolute bottom-12 left-12 md:bottom-24 md:left-24 w-10 h-10 md:w-20 md:h-20 bg-yellow-400 rounded-lg -rotate-12"></div>
-                                    <div className="absolute bottom-10 right-8 md:bottom-20 md:right-16 w-7 h-7 md:w-14 md:h-14 bg-orange-400 rounded-full"></div>
-                                    <div className="absolute top-1/3 right-1/4 w-5 h-5 md:w-10 md:h-10 bg-red-400 rounded-lg rotate-45"></div>
+                                    <div className="absolute top-8 left-8 md:top-16 md:left-16 w-8 h-8 md:w-16 md:h-16 bg-purple-400 rounded-lg rotate-12 will-change-transform"></div>
+                                    <div className="absolute top-12 right-10 md:top-24 md:right-20 w-6 h-6 md:w-12 md:h-12 bg-teal-400 rounded-full will-change-transform"></div>
+                                    <div className="absolute bottom-12 left-12 md:bottom-24 md:left-24 w-10 h-10 md:w-20 md:h-20 bg-yellow-400 rounded-lg -rotate-12 will-change-transform"></div>
+                                    <div className="absolute bottom-10 right-8 md:bottom-20 md:right-16 w-7 h-7 md:w-14 md:h-14 bg-orange-400 rounded-full will-change-transform"></div>
+                                    <div className="absolute top-1/3 right-1/4 w-5 h-5 md:w-10 md:h-10 bg-red-400 rounded-lg rotate-45 will-change-transform"></div>
                                 </div>
 
                                 {/* Main Logo Content */}
                                 <div className="text-center z-10">
                                     {/* Logo Image Placeholder - Responsive */}
-                                    <div className="w-48 h-48 sm:w-60 sm:h-60 md:w-72 md:h-72 lg:w-80 lg:h-80 mx-auto mb-4 md:mb-6 relative">
+                                    <div className="w-48 h-48 sm:w-60 sm:h-60 md:w-72 md:h-72 lg:w-80 lg:h-80 mx-auto mb-4 md:mb-6 relative">                                        
                                         <img
                                             src={logo}
                                             alt="Semakin Pintar Logo - Free Educational Games Platform"
                                             className="w-full h-full object-contain rounded-2xl shadow-lg"
+                                            loading="eager"
+                                            decoding="async"
                                         />
-                                    </div>
+                                    </div>                                    
                                 </div>
                             </div>
                         </div>
@@ -123,7 +139,7 @@ const LandingPage: React.FC<LandingPageProps> = () => {
                 />
 
                 {/* Website Description */}
-                <section className="bg-white/95 backdrop-blur-sm rounded-3xl p-6 md:p-8 shadow-xl max-w-6xl mx-auto border border-purple-100 mb-8">
+                <section className="bg-white/95 backdrop-blur-sm rounded-3xl p-6 md:p-8 shadow-xl max-w-6xl mx-auto border border-purple-100 mb-8 will-change-transform">
                     <h1 className="text-2xl md:text-3xl font-bold text-purple-700 mb-4">
                         Welcome to Your Learning Adventure! 🚀
                     </h1>
@@ -135,10 +151,9 @@ const LandingPage: React.FC<LandingPageProps> = () => {
                             <strong>Discover a world where education meets excitement.</strong> From mental arithmetic challenges to brain training puzzles, our collection helps children and adults develop cognitive skills while having fun. Through interactive gameplay, we naturally build <button
                                 onClick={() => {
                                     trackButtonClick('scroll-to-computational-thinking', 'description');
-                                    const computationalSection = document.querySelector('[data-section="computational-thinking"]');
-                                    computationalSection?.scrollIntoView({ behavior: 'smooth' });
+                                    scrollToSection('[data-section="computational-thinking"]');
                                 }}
-                                className="inline text-purple-600 hover:text-purple-800 underline font-semibold transition-colors"
+                                className="inline text-purple-600 hover:text-purple-800 underline font-semibold transition-colors will-change-transform"
                             >
                                 computational thinking skills
                             </button>—the foundation of problem-solving that's essential in today's digital world. Whether you're supporting your child's learning journey or sharpening your own mind, these games are designed to challenge and inspire.
@@ -147,19 +162,17 @@ const LandingPage: React.FC<LandingPageProps> = () => {
                             <strong>Love what we're building?</strong> If these games bring joy to your family's learning time, consider supporting our mission by <button
                                 onClick={() => {
                                     trackButtonClick('scroll-to-donate', 'description');
-                                    const donateSection = document.getElementById('donate-section');
-                                    donateSection?.scrollIntoView({ behavior: 'smooth' });
+                                    scrollToSection('#donate-section');
                                 }}
-                                className="inline text-purple-600 hover:text-purple-800 underline font-semibold transition-colors"
+                                className="inline text-purple-600 hover:text-purple-800 underline font-semibold transition-colors will-change-transform"
                             >
                                 buying me a coffee
                             </button> using the buttons below. Your support helps me create new games regularly and keep this project growing! Want to chat or need custom development? <button
                                 onClick={() => {
                                     trackButtonClick('scroll-to-contact', 'description');
-                                    const contactSection = document.querySelector('[data-section="contact"]');
-                                    contactSection?.scrollIntoView({ behavior: 'smooth' });
+                                    scrollToSection('[data-section="contact"]');
                                 }}
-                                className="inline text-purple-600 hover:text-purple-800 underline font-semibold transition-colors"
+                                className="inline text-purple-600 hover:text-purple-800 underline font-semibold transition-colors will-change-transform"
                             >
                                 Contact me here
                             </button>!
@@ -168,13 +181,13 @@ const LandingPage: React.FC<LandingPageProps> = () => {
                 </section>
 
                 {/* Games Section */}
-                <section className="bg-white/95 backdrop-blur-sm rounded-3xl p-6 md:p-8 shadow-xl border border-purple-100 mb-8">
+                <section className="bg-white/95 backdrop-blur-sm rounded-3xl p-6 md:p-8 shadow-xl border border-purple-100 mb-8 will-change-transform">
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-4">
                         <h2 className="text-xl md:text-2xl font-bold text-purple-700 text-center sm:text-left">Explore New Games & Learning Tools</h2>
                         <Link
                             to="/games"
                             onClick={() => trackButtonClick('view-all-games', 'games-section-header')}
-                            className="bg-gradient-to-r from-purple-500 to-teal-500 text-white px-4 py-2 rounded-xl font-bold hover:from-purple-600 hover:to-teal-600 transition-all shadow-lg hover:shadow-xl transform hover:scale-105 flex items-center gap-2 text-sm justify-center sm:justify-start"
+                            className="bg-gradient-to-r from-purple-500 to-teal-500 text-white px-4 py-2 rounded-xl font-bold hover:from-purple-600 hover:to-teal-600 transition-all shadow-lg hover:shadow-xl transform hover:scale-105 flex items-center gap-2 text-sm justify-center sm:justify-start will-change-transform"
                         >
                             View All Games
                             <ExternalLink className="w-4 h-4" />
@@ -183,8 +196,8 @@ const LandingPage: React.FC<LandingPageProps> = () => {
 
                     {/* Games Grid */}
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 md:gap-6">
-                        {games.map((game) => (
-                            <article key={game.id} className="relative group">
+                        {games.map((game, index) => (
+                            <article key={game.id} className="relative group will-change-transform" style={{animationDelay: `${index * 50}ms`}}>
                                 {/* Game Icon */}
                                 {game.available ? (
                                     <Link
@@ -192,10 +205,10 @@ const LandingPage: React.FC<LandingPageProps> = () => {
                                         onClick={() => {
                                             trackButtonClick(`game-${game.id}`, 'games-grid');
                                         }}
-                                        className={`w-full aspect-square rounded-3xl shadow-lg transition-all duration-300 transform hover:scale-105 hover:-translate-y-2 flex flex-col items-center justify-center p-3 md:p-4 text-white font-bold relative overflow-hidden bg-gradient-to-br ${game.gradient} hover:shadow-2xl active:scale-95 block`}
+                                        className={`w-full aspect-square rounded-3xl shadow-lg transition-all duration-300 transform hover:scale-105 hover:-translate-y-2 flex flex-col items-center justify-center p-3 md:p-4 text-white font-bold relative overflow-hidden bg-gradient-to-br ${game.gradient} hover:shadow-2xl active:scale-95 block will-change-transform`}
                                     >
                                         {/* Shine Effect */}
-                                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent transform -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-700"></div>
+                                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent transform -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-700 will-change-transform"></div>
 
                                         {/* Icon */}
                                         <div className="mb-2 md:mb-3 relative z-10">
@@ -210,7 +223,7 @@ const LandingPage: React.FC<LandingPageProps> = () => {
                                 ) : (
                                     <button
                                         disabled
-                                        className="w-full aspect-square rounded-3xl shadow-lg transition-all duration-300 flex flex-col items-center justify-center p-3 md:p-4 text-white font-bold relative overflow-hidden bg-gray-300 cursor-not-allowed opacity-60"
+                                        className="w-full aspect-square rounded-3xl shadow-lg transition-all duration-300 flex flex-col items-center justify-center p-3 md:p-4 text-white font-bold relative overflow-hidden bg-gray-300 cursor-not-allowed opacity-60 will-change-transform"
                                     >
                                         {/* Icon */}
                                         <div className="mb-2 md:mb-3 relative z-10">
@@ -224,7 +237,7 @@ const LandingPage: React.FC<LandingPageProps> = () => {
 
                                         {/* Coming Soon Badge */}
                                         <div className="absolute top-2 right-2 md:top-3 md:right-3 z-20">
-                                            <div className="bg-orange-400 text-white text-xs font-bold px-1.5 py-0.5 md:px-2 md:py-1 rounded-md shadow-lg border border-orange-500 transform rotate-12 origin-center">
+                                            <div className="bg-orange-400 text-white text-xs font-bold px-1.5 py-0.5 md:px-2 md:py-1 rounded-md shadow-lg border border-orange-500 transform rotate-12 origin-center will-change-transform">
                                                 Soon
                                             </div>
                                         </div>
@@ -232,7 +245,7 @@ const LandingPage: React.FC<LandingPageProps> = () => {
                                 )}
 
                                 {/* Game Description Tooltip */}
-                                <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none z-20">
+                                <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none z-20 will-change-transform">
                                     <div className="bg-purple-800 text-white text-sm px-3 py-2 rounded-lg whitespace-nowrap shadow-lg">
                                         {game.description}
                                         <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-purple-800"></div>
@@ -243,10 +256,10 @@ const LandingPage: React.FC<LandingPageProps> = () => {
                     </div>
 
                     {/* Featured Game Highlight - Mobile Responsive */}
-                    <div className="mt-8 p-4 md:p-6 bg-gradient-to-r from-purple-100 to-teal-100 rounded-2xl border-2 border-purple-200">
+                    <div className="mt-8 p-4 md:p-6 bg-gradient-to-r from-purple-100 to-teal-100 rounded-2xl border-2 border-purple-200 will-change-transform">
                         <div className="flex flex-col md:flex-row items-center md:justify-between gap-4">
                             <div className="flex flex-col sm:flex-row items-center gap-4 text-center sm:text-left">
-                                <div className="bg-gradient-to-r from-purple-500 to-indigo-500 text-white w-12 h-12 md:w-16 md:h-16 rounded-2xl flex items-center justify-center shadow-lg flex-shrink-0">
+                                <div className="bg-gradient-to-r from-purple-500 to-indigo-500 text-white w-12 h-12 md:w-16 md:h-16 rounded-2xl flex items-center justify-center shadow-lg flex-shrink-0 will-change-transform">
                                     <Calculator className="w-6 h-6 md:w-8 md:h-8" />
                                 </div>
                                 <div>
@@ -259,7 +272,7 @@ const LandingPage: React.FC<LandingPageProps> = () => {
                                 onClick={() => {
                                     trackButtonClick('featured-mental-arithmetic', 'featured-section');
                                 }}
-                                className="bg-gradient-to-r from-purple-500 to-teal-500 text-white px-6 py-3 rounded-xl font-bold hover:from-purple-600 hover:to-teal-600 transition-all shadow-lg hover:shadow-xl transform hover:scale-105 w-full sm:w-auto text-center block"
+                                className="bg-gradient-to-r from-purple-500 to-teal-500 text-white px-6 py-3 rounded-xl font-bold hover:from-purple-600 hover:to-teal-600 transition-all shadow-lg hover:shadow-xl transform hover:scale-105 w-full sm:w-auto text-center block will-change-transform"
                             >
                                 Play Now →
                             </Link>
@@ -275,13 +288,13 @@ const LandingPage: React.FC<LandingPageProps> = () => {
                 </section>
 
                 {/* Computational Thinking Section */}
-                <section data-section="computational-thinking" className="bg-white/95 backdrop-blur-sm rounded-3xl p-6 md:p-8 shadow-xl border border-purple-100 mb-8">
+                <section data-section="computational-thinking" className="bg-white/95 backdrop-blur-sm rounded-3xl p-6 md:p-8 shadow-xl border border-purple-100 mb-8 will-change-transform">
                     <h2 className="text-xl md:text-2xl font-bold text-purple-700 mb-6 text-center flex items-center justify-center gap-3">
                         <Lightbulb className="w-6 h-6 md:w-8 md:h-8 text-yellow-500" />
                         Why Computational Thinking Matters
                         <Puzzle className="w-6 h-6 md:w-8 md:h-8 text-teal-500" />
                     </h2>
-
+                    
                     <div className="grid md:grid-cols-2 gap-6 items-center">
                         {/* Text Content */}
                         <div className="space-y-4 text-gray-700">
@@ -290,25 +303,25 @@ const LandingPage: React.FC<LandingPageProps> = () => {
                             </p>
                             <div className="space-y-3">
                                 <div className="flex items-start gap-3">
-                                    <div className="w-6 h-6 bg-purple-500 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                                    <div className="w-6 h-6 bg-purple-500 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 will-change-transform">
                                         <span className="text-white text-sm font-bold">1</span>
                                     </div>
                                     <p><strong>Decomposition:</strong> Breaking big problems into smaller, manageable parts</p>
                                 </div>
                                 <div className="flex items-start gap-3">
-                                    <div className="w-6 h-6 bg-teal-500 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                                    <div className="w-6 h-6 bg-teal-500 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 will-change-transform">
                                         <span className="text-white text-sm font-bold">2</span>
                                     </div>
                                     <p><strong>Pattern Recognition:</strong> Finding similarities and connections in data</p>
                                 </div>
                                 <div className="flex items-start gap-3">
-                                    <div className="w-6 h-6 bg-orange-500 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                                    <div className="w-6 h-6 bg-orange-500 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 will-change-transform">
                                         <span className="text-white text-sm font-bold">3</span>
                                     </div>
                                     <p><strong>Abstraction:</strong> Focusing on important details while ignoring irrelevant ones</p>
                                 </div>
                                 <div className="flex items-start gap-3">
-                                    <div className="w-6 h-6 bg-pink-500 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                                    <div className="w-6 h-6 bg-pink-500 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 will-change-transform">
                                         <span className="text-white text-sm font-bold">4</span>
                                     </div>
                                     <p><strong>Algorithm Design:</strong> Creating step-by-step solutions and instructions</p>
@@ -318,30 +331,30 @@ const LandingPage: React.FC<LandingPageProps> = () => {
 
                         {/* Visual Graphic */}
                         <div className="flex justify-center">
-                            <div className="relative w-48 h-48 md:w-64 md:h-64">
+                            <div className="relative w-48 h-48 md:w-64 md:h-64 will-change-transform">
                                 {/* Central Brain */}
-                                <div className="absolute inset-0 bg-gradient-to-br from-purple-400 to-pink-400 rounded-full flex items-center justify-center shadow-xl">
+                                <div className="absolute inset-0 bg-gradient-to-br from-purple-400 to-pink-400 rounded-full flex items-center justify-center shadow-xl will-change-transform">
                                     <Shapes className="w-16 h-16 md:w-20 md:h-20 text-white" />
                                 </div>
 
                                 {/* Orbiting Elements - Icons for 4 CT skills */}
-                                <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 w-12 h-12 bg-gradient-to-r from-purple-400 to-indigo-400 rounded-lg flex items-center justify-center shadow-lg animate-pulse">
+                                <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 w-12 h-12 bg-gradient-to-r from-purple-400 to-indigo-400 rounded-lg flex items-center justify-center shadow-lg animate-pulse will-change-transform">
                                     <Layers className="w-6 h-6 text-white" />
                                 </div>
-                                <div className="absolute top-1/2 -right-4 transform -translate-y-1/2 w-12 h-12 bg-gradient-to-r from-teal-400 to-cyan-400 rounded-lg flex items-center justify-center shadow-lg animate-pulse delay-150">
+                                <div className="absolute top-1/2 -right-4 transform -translate-y-1/2 w-12 h-12 bg-gradient-to-r from-teal-400 to-cyan-400 rounded-lg flex items-center justify-center shadow-lg animate-pulse delay-150 will-change-transform">
                                     <Search className="w-6 h-6 text-white" />
                                 </div>
-                                <div className="absolute -bottom-4 left-1/2 transform -translate-x-1/2 w-12 h-12 bg-gradient-to-r from-orange-400 to-red-400 rounded-lg flex items-center justify-center shadow-lg animate-pulse delay-300">
+                                <div className="absolute -bottom-4 left-1/2 transform -translate-x-1/2 w-12 h-12 bg-gradient-to-r from-orange-400 to-red-400 rounded-lg flex items-center justify-center shadow-lg animate-pulse delay-300 will-change-transform">
                                     <Target className="w-6 h-6 text-white" />
                                 </div>
-                                <div className="absolute top-1/2 -left-4 transform -translate-y-1/2 w-12 h-12 bg-gradient-to-r from-pink-400 to-rose-400 rounded-lg flex items-center justify-center shadow-lg animate-pulse delay-500">
+                                <div className="absolute top-1/2 -left-4 transform -translate-y-1/2 w-12 h-12 bg-gradient-to-r from-pink-400 to-rose-400 rounded-lg flex items-center justify-center shadow-lg animate-pulse delay-500 will-change-transform">
                                     <Workflow className="w-6 h-6 text-white" />
                                 </div>
 
                                 {/* Connecting Lines */}
                                 <div className="absolute inset-0 opacity-30">
                                     <svg className="w-full h-full" viewBox="0 0 100 100">
-                                        <circle cx="50" cy="50" r="35" fill="none" stroke="url(#gradient1)" strokeWidth="2" strokeDasharray="5,5" className="animate-spin" style={{ animationDuration: '10s' }} />
+                                        <circle cx="50" cy="50" r="35" fill="none" stroke="url(#gradient1)" strokeWidth="2" strokeDasharray="5,5" className="animate-spin will-change-transform" style={{animationDuration: '10s'}} />
                                         <defs>
                                             <linearGradient id="gradient1" x1="0%" y1="0%" x2="100%" y2="100%">
                                                 <stop offset="0%" stopColor="#8B5CF6" />
@@ -354,7 +367,7 @@ const LandingPage: React.FC<LandingPageProps> = () => {
                         </div>
                     </div>
 
-                    <div className="mt-6 p-4 bg-gradient-to-r from-yellow-50 to-orange-50 rounded-xl border-2 border-yellow-200">
+                    <div className="mt-6 p-4 bg-gradient-to-r from-yellow-50 to-orange-50 rounded-xl border-2 border-yellow-200 will-change-transform">
                         <p className="text-center text-gray-700 font-medium">
                             🎯 Our games naturally develop these skills through fun challenges and interactive play!
                         </p>
@@ -362,7 +375,7 @@ const LandingPage: React.FC<LandingPageProps> = () => {
                 </section>
 
                 {/* Contact Section */}
-                <section data-section="contact" className="bg-white/95 backdrop-blur-sm rounded-3xl p-6 md:p-8 shadow-xl border border-purple-100 mb-8">
+                <section data-section="contact" className="bg-white/95 backdrop-blur-sm rounded-3xl p-6 md:p-8 shadow-xl border border-purple-100 mb-8 will-change-transform">
                     <div className="text-center">
                         <h2 className="text-xl md:text-2xl font-bold text-purple-700 mb-4 flex items-center justify-center gap-3">
                             <Mail className="w-6 h-6 md:w-8 md:h-8 text-purple-500" />
@@ -375,42 +388,19 @@ const LandingPage: React.FC<LandingPageProps> = () => {
                             <p className="text-base md:text-lg leading-relaxed">
                                 <strong>Need custom software development?</strong> Whether it's educational apps, business applications, mobile apps, AI-powered solutions, consulting services, or solving unique challenges with code, I'm here to help bring your digital dreams to life! From web platforms to intelligent automation and strategic technology guidance, let's build something amazing together. 🚀
                             </p>
-
-                            {/* Contact Button */}                            
+                            
+                            {/* Contact Button */}
                             <div className="pt-4">
-                                <button
-                                    onClick={(e) => {
-                                        e.preventDefault();
-
-                                        const email = 'ricardoalexanderh@gmail.com';
-                                        const subject = 'Hello from Semakin Pintar!';
-
-                                        // Track the click
-                                        trackButtonClick('contact-ricardo', 'contact-section');
-
-                                        // Create mailto URL
-                                        const mailtoUrl = `mailto:${email}?subject=${encodeURIComponent(subject)}`;
-
-                                        // Handle iOS Chrome specifically
-                                        if (/CriOS/.test(navigator.userAgent) && /iPhone|iPad|iPod/.test(navigator.userAgent)) {
-                                            // Try multiple approaches for iOS Chrome
-                                            try {
-                                                window.open(mailtoUrl, '_self');
-                                            } catch (error) {
-                                                window.location.href = mailtoUrl;
-                                            }
-                                        } else {
-                                            // Standard approach for other browsers
-                                            window.location.href = mailtoUrl;
-                                        }
-                                    }}
+                                <a
+                                    href="mailto:ricardoalexanderh@gmail.com?subject=Hello from Semakin Pintar!"
+                                    onClick={() => trackButtonClick('contact-ricardo', 'contact-section')}
                                     className="inline-flex items-center gap-3 bg-gradient-to-r from-purple-500 to-indigo-500 text-white px-6 py-3 rounded-xl font-bold hover:from-purple-600 hover:to-indigo-600 transition-all shadow-lg hover:shadow-xl transform hover:scale-105"
                                 >
                                     <Mail className="w-5 h-5" />
                                     Say Hello to Ricardo Alexander
-                                </button>
+                                </a>
                             </div>
-
+                            
                             <p className="text-sm text-gray-600 mt-4 italic">
                                 Always happy to help! 😊
                             </p>
@@ -424,7 +414,7 @@ const LandingPage: React.FC<LandingPageProps> = () => {
 
                 {/* Donate Section */}
                 <section id="donate-section" className="mb-8">
-                    <div className="bg-gradient-to-r from-purple-100 to-orange-100 rounded-3xl p-6 md:p-8 shadow-xl border border-purple-200 max-w-2xl mx-auto">
+                    <div className="bg-gradient-to-r from-purple-100 to-orange-100 rounded-3xl p-6 md:p-8 shadow-xl border border-purple-200 max-w-2xl mx-auto will-change-transform">
                         <div className="text-center">
                             <h2 className="text-xl md:text-2xl font-bold text-purple-700 mb-4">☕️ Support Our Mission</h2>
                             <p className="text-sm md:text-base text-gray-700 mb-6 leading-relaxed">
@@ -432,14 +422,14 @@ const LandingPage: React.FC<LandingPageProps> = () => {
                             </p>
 
                             {/* Donate Buttons */}
-                            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+                            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">                                
                                 {/* Buy Me a Coffee Button - Indonesia */}
                                 <a
                                     href="https://saweria.co/semakinpintar"
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     onClick={() => trackDonationClick('saweria')}
-                                    className="bg-gradient-to-r from-yellow-400 to-orange-400 text-white px-4 md:px-6 py-3 rounded-xl font-bold hover:from-yellow-500 hover:to-orange-500 transition-all shadow-lg hover:shadow-xl transform hover:scale-105 flex items-center gap-2 text-sm md:text-base w-full sm:w-auto justify-center"
+                                    className="bg-gradient-to-r from-yellow-400 to-orange-400 text-white px-4 md:px-6 py-3 rounded-xl font-bold hover:from-yellow-500 hover:to-orange-500 transition-all shadow-lg hover:shadow-xl transform hover:scale-105 flex items-center gap-2 text-sm md:text-base w-full sm:w-auto justify-center will-change-transform"
                                 >
                                     ☕️ Buy Me a Coffee - Indonesia (Rp.)
                                 </a>
@@ -450,7 +440,7 @@ const LandingPage: React.FC<LandingPageProps> = () => {
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     onClick={() => trackDonationClick('kofi')}
-                                    className="bg-gradient-to-r from-red-400 to-pink-400 text-white px-6 py-3 rounded-xl font-bold hover:from-red-500 hover:to-pink-500 transition-all shadow-lg hover:shadow-xl transform hover:scale-105 flex items-center gap-2"
+                                    className="bg-gradient-to-r from-red-400 to-pink-400 text-white px-6 py-3 rounded-xl font-bold hover:from-red-500 hover:to-pink-500 transition-all shadow-lg hover:shadow-xl transform hover:scale-105 flex items-center gap-2 will-change-transform"
                                 >
                                     ☕️ Buy Me a Coffee - International ($)
                                 </a>
