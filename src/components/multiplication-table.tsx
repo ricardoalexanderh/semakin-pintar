@@ -225,7 +225,22 @@ const MultiplicationTable: React.FC<MultiplicationTableProps> = ({ onBackToHome 
 
   // Generate achievements
   const generateAchievements = (): Achievement[] => {
-    const memorizedCount = Object.values(memorizedFacts).filter(Boolean).length;
+    return generateAchievementsWithFacts(memorizedFacts);
+  };
+
+  // Generate achievements
+  const generateAchievementsWithFacts = (facts: MemorizedFacts): Achievement[] => {
+    // Count unique facts (avoid double counting due to commutativity)
+    const uniqueMemorizedFacts = new Set<string>();
+    Object.keys(facts).forEach(key => {
+      if (facts[key]) {
+        const [a, b] = key.split('x').map(Number);
+        const normalizedKey = a <= b ? `${a}x${b}` : `${b}x${a}`;
+        uniqueMemorizedFacts.add(normalizedKey);
+      }
+    });
+    
+    const memorizedCount = uniqueMemorizedFacts.size;
     
     return [
       {
@@ -285,37 +300,6 @@ const MultiplicationTable: React.FC<MultiplicationTableProps> = ({ onBackToHome 
     ];
   };
 
-  // Check for new achievements
-  const checkAchievements = (): void => {
-    if (!settings.gamificationEnabled) return;
-    
-    const newAchievements = generateAchievements();
-    const previousAchievements = achievements;
-    
-    // Find newly unlocked achievements
-    for (const achievement of newAchievements) {
-      const wasUnlocked = previousAchievements.find(a => a.id === achievement.id)?.unlocked || false;
-      if (achievement.unlocked && !wasUnlocked) {
-        setShowAchievement(achievement);
-        playSound('achievement');
-        
-        // Track achievement unlock (async, non-blocking)
-        setTimeout(() => {
-          trackGameEvent('multiplication-table', 'achievement_unlocked', {
-            achievementId: achievement.id,
-            achievementTitle: achievement.title,
-            memorizedCount: Object.values(memorizedFacts).filter(Boolean).length
-          });
-        }, 0);
-        
-        setTimeout(() => setShowAchievement(null), 3000);
-        break; // Show one achievement at a time
-      }
-    }
-    
-    setAchievements(newAchievements);
-  };
-
   // Toggle memorization status
   const toggleMemorized = (num1: number, num2: number): void => {
     const key1 = `${num1}x${num2}`;
@@ -355,11 +339,53 @@ const MultiplicationTable: React.FC<MultiplicationTableProps> = ({ onBackToHome 
       
       return newFacts;
     });
-
-    // Check for achievements after state update
+  
+    // Check for achievements after state update - only when adding facts
     setTimeout(() => {
-      checkAchievements();
+      const key = `${num1}x${num2}`;
+      const willBeMemorized = !memorizedFacts[key];
+      if (willBeMemorized) {
+        // Pass the updated facts to checkAchievements
+        const updatedFacts = { ...memorizedFacts };
+        updatedFacts[key] = true;
+        updatedFacts[`${num2}x${num1}`] = true;
+        checkAchievementsWithFacts(updatedFacts);
+      }
     }, 100);
+  };
+
+  // Check for new achievements
+  const checkAchievementsWithFacts = (updatedFacts: MemorizedFacts): void => {
+    if (!settings.gamificationEnabled) return;
+    
+    const newAchievements = generateAchievementsWithFacts(updatedFacts);
+    const previousAchievements = achievements;
+    
+    // Find newly unlocked achievements
+    for (const achievement of newAchievements) {
+      const wasUnlocked = previousAchievements.find(a => a.id === achievement.id)?.unlocked || false;
+      const previousProgress = previousAchievements.find(a => a.id === achievement.id)?.progress || 0;
+      
+      // Only trigger achievement if it's newly unlocked AND progress increased
+      if (achievement.unlocked && !wasUnlocked && achievement.progress > previousProgress) {
+        setShowAchievement(achievement);
+        playSound('achievement');
+        
+        // Track achievement unlock (async, non-blocking)
+        setTimeout(() => {
+          trackGameEvent('multiplication-table', 'achievement_unlocked', {
+            achievementId: achievement.id,
+            achievementTitle: achievement.title,
+            memorizedCount: achievement.progress
+          });
+        }, 0);
+        
+        setTimeout(() => setShowAchievement(null), 3000);
+        break; // Show one achievement at a time
+      }
+    }
+    
+    setAchievements(newAchievements);
   };
 
   // Check if a fact is memorized
@@ -384,7 +410,18 @@ const MultiplicationTable: React.FC<MultiplicationTableProps> = ({ onBackToHome 
 
   // Calculate progress
   const getProgress = () => {
-    const memorizedCount = Object.values(memorizedFacts).filter(Boolean).length;
+    // Count unique facts (avoid double counting due to commutativity)
+    const uniqueMemorizedFacts = new Set<string>();
+    Object.keys(memorizedFacts).forEach(key => {
+      if (memorizedFacts[key]) {
+        const [a, b] = key.split('x').map(Number);
+        const normalizedKey = a <= b ? `${a}x${b}` : `${b}x${a}`;
+        uniqueMemorizedFacts.add(normalizedKey);
+      }
+    });
+    
+    const memorizedCount = uniqueMemorizedFacts.size;
+    
     return {
       memorized: memorizedCount,
       total: 100,
