@@ -3,7 +3,7 @@
 // PWA Virtual Module Declarations
 declare module 'virtual:pwa-register/react' {
     import type { Dispatch, SetStateAction } from 'react'
-  
+    
     export interface RegisterSWOptions {
       immediate?: boolean
       onNeedRefresh?: () => void
@@ -45,7 +45,7 @@ declare module 'virtual:pwa-register/react' {
       beforeinstallprompt: BeforeInstallPromptEvent
       appinstalled: Event
     }
-  
+    
     interface Navigator {
       standalone?: boolean
       connection?: {
@@ -66,5 +66,4 @@ declare module 'virtual:pwa-register/react' {
     }
   }
   
-  // Ensure this file is treated as a module
-  export { }
+  export {}

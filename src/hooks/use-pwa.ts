@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+// @ts-expect-error - Virtual module from vite-plugin-pwa
 import { useRegisterSW } from 'virtual:pwa-register/react'
 
 interface BeforeInstallPromptEvent extends Event {
@@ -21,20 +22,21 @@ export const usePWA = () => {
   const [isInstalled, setIsInstalled] = useState(false)
   const [installSource, setInstallSource] = useState<string>('')
 
-  // Enhanced service worker registration
+  // Service worker registration with explicit typing
   const {
     needRefresh: [needRefresh, setNeedRefresh],
     offlineReady: [offlineReady],
     updateServiceWorker,
   } = useRegisterSW({
-    onRegistered(registration) {
+    onRegistered(registration?: ServiceWorkerRegistration) {
       console.log('SW Registered:', registration)
-      // Check for updates periodically
-      setInterval(() => {
-        registration?.update()
-      }, 60000) // Check every minute
+      if (registration) {
+        setInterval(() => {
+          registration.update()
+        }, 60000)
+      }
     },
-    onRegisterError(error) {
+    onRegisterError(error: any) {
       console.error('SW registration error:', error)
     },
     onNeedRefresh() {
@@ -45,7 +47,7 @@ export const usePWA = () => {
     }
   })
 
-  // Enhanced installation detection
+  // Installation detection
   const checkInstallation = useCallback(() => {
     const standalone = window.matchMedia('(display-mode: standalone)').matches
     const fullscreen = window.matchMedia('(display-mode: fullscreen)').matches
@@ -59,7 +61,6 @@ export const usePWA = () => {
   useEffect(() => {
     setIsInstalled(checkInstallation())
 
-    // Enhanced beforeinstallprompt handler
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault()
       const event = e as BeforeInstallPromptEvent
@@ -69,32 +70,24 @@ export const usePWA = () => {
         platforms: event.platforms || []
       })
       setIsInstallable(true)
-      
-      console.log('Install prompt available for platforms:', event.platforms)
     }
 
-    // App installed handler
-    const handleAppInstalled = (e: Event) => {
-      console.log('App installed:', e)
+    const handleAppInstalled = () => {
       setIsInstalled(true)
       setIsInstallable(false)
       setInstallPrompt(null)
       
-      // Track installation source
       const urlParams = new URLSearchParams(window.location.search)
       setInstallSource(urlParams.get('utm_source') || 'unknown')
     }
 
-    // Listen for display mode changes
     const handleDisplayModeChange = () => {
       setIsInstalled(checkInstallation())
     }
 
-    // Event listeners
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
     window.addEventListener('appinstalled', handleAppInstalled)
     
-    // Modern display mode detection
     const mediaQuery = window.matchMedia('(display-mode: standalone)')
     mediaQuery.addEventListener('change', handleDisplayModeChange)
 
