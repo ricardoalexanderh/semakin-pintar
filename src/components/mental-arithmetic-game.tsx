@@ -357,7 +357,7 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
     if (settings.speechEnabled) {
       // For speech mode: ensure speech completes + brief pause
       const speechDuration = estimateSpeechDuration(answerText);      
-      return speechDuration - 600; // Speech duration - 0.6 second
+      return speechDuration - 1000; // Speech duration - 1 second
     } else {
       // For non-speech mode: slightly longer, level-based delays
       const levelDelays = {
