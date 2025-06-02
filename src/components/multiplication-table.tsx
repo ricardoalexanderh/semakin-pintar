@@ -133,7 +133,7 @@ const MultiplicationTable: React.FC<MultiplicationTableProps> = ({ onBackToHome 
     if (!settings.soundEnabled) return;
     
     try {
-      if (Tone.context.state !== 'running') {
+      if (Tone.getContext().state !== 'running') {
         await Tone.start();
       }
 

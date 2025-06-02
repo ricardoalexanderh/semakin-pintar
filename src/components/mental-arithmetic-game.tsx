@@ -377,7 +377,7 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
     if (!settings.soundEnabled) return;
 
     try {
-      if (Tone.context.state !== 'running') {
+      if (Tone.getContext().state !== 'running') {
         await Tone.start();
       }
 
@@ -657,9 +657,9 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
 
     // Stop any Tone.js audio
     try {
-      if (Tone.context.state === 'running') {
-        Tone.Transport.stop();
-        Tone.Transport.cancel();
+      if (Tone.getContext().state === 'running') {
+        Tone.getTransport().stop();
+        Tone.getTransport().cancel();
       }
     } catch (error) {
       // Ignore Tone.js errors
@@ -715,9 +715,9 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
 
     // Stop any Tone.js audio
     try {
-      if (Tone.context.state === 'running') {
-        Tone.Transport.stop();
-        Tone.Transport.cancel();
+      if (Tone.getContext().state === 'running') {
+        Tone.getTransport().stop();
+        Tone.getTransport().cancel();
       }
     } catch (error) {
       // Ignore Tone.js errors
