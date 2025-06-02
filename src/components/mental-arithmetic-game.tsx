@@ -823,8 +823,6 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
   };
 
   // Game functions with analytics
-  // Replace the existing startGame function with this fixed version:
-
   const startGame = async (): Promise<void> => {
     const hasDigitType = Object.values(settings.digitTypes).some(enabled => enabled);
     if (!hasDigitType) {
@@ -873,20 +871,24 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
       });
     }, 0);
 
-    // CRITICAL FIX: Initialize speech FIRST and WAIT for it to complete
-    let speechReady = false;
-    if (settings.speechEnabled) {
-      console.log('Initializing speech before game starts...');
+    // Background speech initialization for iOS (non-blocking)
+    if (settings.speechEnabled && isIOS) {
+      console.log('iOS detected: initializing speech in background');
+      initializeSpeechSync().then((voiceInitialized) => {
+        console.log('Background voice initialization result:', voiceInitialized);
+      }).catch((error) => {
+        console.log('Background speech initialization failed:', error);
+      });
+    } else if (settings.speechEnabled) {
+      // Non-iOS: quick initialization
       try {
-        speechReady = await initializeSpeechSync();
-        console.log('Speech initialization completed:', speechReady);
+        await initializeSpeechSync();
       } catch (error) {
         console.log('Speech initialization failed:', error);
-        speechReady = false;
       }
     }
 
-    // Show "Get Ready" for the full duration, then proceed with game
+    // Show "Get Ready" immediately, then proceed with game
     setTimeout(() => {
       setTimeout(() => {
         setShowingGetReady(false);
@@ -896,9 +898,13 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
           setAnswer(questions[0].answer);
           setDisplayNumber(questions[0].numbers[0].toString());
 
-          // Now speech is guaranteed to be ready - no delay needed
-          if (settings.speechEnabled && speechReady) {
-            speak(questions[0].numbers[0].toString());
+          if (settings.speechEnabled) {
+            // For iOS: Use a longer delay to allow background initialization to complete
+            // For other platforms: minimal delay
+            const firstSpeechDelay = isIOS ? 800 : 0;
+            setTimeout(() => {
+              speak(questions[0].numbers[0].toString());
+            }, firstSpeechDelay);
           }
         }
       }, 800);
