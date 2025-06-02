@@ -890,21 +890,35 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
 
     // Show "Get Ready" immediately, then proceed with game
     setTimeout(() => {
+      // In the startGame() function, replace this section:
+
       setTimeout(() => {
         setShowingGetReady(false);
         if (questions.length > 0) {
           setCurrentNumbers(questions[0].numbers);
           setCurrentOperations(questions[0].operations);
           setAnswer(questions[0].answer);
-          setDisplayNumber(questions[0].numbers[0].toString());
 
           if (settings.speechEnabled) {
-            // For iOS: Use a longer delay to allow background initialization to complete
-            // For other platforms: minimal delay
-            const firstSpeechDelay = isIOS ? 800 : 0;
+            // For iOS: delay both visual and speech to ensure synchronization
+            const firstNumberDelay = isIOS ? 800 : 0;
+
+            if (firstNumberDelay > 0) {
+              // Show loading/preparing state on iOS while speech initializes
+              setDisplayNumber('🗣️ Loading voice...');
+            } else {
+              // Non-iOS: show number immediately
+              setDisplayNumber(questions[0].numbers[0].toString());
+            }
+
             setTimeout(() => {
+              // Show number and speak simultaneously
+              setDisplayNumber(questions[0].numbers[0].toString());
               speak(questions[0].numbers[0].toString());
-            }, firstSpeechDelay);
+            }, firstNumberDelay);
+          } else {
+            // No speech: show number immediately
+            setDisplayNumber(questions[0].numbers[0].toString());
           }
         }
       }, 800);
