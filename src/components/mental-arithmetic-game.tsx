@@ -905,7 +905,7 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
 
             if (firstNumberDelay > 0) {
               // Show loading/preparing state on iOS while speech initializes
-              setDisplayNumber('🗣️ Loading voice...');
+              setDisplayNumber('⏳');
             } else {
               // Non-iOS: show number immediately
               setDisplayNumber(questions[0].numbers[0].toString());
