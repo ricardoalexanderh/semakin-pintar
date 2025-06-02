@@ -90,7 +90,7 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
   const [allQuestions, setAllQuestions] = useState<Question[]>([]);
   const [displayNumber, setDisplayNumber] = useState<string>('');
   const [isPaused, setIsPaused] = useState<boolean>(false);
-  const [speechInitialized, setSpeechInitialized] = useState<boolean>(false);
+  const [, setSpeechInitialized] = useState<boolean>(false);
   const [gameStartTime, setGameStartTime] = useState<number>(0);
 
   // Speech synthesis references
