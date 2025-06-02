@@ -41,13 +41,13 @@ type GameState = 'setup' | 'playing' | 'paused' | 'results';
 type SoundType = 'getReady' | 'calculating' | 'answerReveal' | 'questionComplete' | 'gameStart' | 'gameComplete' | 'pause' | 'resume' | 'buttonClick' | 'settingChange';
 type DigitType = '1digit' | '2digit' | '3digit' | '4digit';
 
-const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-
 interface MentalArithmeticGameProps {
   onBackToHome?: () => void;
 }
 
 const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHome }) => {
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+
   // In-memory settings store
   const settingsRef = useRef<GameSettings>({
     digitTypes: { '1digit': true, '2digit': true, '3digit': false, '4digit': false },
@@ -128,6 +128,49 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
       console.log('Could not save settings to storage:', error);
     }
   };
+
+  // Add this useEffect to handle iOS audio context resumption
+  useEffect(() => {
+    const handleVisibilityChange = async () => {
+      if (document.visibilityState === 'visible' && settings.soundEnabled) {
+        try {
+          // Resume the Tone.js audio context if it's suspended
+          if (Tone.getContext().state === 'suspended') {
+            console.log('Resuming audio context after app became visible');
+            await Tone.start();
+          }
+        } catch (error) {
+          console.log('Failed to resume audio context:', error);
+        }
+      }
+    };
+
+    const handleFocus = async () => {
+      if (settings.soundEnabled) {
+        try {
+          // Additional check on window focus
+          if (Tone.getContext().state !== 'running') {
+            console.log('Resuming audio context on window focus');
+            await Tone.start();
+          }
+        } catch (error) {
+          console.log('Failed to resume audio context on focus:', error);
+        }
+      }
+    };
+
+    // Listen for visibility changes (when switching between apps)
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    // Listen for window focus events (additional safety net)
+    window.addEventListener('focus', handleFocus);
+
+    // Cleanup
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [settings.soundEnabled]);
 
   // Initialize speech synthesis and find preferred female voice
   /*const initializeSpeech = (): Promise<void> => {
@@ -216,24 +259,24 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
         resolve();
         return;
       }
-  
+
       // CRITICAL: Ensure speech queue is completely clear
       speechSynthesis.cancel();
-      
+
       // iOS-specific: Add a small delay to ensure cancel completes
       const speakDelay = isIOS ? 100 : 0;
-      
+
       setTimeout(() => {
         // Clear any existing timeout
         if (speechTimeoutRef.current) {
           clearTimeout(speechTimeoutRef.current);
           speechTimeoutRef.current = null;
         }
-  
+
         try {
           const utterance = new SpeechSynthesisUtterance(text);
           speechUtteranceRef.current = utterance;
-  
+
           // iOS-specific voice setting
           if (preferredVoiceRef.current) {
             utterance.voice = preferredVoiceRef.current;
@@ -242,19 +285,19 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
             // iOS emergency fallback: force refresh voices and try again
             const voices = speechSynthesis.getVoices();
             console.log('No preferred voice on iOS, available voices:', voices.map(v => v.name));
-            
+
             // Try to find any female-sounding voice
-            const femaleVoice = voices.find(voice => 
+            const femaleVoice = voices.find(voice =>
               /(samantha|victoria|allison|ava|susan|kathy)/i.test(voice.name) ||
               (voice.lang.startsWith('en-') && !/(alex|daniel|fred|ralph|tom|male|man)/i.test(voice.name))
             );
-            
+
             if (femaleVoice) {
               utterance.voice = femaleVoice;
               console.log('🗣️ iOS emergency voice:', femaleVoice.name);
             }
           }
-  
+
           // iOS-optimized settings
           if (isIOS) {
             utterance.rate = 1.0;
@@ -265,7 +308,7 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
             utterance.volume = 0.9;
             utterance.pitch = 1.2;
           }
-  
+
           let resolved = false;
           const resolveOnce = () => {
             if (!resolved) {
@@ -273,21 +316,21 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
               resolve();
             }
           };
-  
+
           utterance.onstart = () => {
             console.log('Speech started:', text);
           };
-  
+
           utterance.onend = () => {
             console.log('Speech ended:', text);
             resolveOnce();
           };
-          
+
           utterance.onerror = (event) => {
             console.log('Speech error:', event.error);
             resolveOnce();
           };
-  
+
           // iOS-specific timeout calculation
           const estimatedDuration = estimateSpeechDuration(text);
           const timeoutDuration = isIOS ? estimatedDuration + 1000 : estimatedDuration + 500;
@@ -295,11 +338,11 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
             console.log('Speech timeout for:', text);
             resolveOnce();
           }, timeoutDuration);
-  
+
           // Start speaking
           console.log('Starting speech:', text);
           speechSynthesis.speak(utterance);
-  
+
           // iOS-specific fixes - but with delays to avoid interference
           if (isIOS) {
             // Single resume attempt with proper delay
@@ -310,7 +353,7 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
               }
             }, 150);
           }
-  
+
         } catch (error) {
           console.log('Speech synthesis error:', error);
           resolve();
@@ -417,16 +460,29 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
     }
   };
 
-  // Sound functions (unchanged)
+  // Sound functions
   const playSound = async (type: SoundType): Promise<void> => {
     if (!settings.soundEnabled) return;
 
     try {
+      // Always ensure audio context is running before playing sound
       if (Tone.getContext().state !== 'running') {
+        console.log('Audio context not running, starting...');
         await Tone.start();
       }
 
-      const synth = new Tone.Synth().toDestination();
+      // Create a new synth instance each time for better reliability on iOS
+      const synth = new Tone.Synth({
+        oscillator: {
+          type: "sine"
+        },
+        envelope: {
+          attack: 0.01,
+          decay: 0.1,
+          sustain: 0.3,
+          release: 0.5
+        }
+      }).toDestination();
 
       switch (type) {
         case 'getReady':
@@ -470,6 +526,12 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
           synth.triggerAttackRelease('A4', '0.15');
           break;
       }
+
+      // Dispose of the synth after a delay to free up resources
+      setTimeout(() => {
+        synth.dispose();
+      }, 1000);
+
     } catch (error) {
       console.log('Audio not available:', error);
     }
@@ -477,7 +539,7 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
 
   // Calculate delays based on level with speech consideration
   const getDelays = (level: number) => {
-    const baseNumberDelay = Math.max(0.5, 2 - (level - 1) * 0.5);    
+    const baseNumberDelay = Math.max(0.5, 2 - (level - 1) * 0.5);
     //const baseAnswerDelay = Math.max(0.8, 5 - (level - 1) * 0.6);
     const baseAnswerDelay = Math.max(1.25, 5 - (level) * 0.75);
 
@@ -616,7 +678,7 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
         resolve(false);
         return;
       }
-  
+
       // CRITICAL FOR iOS: Must speak something first to initialize properly
       const initializeWithDummySpeak = () => {
         try {
@@ -624,26 +686,26 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
           const initUtterance = new SpeechSynthesisUtterance('');
           initUtterance.volume = 0; // Completely silent
           initUtterance.rate = 10; // Very fast
-          
+
           let initComplete = false;
-          
+
           const completeInit = () => {
             if (initComplete) return;
             initComplete = true;
-            
+
             // IMPORTANT: Wait for the dummy speech to completely finish
             // before trying to get voices
             setTimeout(() => {
               setVoiceAfterInit();
             }, 200); // Increased delay to ensure dummy speech is done
           };
-          
+
           initUtterance.onend = completeInit;
           initUtterance.onerror = completeInit;
-          
+
           // Fallback in case events don't fire
           setTimeout(completeInit, 500);
-  
+
           speechSynthesis.speak(initUtterance);
         } catch (error) {
           console.log('Dummy speak failed:', error);
@@ -652,14 +714,14 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
           }, 200);
         }
       };
-  
+
       const setVoiceAfterInit = () => {
         // CRITICAL: Ensure speech queue is completely clear before proceeding
         speechSynthesis.cancel();
-        
+
         const voices = speechSynthesis.getVoices();
         console.log('Available voices after init:', voices.map(v => `${v.name} (${v.lang})`));
-  
+
         // iOS-specific female voice patterns with priority
         const femaleVoicePatterns = [
           // iOS built-in female voices
@@ -669,14 +731,14 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
           { pattern: /^Ava$/i, priority: 17 },
           { pattern: /^Susan$/i, priority: 16 },
           { pattern: /^Kathy$/i, priority: 15 },
-          
+
           // General patterns for other systems
           { pattern: /samantha/i, priority: 14 },
           { pattern: /victoria/i, priority: 13 },
           { pattern: /allison/i, priority: 12 },
           { pattern: /female/i, priority: 11 },
           { pattern: /woman/i, priority: 10 },
-          
+
           // Additional female voices
           { pattern: /karen/i, priority: 9 },
           { pattern: /zira/i, priority: 8 },
@@ -684,10 +746,10 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
           { pattern: /anna/i, priority: 6 },
           { pattern: /susan/i, priority: 5 }
         ];
-  
+
         let bestVoice = null;
         let bestPriority = -1;
-  
+
         voices.forEach(voice => {
           femaleVoicePatterns.forEach(({ pattern, priority }) => {
             if (pattern.test(voice.name) && priority > bestPriority) {
@@ -696,23 +758,23 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
             }
           });
         });
-  
+
         // iOS fallback: if no pattern match, look for English voices that might be female
         if (!bestVoice && isIOS) {
-          const englishVoices = voices.filter(voice => 
-            voice.lang.startsWith('en-') && 
+          const englishVoices = voices.filter(voice =>
+            voice.lang.startsWith('en-') &&
             !/(male|man|alex|daniel|fred|ralph|tom)/i.test(voice.name)
           );
-          
+
           if (englishVoices.length > 0) {
             bestVoice = englishVoices[0];
             console.log('iOS fallback: selected first non-male English voice:', bestVoice.name);
           }
         }
-  
+
         preferredVoiceRef.current = bestVoice;
         setSpeechInitialized(true);
-        
+
         if (bestVoice) {
           console.log('✅ Selected female voice:', bestVoice.name, 'Language:', bestVoice.lang);
         } else {
@@ -721,10 +783,10 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
             console.log(`  - ${voice.name} (${voice.lang}) ${voice.default ? '[DEFAULT]' : ''}`);
           });
         }
-        
+
         resolve(!!bestVoice);
       };
-  
+
       // For iOS: voices are often not available until after first user interaction
       // AND after a dummy speak call
       if (isIOS) {
@@ -736,7 +798,7 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
           setVoiceAfterInit();
         } else {
           let resolved = false;
-          
+
           const handleVoicesChanged = () => {
             if (!resolved && speechSynthesis.getVoices().length > 0) {
               resolved = true;
@@ -744,9 +806,9 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
               setVoiceAfterInit();
             }
           };
-  
+
           speechSynthesis.addEventListener('voiceschanged', handleVoicesChanged);
-  
+
           // Fallback timeout
           setTimeout(() => {
             if (!resolved) {
@@ -767,17 +829,17 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
       alert('Please select at least one number type!');
       return;
     }
-  
+
     if (settings.numbersPerQuestion < 2) {
       alert('Numbers per question must be at least 2!');
       return;
     }
-  
+
     if (settings.numQuestions < 1) {
       alert('Number of questions must be at least 1!');
       return;
     }
-  
+
     // IMMEDIATE UI FEEDBACK - Change state right away
     playSound('gameStart');
     const questions: Question[] = [];
@@ -794,7 +856,7 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
     setFlashingBetweenNumbers(false);
     setIsPaused(false);
     setGameState('playing'); // This immediately changes the UI
-  
+
     // Analytics tracking (async, non-blocking)
     const startTime = Date.now();
     setGameStartTime(startTime);
@@ -808,7 +870,7 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
         operations: settings.operations
       });
     }, 0);
-  
+
     // Background speech initialization for iOS (non-blocking)
     if (settings.speechEnabled && isIOS) {
       console.log('iOS detected: initializing speech in background');
@@ -825,7 +887,7 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
         console.log('Speech initialization failed:', error);
       }
     }
-  
+
     // Show "Get Ready" immediately, then proceed with game
     setTimeout(() => {
       setTimeout(() => {
@@ -835,7 +897,7 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
           setCurrentOperations(questions[0].operations);
           setAnswer(questions[0].answer);
           setDisplayNumber(questions[0].numbers[0].toString());
-  
+
           if (settings.speechEnabled) {
             // For iOS: Use a longer delay to allow background initialization to complete
             // For other platforms: minimal delay
@@ -1060,7 +1122,7 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
 
       return;
     } else if (calculatingAnswer) {
-      if (settings.speechEnabled) {        
+      if (settings.speechEnabled) {
         //const levelDelay = Math.max(800, 3000 - (settings.level - 1) * 400);
         const levelDelay = Math.max(1200, 3000 - settings.level * 600);
         const timer = setTimeout(() => {

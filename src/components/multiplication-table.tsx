@@ -42,6 +42,8 @@ interface MultiplicationTableProps {
 }
 
 const MultiplicationTable: React.FC<MultiplicationTableProps> = ({ onBackToHome }) => {
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+  
   // In-memory settings store
   const settingsRef = useRef<TableSettings>({
     theme: 'default',
@@ -128,16 +130,65 @@ const MultiplicationTable: React.FC<MultiplicationTableProps> = ({ onBackToHome 
     }
   };
 
+  useEffect(() => {
+    const handleVisibilityChange = async () => {
+      if (document.visibilityState === 'visible' && settings.soundEnabled) {
+        try {
+          if (Tone.getContext().state === 'suspended') {
+            console.log('Resuming audio context after app became visible');
+            await Tone.start();
+          }
+        } catch (error) {
+          console.log('Failed to resume audio context:', error);
+        }
+      }
+    };
+  
+    const handleFocus = async () => {
+      if (settings.soundEnabled) {
+        try {
+          if (Tone.getContext().state !== 'running') {
+            console.log('Resuming audio context on window focus');
+            await Tone.start();
+          }
+        } catch (error) {
+          console.log('Failed to resume audio context on focus:', error);
+        }
+      }
+    };
+  
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleFocus);
+  
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [settings.soundEnabled]);
+
   // Sound functions
   const playSound = async (type: SoundType): Promise<void> => {
     if (!settings.soundEnabled) return;
     
     try {
+      // Always ensure audio context is running before playing sound
       if (Tone.getContext().state !== 'running') {
+        console.log('Audio context not running, starting...');
         await Tone.start();
       }
-
-      const synth = new Tone.Synth().toDestination();
+  
+      // Create a new synth instance each time for better reliability on iOS
+      const synth = new Tone.Synth({
+        oscillator: {
+          type: "sine"
+        },
+        envelope: {
+          attack: 0.01,
+          decay: 0.1,
+          sustain: 0.3,
+          release: 0.5
+        }
+      }).toDestination();      
       
       switch (type) {
         case 'check':
@@ -167,6 +218,12 @@ const MultiplicationTable: React.FC<MultiplicationTableProps> = ({ onBackToHome 
           synth.triggerAttackRelease('A4', '0.15');
           break;
       }
+      
+      // Dispose of the synth after a delay to free up resources
+      setTimeout(() => {
+        synth.dispose();
+      }, 1000);
+  
     } catch (error) {
       console.log('Audio not available:', error);
     }
