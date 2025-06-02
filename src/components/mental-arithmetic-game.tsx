@@ -170,87 +170,7 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('focus', handleFocus);
     };
-  }, [settings.soundEnabled]);
-
-  // Initialize speech synthesis and find preferred female voice
-  /*const initializeSpeech = (): Promise<void> => {
-    return new Promise((resolve) => {
-      if (!('speechSynthesis' in window)) {
-        console.log('Speech synthesis not supported');
-        resolve();
-        return;
-      }
-
-      const setVoice = () => {
-        const voices = speechSynthesis.getVoices();
-
-        // Enhanced female voice detection with more patterns and priorities
-        const femaleVoicePatterns = [
-          // iOS/Safari specific
-          { pattern: /samantha/i, priority: 10 },
-          { pattern: /karen/i, priority: 9 },
-          { pattern: /moira/i, priority: 8 },
-          { pattern: /tessa/i, priority: 7 },
-          { pattern: /serena/i, priority: 6 },
-
-          // General patterns
-          { pattern: /female/i, priority: 15 },
-          { pattern: /woman/i, priority: 14 },
-          { pattern: /zira/i, priority: 13 },
-          { pattern: /susan/i, priority: 12 },
-          { pattern: /amelie/i, priority: 11 },
-          { pattern: /anna/i, priority: 5 },
-          { pattern: /carmit/i, priority: 4 },
-          { pattern: /lekha/i, priority: 3 },
-          { pattern: /mei-jia/i, priority: 2 },
-          { pattern: /sin-ji/i, priority: 1 },
-
-          // Additional patterns
-          { pattern: /ting-ting/i, priority: 1 },
-          { pattern: /yuna/i, priority: 1 },
-          { pattern: /nicky/i, priority: 1 },
-          { pattern: /fiona/i, priority: 1 },
-          { pattern: /ellen/i, priority: 1 },
-          { pattern: /joana/i, priority: 1 },
-          { pattern: /helena/i, priority: 1 },
-          { pattern: /luciana/i, priority: 1 },
-          { pattern: /paulina/i, priority: 1 }
-        ];
-
-        let bestVoice: SpeechSynthesisVoice | null = null;
-        let bestPriority = -1;
-
-        voices.forEach(voice => {
-          femaleVoicePatterns.forEach(({ pattern, priority }) => {
-            if (pattern.test(voice.name) && priority > bestPriority) {
-              bestVoice = voice;
-              bestPriority = priority;
-            }
-          });
-        });
-
-        preferredVoiceRef.current = bestVoice;
-        setSpeechInitialized(true);
-        resolve();
-      };
-
-      if (speechSynthesis.getVoices().length > 0) {
-        setVoice();
-      } else {
-        speechSynthesis.onvoiceschanged = () => {
-          setVoice();
-          speechSynthesis.onvoiceschanged = null;
-        };
-
-        // Fallback timeout for iOS
-        setTimeout(() => {
-          if (!speechInitialized) {
-            setVoice();
-          }
-        }, 1000);
-      }
-    });
-  };*/
+  }, [settings.soundEnabled]);    
 
   // Enhanced speech function with better iOS/Safari support
   const speak = (text: string): Promise<void> => {
@@ -670,6 +590,7 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
     return { numbers, operations, answer: runningTotal };
   };
 
+  // Initialize speech synthesis and find preferred female voice
   const initializeSpeechSync = (): Promise<boolean> => {
     return new Promise((resolve) => {
       if (!('speechSynthesis' in window)) {
@@ -890,8 +811,6 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
 
     // Show "Get Ready" immediately, then proceed with game
     setTimeout(() => {
-      // In the startGame() function, replace this section:
-
       setTimeout(() => {
         setShowingGetReady(false);
         if (questions.length > 0) {
@@ -905,7 +824,7 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
 
             if (firstNumberDelay > 0) {
               // Show loading/preparing state on iOS while speech initializes
-              setDisplayNumber('⏳');
+              setDisplayNumber('');
             } else {
               // Non-iOS: show number immediately
               setDisplayNumber(questions[0].numbers[0].toString());
@@ -1212,13 +1131,6 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
       }
     }
   }, [gameState, currentQuestion, currentNumberIndex, showingAnswer, calculatingAnswer, flashingBetweenNumbers, showingGetReady, currentNumbers, answer, settings, allQuestions, isPaused, displayNumber]);
-
-  // Initialize speech on component mount if speech is enabled
-  /*useEffect(() => {
-    if (settings.speechEnabled && !speechInitialized) {
-      initializeSpeech();
-    }
-  }, [settings.speechEnabled, speechInitialized]);*/
 
   // Cleanup effect
   useEffect(() => {
