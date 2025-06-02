@@ -18,7 +18,7 @@ interface Game {
 }
 
 interface LandingPageProps {
-  // No props needed anymore since we use React Router directly
+    // No props needed anymore since we use React Router directly
 }
 
 const LandingPage: React.FC<LandingPageProps> = () => {
@@ -101,13 +101,13 @@ const LandingPage: React.FC<LandingPageProps> = () => {
                                 {/* Main Logo Content */}
                                 <div className="text-center z-10">
                                     {/* Logo Image Placeholder - Responsive */}
-                                    <div className="w-48 h-48 sm:w-60 sm:h-60 md:w-72 md:h-72 lg:w-80 lg:h-80 mx-auto mb-4 md:mb-6 relative">                                        
+                                    <div className="w-48 h-48 sm:w-60 sm:h-60 md:w-72 md:h-72 lg:w-80 lg:h-80 mx-auto mb-4 md:mb-6 relative">
                                         <img
                                             src={logo}
                                             alt="Semakin Pintar Logo - Free Educational Games Platform"
                                             className="w-full h-full object-contain rounded-2xl shadow-lg"
                                         />
-                                    </div>                                    
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -281,7 +281,7 @@ const LandingPage: React.FC<LandingPageProps> = () => {
                         Why Computational Thinking Matters
                         <Puzzle className="w-6 h-6 md:w-8 md:h-8 text-teal-500" />
                     </h2>
-                    
+
                     <div className="grid md:grid-cols-2 gap-6 items-center">
                         {/* Text Content */}
                         <div className="space-y-4 text-gray-700">
@@ -341,7 +341,7 @@ const LandingPage: React.FC<LandingPageProps> = () => {
                                 {/* Connecting Lines */}
                                 <div className="absolute inset-0 opacity-30">
                                     <svg className="w-full h-full" viewBox="0 0 100 100">
-                                        <circle cx="50" cy="50" r="35" fill="none" stroke="url(#gradient1)" strokeWidth="2" strokeDasharray="5,5" className="animate-spin" style={{animationDuration: '10s'}} />
+                                        <circle cx="50" cy="50" r="35" fill="none" stroke="url(#gradient1)" strokeWidth="2" strokeDasharray="5,5" className="animate-spin" style={{ animationDuration: '10s' }} />
                                         <defs>
                                             <linearGradient id="gradient1" x1="0%" y1="0%" x2="100%" y2="100%">
                                                 <stop offset="0%" stopColor="#8B5CF6" />
@@ -375,19 +375,42 @@ const LandingPage: React.FC<LandingPageProps> = () => {
                             <p className="text-base md:text-lg leading-relaxed">
                                 <strong>Need custom software development?</strong> Whether it's educational apps, business applications, mobile apps, AI-powered solutions, consulting services, or solving unique challenges with code, I'm here to help bring your digital dreams to life! From web platforms to intelligent automation and strategic technology guidance, let's build something amazing together. 🚀
                             </p>
-                            
-                            {/* Contact Button */}
+
+                            {/* Contact Button */}                            
                             <div className="pt-4">
-                                <a
-                                    href="mailto:ricardoalexanderh@gmail.com?subject=Hello from Semakin Pintar!"
-                                    onClick={() => trackButtonClick('contact-ricardo', 'contact-section')}
+                                <button
+                                    onClick={(e) => {
+                                        e.preventDefault();
+
+                                        const email = 'ricardoalexanderh@gmail.com';
+                                        const subject = 'Hello from Semakin Pintar!';
+
+                                        // Track the click
+                                        trackButtonClick('contact-ricardo', 'contact-section');
+
+                                        // Create mailto URL
+                                        const mailtoUrl = `mailto:${email}?subject=${encodeURIComponent(subject)}`;
+
+                                        // Handle iOS Chrome specifically
+                                        if (/CriOS/.test(navigator.userAgent) && /iPhone|iPad|iPod/.test(navigator.userAgent)) {
+                                            // Try multiple approaches for iOS Chrome
+                                            try {
+                                                window.open(mailtoUrl, '_self');
+                                            } catch (error) {
+                                                window.location.href = mailtoUrl;
+                                            }
+                                        } else {
+                                            // Standard approach for other browsers
+                                            window.location.href = mailtoUrl;
+                                        }
+                                    }}
                                     className="inline-flex items-center gap-3 bg-gradient-to-r from-purple-500 to-indigo-500 text-white px-6 py-3 rounded-xl font-bold hover:from-purple-600 hover:to-indigo-600 transition-all shadow-lg hover:shadow-xl transform hover:scale-105"
                                 >
                                     <Mail className="w-5 h-5" />
                                     Say Hello to Ricardo Alexander
-                                </a>
+                                </button>
                             </div>
-                            
+
                             <p className="text-sm text-gray-600 mt-4 italic">
                                 Always happy to help! 😊
                             </p>
@@ -409,7 +432,7 @@ const LandingPage: React.FC<LandingPageProps> = () => {
                             </p>
 
                             {/* Donate Buttons */}
-                            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">                                
+                            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
                                 {/* Buy Me a Coffee Button - Indonesia */}
                                 <a
                                     href="https://saweria.co/semakinpintar"
