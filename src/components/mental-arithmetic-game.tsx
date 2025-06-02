@@ -170,7 +170,7 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('focus', handleFocus);
     };
-  }, [settings.soundEnabled]);    
+  }, [settings.soundEnabled]);
 
   // Enhanced speech function with better iOS/Safari support
   const speak = (text: string): Promise<void> => {
@@ -1217,13 +1217,30 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
                     />
                   </label>
                 </div>
+
                 {settings.speechEnabled && (
-                  <div className="mt-3 p-3 bg-blue-100 rounded-lg">
-                    <p className="text-sm text-blue-700">
-                      ℹ️ Voice mode uses intelligent timing and limits difficulty to levels 1-3 for optimal experience
-                    </p>
+                  <div className="mt-4 space-y-3">
+                    <div className="p-4 bg-amber-100 rounded-lg border-l-4 border-amber-400">
+                      <p className="text-sm text-amber-800 font-medium">
+                        🎭 Voice will use available device voices (may be female or male depending on your device)
+                      </p>
+                    </div>
                   </div>
                 )}
+
+                <div className="mt-4 p-4 bg-gray-100 rounded-lg border-l-4 border-gray-400">
+                  <div className="flex items-start gap-3">
+                    <span className="text-lg">🔧</span>
+                    <div>
+                      <p className="text-sm text-gray-700 font-medium mb-1">
+                        Troubleshooting: Sound/Voice Not Working?
+                      </p>
+                      <p className="text-xs text-gray-600">
+                        Please refresh the page and try again. Make sure your device volume is up and browser permissions allow audio.
+                      </p>
+                    </div>
+                  </div>
+                </div>
               </div>
 
               {/* Theme Selector */}
@@ -1447,7 +1464,7 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
                 {settings.speechEnabled && (
                   <div className="mt-3 p-3 bg-blue-100 rounded-lg">
                     <p className="text-sm text-blue-700">
-                      ℹ️ Voice mode offers 3 difficulty levels for optimal timing experience
+                      ℹ️ Voice mode uses intelligent timing and limits difficulty to levels 1-3 for optimal experience
                     </p>
                   </div>
                 )}

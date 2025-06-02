@@ -42,8 +42,6 @@ interface MultiplicationTableProps {
 }
 
 const MultiplicationTable: React.FC<MultiplicationTableProps> = ({ onBackToHome }) => {
-  //const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-  
   // In-memory settings store
   const settingsRef = useRef<TableSettings>({
     theme: 'default',
@@ -91,18 +89,18 @@ const MultiplicationTable: React.FC<MultiplicationTableProps> = ({ onBackToHome 
   // Update settings function with memory persistence and analytics
   const updateSettings = (newSettings: TableSettings | ((prev: TableSettings) => TableSettings)): void => {
     const updatedSettings = typeof newSettings === 'function' ? newSettings(settings) : newSettings;
-    
+
     // Track which setting changed (async, non-blocking)
     setTimeout(() => {
-      const changedSetting = Object.keys(updatedSettings).find(key => 
-        JSON.stringify(updatedSettings[key as keyof TableSettings]) !== 
+      const changedSetting = Object.keys(updatedSettings).find(key =>
+        JSON.stringify(updatedSettings[key as keyof TableSettings]) !==
         JSON.stringify(settings[key as keyof TableSettings])
       );
-      
+
       if (changedSetting) {
         trackSettingsChange(
-          changedSetting, 
-          updatedSettings[changedSetting as keyof TableSettings], 
+          changedSetting,
+          updatedSettings[changedSetting as keyof TableSettings],
           'multiplication-table'
         );
       }
@@ -110,7 +108,7 @@ const MultiplicationTable: React.FC<MultiplicationTableProps> = ({ onBackToHome 
 
     settingsRef.current = updatedSettings;
     setSettingsState(updatedSettings);
-    
+
     try {
       localStorage.setItem('multiplication-table-settings', JSON.stringify(updatedSettings));
     } catch (error) {
@@ -122,7 +120,7 @@ const MultiplicationTable: React.FC<MultiplicationTableProps> = ({ onBackToHome 
   const updateMemorizedFacts = (newFacts: MemorizedFacts | ((prev: MemorizedFacts) => MemorizedFacts)): void => {
     const updatedFacts = typeof newFacts === 'function' ? newFacts(memorizedFacts) : newFacts;
     setMemorizedFactsState(updatedFacts);
-    
+
     try {
       localStorage.setItem('multiplication-table-memorized', JSON.stringify(updatedFacts));
     } catch (error) {
@@ -143,7 +141,7 @@ const MultiplicationTable: React.FC<MultiplicationTableProps> = ({ onBackToHome 
         }
       }
     };
-  
+
     const handleFocus = async () => {
       if (settings.soundEnabled) {
         try {
@@ -156,10 +154,10 @@ const MultiplicationTable: React.FC<MultiplicationTableProps> = ({ onBackToHome 
         }
       }
     };
-  
+
     document.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('focus', handleFocus);
-  
+
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('focus', handleFocus);
@@ -169,14 +167,14 @@ const MultiplicationTable: React.FC<MultiplicationTableProps> = ({ onBackToHome 
   // Sound functions
   const playSound = async (type: SoundType): Promise<void> => {
     if (!settings.soundEnabled) return;
-    
+
     try {
       // Always ensure audio context is running before playing sound
       if (Tone.getContext().state !== 'running') {
         console.log('Audio context not running, starting...');
         await Tone.start();
       }
-  
+
       // Create a new synth instance each time for better reliability on iOS
       const synth = new Tone.Synth({
         oscillator: {
@@ -188,8 +186,8 @@ const MultiplicationTable: React.FC<MultiplicationTableProps> = ({ onBackToHome 
           sustain: 0.3,
           release: 0.5
         }
-      }).toDestination();      
-      
+      }).toDestination();
+
       switch (type) {
         case 'check':
           synth.triggerAttackRelease('C5', '0.2');
@@ -218,12 +216,12 @@ const MultiplicationTable: React.FC<MultiplicationTableProps> = ({ onBackToHome 
           synth.triggerAttackRelease('A4', '0.15');
           break;
       }
-      
+
       // Dispose of the synth after a delay to free up resources
       setTimeout(() => {
         synth.dispose();
       }, 1000);
-  
+
     } catch (error) {
       console.log('Audio not available:', error);
     }
@@ -296,9 +294,9 @@ const MultiplicationTable: React.FC<MultiplicationTableProps> = ({ onBackToHome 
         uniqueMemorizedFacts.add(normalizedKey);
       }
     });
-    
+
     const memorizedCount = uniqueMemorizedFacts.size;
-    
+
     return [
       {
         id: 'first_step',
@@ -361,17 +359,17 @@ const MultiplicationTable: React.FC<MultiplicationTableProps> = ({ onBackToHome 
   const toggleMemorized = (num1: number, num2: number): void => {
     const key1 = `${num1}x${num2}`;
     const key2 = `${num2}x${num1}`;
-    
+
     updateMemorizedFacts(prev => {
       const newFacts = { ...prev };
       const isCurrentlyMemorized = newFacts[key1] || false;
-      
+
       if (isCurrentlyMemorized) {
         // Uncheck both directions
         delete newFacts[key1];
         delete newFacts[key2];
         playSound('uncheck');
-        
+
         // Track fact unmemorized (async, non-blocking)
         setTimeout(() => {
           trackGameEvent('multiplication-table', 'fact_unmemorized', {
@@ -384,7 +382,7 @@ const MultiplicationTable: React.FC<MultiplicationTableProps> = ({ onBackToHome 
         newFacts[key1] = true;
         newFacts[key2] = true;
         playSound('check');
-        
+
         // Track fact memorized (async, non-blocking)
         setTimeout(() => {
           trackGameEvent('multiplication-table', 'fact_memorized', {
@@ -393,10 +391,10 @@ const MultiplicationTable: React.FC<MultiplicationTableProps> = ({ onBackToHome 
           });
         }, 0);
       }
-      
+
       return newFacts;
     });
-  
+
     // Check for achievements after state update - only when adding facts
     setTimeout(() => {
       const key = `${num1}x${num2}`;
@@ -414,20 +412,20 @@ const MultiplicationTable: React.FC<MultiplicationTableProps> = ({ onBackToHome 
   // Check for new achievements
   const checkAchievementsWithFacts = (updatedFacts: MemorizedFacts): void => {
     if (!settings.gamificationEnabled) return;
-    
+
     const newAchievements = generateAchievementsWithFacts(updatedFacts);
     const previousAchievements = achievements;
-    
+
     // Find newly unlocked achievements
     for (const achievement of newAchievements) {
       const wasUnlocked = previousAchievements.find(a => a.id === achievement.id)?.unlocked || false;
       const previousProgress = previousAchievements.find(a => a.id === achievement.id)?.progress || 0;
-      
+
       // Only trigger achievement if it's newly unlocked AND progress increased
       if (achievement.unlocked && !wasUnlocked && achievement.progress > previousProgress) {
         setShowAchievement(achievement);
         playSound('achievement');
-        
+
         // Track achievement unlock (async, non-blocking)
         setTimeout(() => {
           trackGameEvent('multiplication-table', 'achievement_unlocked', {
@@ -436,12 +434,12 @@ const MultiplicationTable: React.FC<MultiplicationTableProps> = ({ onBackToHome 
             memorizedCount: achievement.progress
           });
         }, 0);
-        
+
         setTimeout(() => setShowAchievement(null), 3000);
         break; // Show one achievement at a time
       }
     }
-    
+
     setAchievements(newAchievements);
   };
 
@@ -459,7 +457,7 @@ const MultiplicationTable: React.FC<MultiplicationTableProps> = ({ onBackToHome 
         previousMemorizedCount: Object.values(memorizedFacts).filter(Boolean).length
       });
     }, 0);
-    
+
     updateMemorizedFacts({});
     setAchievements(generateAchievements());
     playSound('buttonClick');
@@ -476,9 +474,9 @@ const MultiplicationTable: React.FC<MultiplicationTableProps> = ({ onBackToHome 
         uniqueMemorizedFacts.add(normalizedKey);
       }
     });
-    
+
     const memorizedCount = uniqueMemorizedFacts.size;
-    
+
     return {
       memorized: memorizedCount,
       total: 100,
@@ -489,7 +487,7 @@ const MultiplicationTable: React.FC<MultiplicationTableProps> = ({ onBackToHome 
   // Initialize achievements on component mount and track view
   useEffect(() => {
     setAchievements(generateAchievements());
-    
+
     // Track table view (async, non-blocking)
     setTimeout(() => {
       trackGameEvent('multiplication-table', 'view', {
@@ -508,7 +506,7 @@ const MultiplicationTable: React.FC<MultiplicationTableProps> = ({ onBackToHome 
     if (isMemorized(num1, num2)) {
       return 'bg-green-200 border-green-400 text-green-800';
     }
-    
+
     return 'bg-white border-gray-200 hover:bg-gray-50';
   };
 
@@ -552,7 +550,7 @@ const MultiplicationTable: React.FC<MultiplicationTableProps> = ({ onBackToHome 
                   value={settings.theme}
                   onChange={(e) => {
                     playSound('settingChange');
-                    updateSettings(prev => ({...prev, theme: e.target.value as TableSettings['theme']}));
+                    updateSettings(prev => ({ ...prev, theme: e.target.value as TableSettings['theme'] }));
                   }}
                   className="w-full sm:w-auto px-3 py-2 text-sm sm:text-base rounded-xl border-2 border-gray-200 focus:border-purple-400 focus:outline-none"
                 >
@@ -567,13 +565,12 @@ const MultiplicationTable: React.FC<MultiplicationTableProps> = ({ onBackToHome 
                 <button
                   onClick={() => {
                     playSound('settingChange');
-                    updateSettings(prev => ({...prev, soundEnabled: !prev.soundEnabled}));
+                    updateSettings(prev => ({ ...prev, soundEnabled: !prev.soundEnabled }));
                   }}
-                  className={`px-3 py-2 text-sm sm:text-base rounded-xl font-medium transition-all ${
-                    settings.soundEnabled 
-                      ? 'bg-purple-500 text-white' 
-                      : 'bg-gray-200 text-gray-600'
-                  }`}
+                  className={`px-3 py-2 text-sm sm:text-base rounded-xl font-medium transition-all ${settings.soundEnabled
+                    ? 'bg-purple-500 text-white'
+                    : 'bg-gray-200 text-gray-600'
+                    }`}
                 >
                   <span className="block sm:hidden">{settings.soundEnabled ? '🔊 Sound' : '🔇 Sound'}</span>
                   <span className="hidden sm:inline">{settings.soundEnabled ? '🔊' : '🔇'} Sound</span>
@@ -582,13 +579,12 @@ const MultiplicationTable: React.FC<MultiplicationTableProps> = ({ onBackToHome 
                 <button
                   onClick={() => {
                     playSound('settingChange');
-                    updateSettings(prev => ({...prev, showAnswers: !prev.showAnswers}));
+                    updateSettings(prev => ({ ...prev, showAnswers: !prev.showAnswers }));
                   }}
-                  className={`px-3 py-2 text-sm sm:text-base rounded-xl font-medium transition-all ${
-                    settings.showAnswers 
-                      ? 'bg-blue-500 text-white' 
-                      : 'bg-gray-200 text-gray-600'
-                  }`}
+                  className={`px-3 py-2 text-sm sm:text-base rounded-xl font-medium transition-all ${settings.showAnswers
+                    ? 'bg-blue-500 text-white'
+                    : 'bg-gray-200 text-gray-600'
+                    }`}
                 >
                   <span className="block sm:hidden">{settings.showAnswers ? '👁️ Answers' : '🙈 Answers'}</span>
                   <span className="hidden sm:inline">{settings.showAnswers ? '👁️' : '🙈'} Answers</span>
@@ -597,13 +593,12 @@ const MultiplicationTable: React.FC<MultiplicationTableProps> = ({ onBackToHome 
                 <button
                   onClick={() => {
                     playSound('settingChange');
-                    updateSettings(prev => ({...prev, gamificationEnabled: !prev.gamificationEnabled}));
+                    updateSettings(prev => ({ ...prev, gamificationEnabled: !prev.gamificationEnabled }));
                   }}
-                  className={`px-3 py-2 text-sm sm:text-base rounded-xl font-medium transition-all ${
-                    settings.gamificationEnabled 
-                      ? 'bg-yellow-500 text-white' 
-                      : 'bg-gray-200 text-gray-600'
-                  }`}
+                  className={`px-3 py-2 text-sm sm:text-base rounded-xl font-medium transition-all ${settings.gamificationEnabled
+                    ? 'bg-yellow-500 text-white'
+                    : 'bg-gray-200 text-gray-600'
+                    }`}
                 >
                   <span className="block sm:hidden">{settings.gamificationEnabled ? '🏆 Goals' : '📚 Goals'}</span>
                   <span className="hidden sm:inline">{settings.gamificationEnabled ? '🏆' : '📚'} Goals</span>
@@ -621,6 +616,23 @@ const MultiplicationTable: React.FC<MultiplicationTableProps> = ({ onBackToHome 
                   <span className="hidden sm:inline">Reset</span>
                 </button>
               </div>
+
+              {/* NEW: Audio troubleshooting section */}
+              {settings.soundEnabled && (
+                <div className="mt-3 p-3 bg-gray-100 rounded-lg border-l-4 border-gray-400">
+                  <div className="flex items-start gap-2">
+                    <span className="text-sm">🔧</span>
+                    <div>
+                      <p className="text-xs text-gray-700 font-medium mb-1">
+                        Troubleshooting: Sound Not Working?
+                      </p>
+                      <p className="text-xs text-gray-600">
+                        Please refresh the page and try again. Make sure your device volume is up and browser permissions allow audio.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -632,11 +644,10 @@ const MultiplicationTable: React.FC<MultiplicationTableProps> = ({ onBackToHome 
                 playSound('buttonClick');
                 setInstructionsCollapsed(!instructionsCollapsed);
               }}
-              className={`w-full text-left p-3 rounded-xl border-2 transition-all hover:shadow-md ${
-                instructionsCollapsed 
-                  ? 'bg-gray-50 border-gray-200 hover:bg-gray-100' 
-                  : 'bg-blue-50 border-blue-300'
-              }`}
+              className={`w-full text-left p-3 rounded-xl border-2 transition-all hover:shadow-md ${instructionsCollapsed
+                ? 'bg-gray-50 border-gray-200 hover:bg-gray-100'
+                : 'bg-blue-50 border-blue-300'
+                }`}
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -652,7 +663,7 @@ const MultiplicationTable: React.FC<MultiplicationTableProps> = ({ onBackToHome 
                 )}
               </div>
             </button>
-            
+
             {!instructionsCollapsed && (
               <div className="mt-3 p-3 sm:p-4 bg-blue-50 rounded-xl">
                 <ul className="text-blue-700 space-y-1 text-xs sm:text-sm">
@@ -661,6 +672,7 @@ const MultiplicationTable: React.FC<MultiplicationTableProps> = ({ onBackToHome 
                   <li>• Track progress and unlock achievements! 🏆</li>
                   <li>• Practice one times table at a time</li>
                   <li>• Use the toggle buttons to customize your experience</li>
+                  <li>• Sound effects enhance the learning experience 🔊</li>
                 </ul>
               </div>
             )}
@@ -689,7 +701,7 @@ const MultiplicationTable: React.FC<MultiplicationTableProps> = ({ onBackToHome 
                 )}
               </div>
               <div className="w-full bg-gray-200 rounded-full h-2 sm:h-3">
-                <div 
+                <div
                   className="bg-gradient-to-r from-green-400 to-green-600 h-2 sm:h-3 rounded-full transition-all duration-500"
                   style={{ width: `${progress.percentage}%` }}
                 ></div>
@@ -706,11 +718,10 @@ const MultiplicationTable: React.FC<MultiplicationTableProps> = ({ onBackToHome 
                   playSound('buttonClick');
                   setAchievementsCollapsed(!achievementsCollapsed);
                 }}
-                className={`w-full text-left p-3 rounded-xl border-2 transition-all hover:shadow-md ${
-                  achievementsCollapsed 
-                    ? 'bg-gray-50 border-gray-200 hover:bg-gray-100' 
-                    : `${currentTheme.headerBg} border-gray-300`
-                }`}
+                className={`w-full text-left p-3 rounded-xl border-2 transition-all hover:shadow-md ${achievementsCollapsed
+                  ? 'bg-gray-50 border-gray-200 hover:bg-gray-100'
+                  : `${currentTheme.headerBg} border-gray-300`
+                  }`}
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
@@ -729,17 +740,16 @@ const MultiplicationTable: React.FC<MultiplicationTableProps> = ({ onBackToHome 
                   )}
                 </div>
               </button>
-              
+
               {!achievementsCollapsed && (
                 <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2 sm:gap-3">
                   {achievements.map(achievement => (
-                    <div 
+                    <div
                       key={achievement.id}
-                      className={`p-2 sm:p-3 rounded-xl border-2 transition-all ${
-                        achievement.unlocked 
-                          ? 'bg-yellow-100 border-yellow-400 text-yellow-800' 
-                          : 'bg-gray-100 border-gray-300 text-gray-600'
-                      }`}
+                      className={`p-2 sm:p-3 rounded-xl border-2 transition-all ${achievement.unlocked
+                        ? 'bg-yellow-100 border-yellow-400 text-yellow-800'
+                        : 'bg-gray-100 border-gray-300 text-gray-600'
+                        }`}
                     >
                       <div className="flex items-center gap-2 mb-1">
                         <span className="text-base sm:text-lg">{achievement.icon}</span>
@@ -748,10 +758,9 @@ const MultiplicationTable: React.FC<MultiplicationTableProps> = ({ onBackToHome 
                       </div>
                       <p className="text-xs mb-2 line-clamp-2">{achievement.description}</p>
                       <div className="w-full bg-gray-200 rounded-full h-1.5 sm:h-2">
-                        <div 
-                          className={`h-1.5 sm:h-2 rounded-full transition-all ${
-                            achievement.unlocked ? 'bg-yellow-500' : 'bg-gray-400'
-                          }`}
+                        <div
+                          className={`h-1.5 sm:h-2 rounded-full transition-all ${achievement.unlocked ? 'bg-yellow-500' : 'bg-gray-400'
+                            }`}
                           style={{ width: `${(achievement.progress / achievement.maxProgress) * 100}%` }}
                         ></div>
                       </div>
