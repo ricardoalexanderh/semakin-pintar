@@ -6,8 +6,12 @@ import MultiplicationTable from './components/multiplication-table';
 import GamesIndex from './components/games-index';
 import GamesLayout from './components/games-layout';
 import SEOHead from './components/seo-head';
-import { trackPageView, initGA } from './utils/analytics';
+import { trackPageView, initGA, setupPWAAnalytics } from './utils/analytics';
 import './App.css';
+import PWARouteHandler from './components/pwa-route-handler';
+import InstallButton from './components/install-button';
+import UpdateNotification from './components/update-notification';
+import OfflineStatus from './components/offline-status';
 
 // Component to handle page tracking and SEO
 const PageTracker = () => {
@@ -16,7 +20,7 @@ const PageTracker = () => {
   useEffect(() => {
     // Track page view
     trackPageView(location.pathname);
-    
+
     // Scroll to top on route change
     window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
   }, [location]);
@@ -181,75 +185,83 @@ function App() {
   useEffect(() => {
     // Initialize Google Analytics    
     initGA('G-X6GWD0Y9Y4');
+    
+    // Setup all PWA analytics tracking - this handles all PWA events
+    const cleanupPWAAnalytics = setupPWAAnalytics();
+
+    // Return cleanup function
+    return cleanupPWAAnalytics;
   }, []);
 
   return (
     <Router>
-      <PageTracker />
-      <Routes>
-        {/* Home Page */}
-        <Route path="/" element={<HomePage />} />
+      <PWARouteHandler defaultRoute="/games">
+        <PageTracker />
         
-        {/* Games Routes */}
-        <Route path="/games" element={<GamesIndexPage />} />
-        <Route path="/games/mental-arithmetic" element={
-          <GamesLayout>
-            <MentalArithmeticPage />
-          </GamesLayout>
-        } />
-        <Route path="/games/multiplication-table" element={
-          <GamesLayout>
-            <MultiplicationTablePage />
-          </GamesLayout>
-        } />
+        {/* PWA Components */}
+        <OfflineStatus />
+        <UpdateNotification />
+        <InstallButton />
         
-        {/* Redirect old routes for backward compatibility */}
-        <Route path="/mental-arithmetic-game" element={
-          <div style={{ 
-            display: 'flex', 
-            justifyContent: 'center', 
-            alignItems: 'center', 
-            height: '100vh',
-            flexDirection: 'column',
-            gap: '20px'
-          }}>
-            <p>Redirecting to new URL...</p>
-            <script>{`window.location.href = '/games/mental-arithmetic';`}</script>
-          </div>
-        } />
-        
-        <Route path="/multiplication-table" element={
-          <div style={{ 
-            display: 'flex', 
-            justifyContent: 'center', 
-            alignItems: 'center', 
-            height: '100vh',
-            flexDirection: 'column',
-            gap: '20px'
-          }}>
-            <p>Redirecting to new URL...</p>
-            <script>{`window.location.href = '/games/multiplication-table';`}</script>
-          </div>
-        } />
-        
-        {/* 404 Page */}
-        <Route path="*" element={
-          <div style={{ 
-            display: 'flex', 
-            justifyContent: 'center', 
-            alignItems: 'center', 
-            height: '100vh',
-            flexDirection: 'column',
-            gap: '20px'
-          }}>
-            <h1>404 - Page Not Found</h1>
-            <p>The page you're looking for doesn't exist.</p>
-            <a href="/" style={{ color: '#8B5CF6', textDecoration: 'underline' }}>
-              Go back to home
-            </a>
-          </div>
-        } />
-      </Routes>
+        {/* Your existing Routes component */}
+        <Routes>
+          {/* All your existing routes remain exactly the same */}
+          <Route path="/" element={<HomePage />} />
+          <Route path="/games" element={<GamesIndexPage />} />
+          <Route path="/games/mental-arithmetic" element={
+            <GamesLayout>
+              <MentalArithmeticPage />
+            </GamesLayout>
+          } />
+          <Route path="/games/multiplication-table" element={
+            <GamesLayout>
+              <MultiplicationTablePage />
+            </GamesLayout>
+          } />
+          <Route path="/mental-arithmetic-game" element={
+            <div style={{ 
+              display: 'flex', 
+              justifyContent: 'center', 
+              alignItems: 'center', 
+              height: '100vh',
+              flexDirection: 'column',
+              gap: '20px'
+            }}>
+              <p>Redirecting to new URL...</p>
+              <script>{`window.location.href = '/games/mental-arithmetic';`}</script>
+            </div>
+          } />
+          <Route path="/multiplication-table" element={
+            <div style={{ 
+              display: 'flex', 
+              justifyContent: 'center', 
+              alignItems: 'center', 
+              height: '100vh',
+              flexDirection: 'column',
+              gap: '20px'
+            }}>
+              <p>Redirecting to new URL...</p>
+              <script>{`window.location.href = '/games/multiplication-table';`}</script>
+            </div>
+          } />
+          <Route path="*" element={
+            <div style={{ 
+              display: 'flex', 
+              justifyContent: 'center', 
+              alignItems: 'center', 
+              height: '100vh',
+              flexDirection: 'column',
+              gap: '20px'
+            }}>
+              <h1>404 - Page Not Found</h1>
+              <p>The page you're looking for doesn't exist.</p>
+              <a href="/" style={{ color: '#8B5CF6', textDecoration: 'underline' }}>
+                Go back to home
+              </a>
+            </div>
+          } />
+        </Routes>
+      </PWARouteHandler>
     </Router>
   );
 }
