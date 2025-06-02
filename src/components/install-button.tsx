@@ -34,12 +34,6 @@ const InstallButton: React.FC = () => {
     return <Download className="w-5 h-5" />
   }
 
-  const getButtonText = () => {
-    if (isInstalling) return 'Installing...'
-    if (platforms.includes('mobile')) return 'Add to Home Screen'
-    return 'Install App'
-  }
-
   const getDescription = () => {
     if (platforms.includes('mobile')) {
       return 'Add Semakin Pintar to your home screen for quick access to educational games!'
