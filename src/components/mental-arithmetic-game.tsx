@@ -216,32 +216,43 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
         resolve();
         return;
       }
-
+  
       // Cancel any ongoing speech
       speechSynthesis.cancel();
-
+  
       // Clear any existing timeout
       if (speechTimeoutRef.current) {
         clearTimeout(speechTimeoutRef.current);
         speechTimeoutRef.current = null;
       }
-
+  
       try {
         const utterance = new SpeechSynthesisUtterance(text);
         speechUtteranceRef.current = utterance;
-
-        // Set preferred voice if available
+  
+        // Set preferred voice if available, otherwise try to find a female voice on the fly
         if (preferredVoiceRef.current) {
           utterance.voice = preferredVoiceRef.current;
+          console.log('Using preferred voice:', preferredVoiceRef.current.name);
+        } else {
+          // Emergency fallback: try to find any female voice right now
+          const voices = speechSynthesis.getVoices();
+          const femaleVoice = voices.find(voice => 
+            /samantha|victoria|allison|female|woman|karen|zira|susan/i.test(voice.name)
+          );
+          if (femaleVoice) {
+            utterance.voice = femaleVoice;
+            console.log('Using emergency female voice:', femaleVoice.name);
+          } else {
+            console.log('No female voice available, using default');
+          }
         }
-
+  
         // Enhanced settings for better speech quality                        
-        //utterance.rate = 1.0; // Slightly slower for better comprehension
         utterance.rate = isIOS ? 0.8 : 1.0;
         utterance.volume = 0.9;
-        //utterance.pitch = 1.2; // Slightly higher pitch
         utterance.pitch = isIOS ? 1.0 : 1.2;
-
+  
         let resolved = false;
         const resolveOnce = () => {
           if (!resolved) {
@@ -249,34 +260,27 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
             resolve();
           }
         };
-
+  
         utterance.onend = resolveOnce;
         utterance.onerror = (event) => {
           console.log('Speech error:', event.error);
           resolveOnce();
         };
-
+  
         // Fallback timeout based on estimated duration
         const estimatedDuration = estimateSpeechDuration(text);
         speechTimeoutRef.current = setTimeout(resolveOnce, estimatedDuration + 500);
-
+  
         // Start speaking
         speechSynthesis.speak(utterance);
-
+  
         // iOS Safari fix
         if (isIOS) {
           setTimeout(() => {
             if (speechSynthesis.paused) speechSynthesis.resume();
           }, 100);
         }
-
-        // iOS Safari fix: resume if paused
-        /*setTimeout(() => {
-          if (speechSynthesis.paused) {
-            speechSynthesis.resume();
-          }
-        }, 100);*/
-
+  
       } catch (error) {
         console.log('Speech synthesis error:', error);
         resolve();
@@ -573,58 +577,95 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
     return { numbers, operations, answer: runningTotal };
   };
 
-  const initializeSpeechSync = () => {
-    if (!('speechSynthesis' in window)) {
-      console.log('Speech synthesis not supported');
-      return false;
-    }
+  const initializeSpeechSync = (): Promise<boolean> => {
+    return new Promise((resolve) => {
+      if (!('speechSynthesis' in window)) {
+        console.log('Speech synthesis not supported');
+        setSpeechInitialized(true);
+        resolve(false);
+        return;
+      }
   
-    const setVoice = () => {
-      const voices = speechSynthesis.getVoices();
+      const setVoice = () => {
+        const voices = speechSynthesis.getVoices();
   
-      // Enhanced female voice detection with iOS-specific patterns
-      const femaleVoicePatterns = [
-        { pattern: /samantha/i, priority: 15 },
-        { pattern: /victoria/i, priority: 14 }, // iOS specific
-        { pattern: /allison/i, priority: 13 }, // iOS specific
-        { pattern: /female/i, priority: 12 },
-        { pattern: /woman/i, priority: 11 },
-        { pattern: /karen/i, priority: 10 },
-        { pattern: /zira/i, priority: 9 }
-      ];
+        // Enhanced female voice detection with iOS-specific patterns
+        const femaleVoicePatterns = [
+          { pattern: /samantha/i, priority: 15 },
+          { pattern: /victoria/i, priority: 14 }, // iOS specific
+          { pattern: /allison/i, priority: 13 }, // iOS specific
+          { pattern: /female/i, priority: 12 },
+          { pattern: /woman/i, priority: 11 },
+          { pattern: /karen/i, priority: 10 },
+          { pattern: /zira/i, priority: 9 },
+          { pattern: /susan/i, priority: 8 },
+          { pattern: /amelie/i, priority: 7 },
+          { pattern: /anna/i, priority: 6 }
+        ];
   
-      let bestVoice = null;
-      let bestPriority = -1;
+        let bestVoice = null;
+        let bestPriority = -1;
   
-      voices.forEach(voice => {
-        femaleVoicePatterns.forEach(({ pattern, priority }) => {
-          if (pattern.test(voice.name) && priority > bestPriority) {
-            bestVoice = voice;
-            bestPriority = priority;
-          }
+        voices.forEach(voice => {
+          femaleVoicePatterns.forEach(({ pattern, priority }) => {
+            if (pattern.test(voice.name) && priority > bestPriority) {
+              bestVoice = voice;
+              bestPriority = priority;
+            }
+          });
         });
-      });
   
-      preferredVoiceRef.current = bestVoice;
-      setSpeechInitialized(true);
-      return true;
-    };
+        preferredVoiceRef.current = bestVoice;
+        setSpeechInitialized(true);        
+        
+        resolve(!!bestVoice);
+      };
   
-    // Try immediate voice setting
-    if (speechSynthesis.getVoices().length > 0) {
-      return setVoice();
-    } else {
-      // For iOS: try a quick fallback
-      setTimeout(() => {
-        if (speechSynthesis.getVoices().length > 0) {
-          setVoice();
-        }
-      }, 100);
-      
-      // Set a basic fallback
-      setSpeechInitialized(true);
-      return true;
-    }
+      // Try immediate voice setting
+      if (speechSynthesis.getVoices().length > 0) {
+        setVoice();
+      } else {
+        // Set up proper voice loading handler
+        let resolved = false;
+        
+        const handleVoicesChanged = () => {
+          if (!resolved && speechSynthesis.getVoices().length > 0) {
+            resolved = true;
+            speechSynthesis.removeEventListener('voiceschanged', handleVoicesChanged);
+            setVoice();
+          }
+        };
+  
+        speechSynthesis.addEventListener('voiceschanged', handleVoicesChanged);
+  
+        // Fallback timeouts with increasing delays
+        setTimeout(() => {
+          if (!resolved && speechSynthesis.getVoices().length > 0) {
+            resolved = true;
+            speechSynthesis.removeEventListener('voiceschanged', handleVoicesChanged);
+            setVoice();
+          }
+        }, 100);
+  
+        setTimeout(() => {
+          if (!resolved && speechSynthesis.getVoices().length > 0) {
+            resolved = true;
+            speechSynthesis.removeEventListener('voiceschanged', handleVoicesChanged);
+            setVoice();
+          }
+        }, 500);
+  
+        // Final fallback - but still try to find a voice
+        setTimeout(() => {
+          if (!resolved) {
+            resolved = true;
+            speechSynthesis.removeEventListener('voiceschanged', handleVoicesChanged);
+            console.log('Voice loading timeout, proceeding with available voices');
+            setVoice(); // This will at least log what voices are available
+          }
+        }, 2000);
+      }
+    });
   };
 
   // Game functions with analytics
@@ -634,17 +675,17 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
       alert('Please select at least one number type!');
       return;
     }
-
+  
     if (settings.numbersPerQuestion < 2) {
       alert('Numbers per question must be at least 2!');
       return;
     }
-
+  
     if (settings.numQuestions < 1) {
       alert('Number of questions must be at least 1!');
       return;
     }
-
+  
     // Analytics tracking (async, non-blocking)
     const startTime = Date.now();
     setGameStartTime(startTime);
@@ -658,19 +699,16 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
         operations: settings.operations
       });
     }, 0);
-
-    // Initialize speech if enabled
-    /*if (settings.speechEnabled && !speechInitialized) {
-      await initializeSpeech();
-    }*/
-
-    // CRITICAL: Initialize speech SYNCHRONOUSLY in user gesture for iOS
+  
+    // CRITICAL: Initialize speech PROPERLY in user gesture for iOS and wait for completion
     if (settings.speechEnabled) {
-      if (speechSynthesis.getVoices().length > 0) {
-        initializeSpeechSync(); // Create this new function
+      try {
+        await initializeSpeechSync();
+      } catch (error) {
+        console.log('Speech initialization failed:', error);
       }
     }
-
+  
     playSound('gameStart');
     const questions: Question[] = [];
     for (let i = 0; i < settings.numQuestions; i++) {
@@ -686,7 +724,7 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
     setFlashingBetweenNumbers(false);
     setIsPaused(false);
     setGameState('playing');
-
+  
     setTimeout(() => {
       setTimeout(() => {
         setShowingGetReady(false);
@@ -695,7 +733,7 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
           setCurrentOperations(questions[0].operations);
           setAnswer(questions[0].answer);
           setDisplayNumber(questions[0].numbers[0].toString());
-
+  
           if (settings.speechEnabled) {
             speak(questions[0].numbers[0].toString());
           }
