@@ -427,7 +427,7 @@ const LandingPage: React.FC<LandingPageProps> = () => {
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     onClick={() => trackDonationClick('kofi')}
-                                    className="bg-gradient-to-r from-red-400 to-pink-400 text-white px-6 py-3 rounded-xl font-bold hover:from-red-500 hover:to-pink-500 transition-all shadow-lg hover:shadow-xl transform hover:scale-105 flex items-center gap-2"
+                                    className="bg-gradient-to-r from-red-400 to-pink-400 text-white px-4 md:px-6 py-3 rounded-xl font-bold hover:from-red-500 hover:to-pink-500 transition-all shadow-lg hover:shadow-xl transform hover:scale-105 flex items-center gap-2 text-sm md:text-base w-full sm:w-auto justify-center"
                                 >
                                     ☕️ Buy Me a Coffee - International ($)
                                 </a>
