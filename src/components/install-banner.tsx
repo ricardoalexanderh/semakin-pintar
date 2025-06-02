@@ -35,7 +35,7 @@ const InstallBanner: React.FC = () => {
             </div>
             <div className="flex-1">
               <p className="font-bold text-sm">Install Semakin Pintar</p>
-              <p className="text-xs opacity-90">Quick access to educational games</p>
+              <p className="text-xs opacity-90">Quick access to free educational games for kids and family learning</p>
             </div>
           </div>
           
