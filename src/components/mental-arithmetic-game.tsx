@@ -330,10 +330,10 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
 
     const baseDuration = estimateSpeechDuration(text);
 
-    // Level-based multipliers for pause after speech - more generous for complex numbers
+    // Level-based multipliers for pause after speech - more generous for complex numbers    
     const levelMultipliers = {
-      1: 2.2,  // Much longer pause for beginners, especially with complex numbers
-      2: 1.8,  // Medium-long pause
+      1: 2.4,  // Much longer pause for beginners, especially with complex numbers
+      2: 1.9,  // Medium-long pause
       3: 1.4   // Shorter but still safe pause for advanced
     };
 
@@ -356,9 +356,8 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
   const calculatePostAnswerDelay = (answerText: string): number => {
     if (settings.speechEnabled) {
       // For speech mode: ensure speech completes + brief pause
-      const speechDuration = estimateSpeechDuration(answerText);
-      //return speechDuration + 100; // Speech duration + 1 second pause
-      return speechDuration - 500;
+      const speechDuration = estimateSpeechDuration(answerText);      
+      return speechDuration - 600; // Speech duration - 0.6 second
     } else {
       // For non-speech mode: slightly longer, level-based delays
       const levelDelays = {
@@ -433,6 +432,7 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
   // Calculate delays based on level with speech consideration
   const getDelays = (level: number) => {
     const baseNumberDelay = Math.max(0.5, 2 - (level - 1) * 0.5);
+    //TODO:Adjust answer delay for voice off
     const baseAnswerDelay = Math.max(0.8, 5 - (level - 1) * 0.6);
 
     return {
@@ -844,6 +844,7 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
       return;
     } else if (calculatingAnswer) {
       if (settings.speechEnabled) {
+        //TODO:Adjust answer delay for voice on
         const levelDelay = Math.max(800, 3000 - (settings.level - 1) * 400);
         const timer = setTimeout(() => {
           setDisplayNumber(answer.toString());

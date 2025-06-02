@@ -56,8 +56,8 @@ const GamesIndex: React.FC = () => {
       available: false,
       gradient: 'from-yellow-500 to-orange-400',
       path: '/games/mental-multiplication',
-      difficulty: 'Intermediate',
-      duration: '10-25 minutes'
+      difficulty: 'Beginner to Expert',
+      duration: '5-15 minutes'
     },
     {
       id: 'mental-division',
@@ -68,8 +68,8 @@ const GamesIndex: React.FC = () => {
       available: false,
       gradient: 'from-emerald-500 to-teal-500',
       path: '/games/mental-division',
-      difficulty: 'Intermediate',
-      duration: '10-20 minutes'
+      difficulty: 'Beginner to Expert',
+      duration: '5-15 minutes'
     },
     {
       id: 'patterns',
@@ -80,8 +80,8 @@ const GamesIndex: React.FC = () => {
       available: false,
       gradient: 'from-purple-500 to-pink-400',
       path: '/games/patterns',
-      difficulty: 'All Levels',
-      duration: '5-30 minutes'
+      difficulty: 'Elementary',
+      duration: '5-15 minutes'
     },
     {
       id: 'picture-algebra',
@@ -92,8 +92,8 @@ const GamesIndex: React.FC = () => {
       available: false,
       gradient: 'from-orange-500 to-red-400',
       path: '/games/picture-algebra',
-      difficulty: 'Intermediate',
-      duration: '10-25 minutes'
+      difficulty: 'Elementary',
+      duration: '5-15 minutes'
     }
   ];
 
