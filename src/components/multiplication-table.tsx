@@ -42,7 +42,7 @@ interface MultiplicationTableProps {
 }
 
 const MultiplicationTable: React.FC<MultiplicationTableProps> = ({ onBackToHome }) => {
-  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+  //const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
   
   // In-memory settings store
   const settingsRef = useRef<TableSettings>({
