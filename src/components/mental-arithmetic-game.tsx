@@ -230,28 +230,37 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
         const utterance = new SpeechSynthesisUtterance(text);
         speechUtteranceRef.current = utterance;
   
-        // Set preferred voice if available, otherwise try to find a female voice on the fly
+        // iOS-specific voice setting
         if (preferredVoiceRef.current) {
           utterance.voice = preferredVoiceRef.current;
-          console.log('Using preferred voice:', preferredVoiceRef.current.name);
-        } else {
-          // Emergency fallback: try to find any female voice right now
+          console.log('🗣️ Using voice:', preferredVoiceRef.current.name);
+        } else if (isIOS) {
+          // iOS emergency fallback: force refresh voices and try again
           const voices = speechSynthesis.getVoices();
+          console.log('No preferred voice on iOS, available voices:', voices.map(v => v.name));
+          
+          // Try to find any female-sounding voice
           const femaleVoice = voices.find(voice => 
-            /samantha|victoria|allison|female|woman|karen|zira|susan/i.test(voice.name)
+            /(samantha|victoria|allison|ava|susan|kathy)/i.test(voice.name) ||
+            (voice.lang.startsWith('en-') && !/(alex|daniel|fred|ralph|tom|male|man)/i.test(voice.name))
           );
+          
           if (femaleVoice) {
             utterance.voice = femaleVoice;
-            console.log('Using emergency female voice:', femaleVoice.name);
-          } else {
-            console.log('No female voice available, using default');
+            console.log('🗣️ iOS emergency voice:', femaleVoice.name);
           }
         }
   
-        // Enhanced settings for better speech quality                        
-        utterance.rate = isIOS ? 0.8 : 1.0;
-        utterance.volume = 0.9;
-        utterance.pitch = isIOS ? 1.0 : 1.2;
+        // iOS-optimized settings
+        if (isIOS) {
+          utterance.rate = 0.7; // Slower for iOS
+          utterance.volume = 1.0; // Full volume for iOS
+          utterance.pitch = 1.0; // Normal pitch for iOS
+        } else {
+          utterance.rate = 1.0;
+          utterance.volume = 0.9;
+          utterance.pitch = 1.2;
+        }
   
         let resolved = false;
         const resolveOnce = () => {
@@ -267,18 +276,30 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
           resolveOnce();
         };
   
-        // Fallback timeout based on estimated duration
+        // iOS-specific timeout calculation
         const estimatedDuration = estimateSpeechDuration(text);
-        speechTimeoutRef.current = setTimeout(resolveOnce, estimatedDuration + 500);
+        const timeoutDuration = isIOS ? estimatedDuration + 1000 : estimatedDuration + 500;
+        speechTimeoutRef.current = setTimeout(resolveOnce, timeoutDuration);
   
         // Start speaking
         speechSynthesis.speak(utterance);
   
-        // iOS Safari fix
+        // iOS-specific fixes
         if (isIOS) {
+          // Multiple resume attempts for iOS
           setTimeout(() => {
-            if (speechSynthesis.paused) speechSynthesis.resume();
-          }, 100);
+            if (speechSynthesis.paused) {
+              console.log('Resuming paused speech on iOS');
+              speechSynthesis.resume();
+            }
+          }, 50);
+          
+          setTimeout(() => {
+            if (speechSynthesis.paused) {
+              console.log('Second resume attempt on iOS');
+              speechSynthesis.resume();
+            }
+          }, 200);
         }
   
       } catch (error) {
@@ -372,7 +393,7 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
     if (settings.speechEnabled) {
       // For speech mode: ensure speech completes + brief pause
       const speechDuration = estimateSpeechDuration(answerText);
-      return speechDuration - 1000; // Speech duration - 1 second
+      return speechDuration - 900; // Speech duration - 0.9 second
     } else {
       // For non-speech mode: slightly longer, level-based delays
       const levelDelays = {
@@ -586,21 +607,62 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
         return;
       }
   
-      const setVoice = () => {
-        const voices = speechSynthesis.getVoices();
+      // CRITICAL FOR iOS: Must speak something first to initialize properly
+      const initializeWithDummySpeak = () => {
+        try {
+          // Create a silent/very quiet utterance to initialize the speech system
+          const initUtterance = new SpeechSynthesisUtterance(' ');
+          initUtterance.volume = 0.01; // Very quiet
+          initUtterance.rate = 10; // Very fast
+          
+          initUtterance.onend = () => {
+            // Now the speech system is initialized, we can get voices
+            setTimeout(() => {
+              setVoiceAfterInit();
+            }, 100);
+          };
+          
+          initUtterance.onerror = () => {
+            // Even if there's an error, try to set voice
+            setTimeout(() => {
+              setVoiceAfterInit();
+            }, 100);
+          };
   
-        // Enhanced female voice detection with iOS-specific patterns
+          speechSynthesis.speak(initUtterance);
+        } catch (error) {
+          console.log('Dummy speak failed:', error);
+          setVoiceAfterInit();
+        }
+      };
+  
+      const setVoiceAfterInit = () => {
+        const voices = speechSynthesis.getVoices();
+        console.log('Available voices after init:', voices.map(v => `${v.name} (${v.lang})`));
+  
+        // iOS-specific female voice patterns with priority
         const femaleVoicePatterns = [
-          { pattern: /samantha/i, priority: 15 },
-          { pattern: /victoria/i, priority: 14 }, // iOS specific
-          { pattern: /allison/i, priority: 13 }, // iOS specific
-          { pattern: /female/i, priority: 12 },
-          { pattern: /woman/i, priority: 11 },
-          { pattern: /karen/i, priority: 10 },
-          { pattern: /zira/i, priority: 9 },
-          { pattern: /susan/i, priority: 8 },
+          // iOS built-in female voices
+          { pattern: /^Samantha$/i, priority: 20 },
+          { pattern: /^Victoria$/i, priority: 19 },
+          { pattern: /^Allison$/i, priority: 18 },
+          { pattern: /^Ava$/i, priority: 17 },
+          { pattern: /^Susan$/i, priority: 16 },
+          { pattern: /^Kathy$/i, priority: 15 },
+          
+          // General patterns for other systems
+          { pattern: /samantha/i, priority: 14 },
+          { pattern: /victoria/i, priority: 13 },
+          { pattern: /allison/i, priority: 12 },
+          { pattern: /female/i, priority: 11 },
+          { pattern: /woman/i, priority: 10 },
+          
+          // Additional female voices
+          { pattern: /karen/i, priority: 9 },
+          { pattern: /zira/i, priority: 8 },
           { pattern: /amelie/i, priority: 7 },
-          { pattern: /anna/i, priority: 6 }
+          { pattern: /anna/i, priority: 6 },
+          { pattern: /susan/i, priority: 5 }
         ];
   
         let bestVoice = null;
@@ -615,55 +677,66 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
           });
         });
   
+        // iOS fallback: if no pattern match, look for English voices that might be female
+        if (!bestVoice && isIOS) {
+          const englishVoices = voices.filter(voice => 
+            voice.lang.startsWith('en-') && 
+            !/(male|man|alex|daniel|fred|ralph|tom)/i.test(voice.name)
+          );
+          
+          if (englishVoices.length > 0) {
+            // On iOS, often the first English voice that's not obviously male is female
+            bestVoice = englishVoices[0];
+            console.log('iOS fallback: selected first non-male English voice:', bestVoice.name);
+          }
+        }
+  
         preferredVoiceRef.current = bestVoice;
-        setSpeechInitialized(true);        
+        setSpeechInitialized(true);
+        
+        if (bestVoice) {
+          console.log('✅ Selected female voice:', bestVoice.name, 'Language:', bestVoice.lang);
+        } else {
+          console.log('❌ No female voice found. Available voices:');
+          voices.forEach(voice => {
+            console.log(`  - ${voice.name} (${voice.lang}) ${voice.default ? '[DEFAULT]' : ''}`);
+          });
+        }
         
         resolve(!!bestVoice);
       };
   
-      // Try immediate voice setting
-      if (speechSynthesis.getVoices().length > 0) {
-        setVoice();
+      // For iOS: voices are often not available until after first user interaction
+      // AND after a dummy speak call
+      if (isIOS) {
+        console.log('iOS detected: initializing with dummy speak');
+        initializeWithDummySpeak();
       } else {
-        // Set up proper voice loading handler
-        let resolved = false;
-        
-        const handleVoicesChanged = () => {
-          if (!resolved && speechSynthesis.getVoices().length > 0) {
-            resolved = true;
-            speechSynthesis.removeEventListener('voiceschanged', handleVoicesChanged);
-            setVoice();
-          }
-        };
+        // Non-iOS: use the regular approach
+        if (speechSynthesis.getVoices().length > 0) {
+          setVoiceAfterInit();
+        } else {
+          let resolved = false;
+          
+          const handleVoicesChanged = () => {
+            if (!resolved && speechSynthesis.getVoices().length > 0) {
+              resolved = true;
+              speechSynthesis.removeEventListener('voiceschanged', handleVoicesChanged);
+              setVoiceAfterInit();
+            }
+          };
   
-        speechSynthesis.addEventListener('voiceschanged', handleVoicesChanged);
+          speechSynthesis.addEventListener('voiceschanged', handleVoicesChanged);
   
-        // Fallback timeouts with increasing delays
-        setTimeout(() => {
-          if (!resolved && speechSynthesis.getVoices().length > 0) {
-            resolved = true;
-            speechSynthesis.removeEventListener('voiceschanged', handleVoicesChanged);
-            setVoice();
-          }
-        }, 100);
-  
-        setTimeout(() => {
-          if (!resolved && speechSynthesis.getVoices().length > 0) {
-            resolved = true;
-            speechSynthesis.removeEventListener('voiceschanged', handleVoicesChanged);
-            setVoice();
-          }
-        }, 500);
-  
-        // Final fallback - but still try to find a voice
-        setTimeout(() => {
-          if (!resolved) {
-            resolved = true;
-            speechSynthesis.removeEventListener('voiceschanged', handleVoicesChanged);
-            console.log('Voice loading timeout, proceeding with available voices');
-            setVoice(); // This will at least log what voices are available
-          }
-        }, 2000);
+          // Fallback timeout
+          setTimeout(() => {
+            if (!resolved) {
+              resolved = true;
+              speechSynthesis.removeEventListener('voiceschanged', handleVoicesChanged);
+              setVoiceAfterInit();
+            }
+          }, 2000);
+        }
       }
     });
   };
@@ -700,10 +773,17 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
       });
     }, 0);
   
-    // CRITICAL: Initialize speech PROPERLY in user gesture for iOS and wait for completion
+    // CRITICAL FOR iOS: Initialize speech with proper waiting
     if (settings.speechEnabled) {
+      console.log('Initializing speech for platform:', isIOS ? 'iOS' : 'Other');
       try {
-        await initializeSpeechSync();
+        const voiceInitialized = await initializeSpeechSync();
+        console.log('Voice initialization result:', voiceInitialized);
+        
+        // iOS additional delay to ensure voice system is ready
+        if (isIOS) {
+          await new Promise(resolve => setTimeout(resolve, 300));
+        }
       } catch (error) {
         console.log('Speech initialization failed:', error);
       }
