@@ -6,7 +6,7 @@ import * as Tone from 'tone';
 // Type definitions
 interface GameSettings {
     divisorDigits: 1 | 2 | 3 | 4;
-    dividendDigits: 2 | 3 | 4;
+    dividendDigits: 1 | 2 | 3 | 4;
     numQuestions: number;
     level: 1 | 2 | 3 | 4 | 5;
     theme: 'default' | 'ocean' | 'forest' | 'sunset' | 'lavender';
@@ -383,10 +383,10 @@ const MentalDivisionGame: React.FC<MentalDivisionGameProps> = ({ onBackToHome })
             }, speakDelay);
         });
     };
-    
+
     // Enhanced speech duration estimation
     const estimateSpeechDuration = (text: string): number => {
-        const wordsPerMinute = 100;        
+        const wordsPerMinute = 100;
         const words = text.replace(' divided by ', '').replace(/\d+/g, '').split(/\s+/).filter(word => word.length > 0);
 
         const speedMultipliers = {
@@ -395,7 +395,7 @@ const MentalDivisionGame: React.FC<MentalDivisionGameProps> = ({ onBackToHome })
             3: 0.75
         };
 
-        const speedMultiplier = speedMultipliers[settings.level as keyof typeof speedMultipliers] || 1.0;        
+        const speedMultiplier = speedMultipliers[settings.level as keyof typeof speedMultipliers] || 1.0;
         let baseTime = (words.length / wordsPerMinute) * 60 * 1000 * speedMultiplier;
 
         const numbers = text.match(/\d+/g) || [];
@@ -428,7 +428,7 @@ const MentalDivisionGame: React.FC<MentalDivisionGameProps> = ({ onBackToHome })
 
         return Math.max(minimumTime, baseTime + numberTime);
     };
-    
+
     // Calculate dynamic delays based on level and speech duration
     const calculateSpeechDelay = (text: string, level: number): number => {
         if (!settings.speechEnabled) return 0;
@@ -455,23 +455,23 @@ const MentalDivisionGame: React.FC<MentalDivisionGameProps> = ({ onBackToHome })
 
         return baseDuration * multiplier + bufferTime;
     };
-    
+
     // Calculate delay specifically for after answer announcement    
     const calculatePostAnswerDelay = (answerText: string): number => {
         if (settings.speechEnabled) {
-        // For speech mode: ensure speech completes + brief pause
-        const speechDuration = estimateSpeechDuration(answerText);
-        return speechDuration - 900; // Speech duration - 0.9 second
+            // For speech mode: ensure speech completes + brief pause
+            const speechDuration = estimateSpeechDuration(answerText);
+            return speechDuration - 900; // Speech duration - 0.9 second
         } else {
-        // For non-speech mode: slightly longer, level-based delays
-        const levelDelays = {
-            1: 2500,  // 2.5 seconds for beginners
-            2: 2100,  // 2.1 seconds
-            3: 1800,  // 1.8 seconds
-            4: 1500,  // 1.5 seconds
-            5: 1200   // 1.2 seconds for experts
-        };
-        return levelDelays[settings.level as keyof typeof levelDelays] || 1800;
+            // For non-speech mode: slightly longer, level-based delays
+            const levelDelays = {
+                1: 2500,  // 2.5 seconds for beginners
+                2: 2100,  // 2.1 seconds
+                3: 1800,  // 1.8 seconds
+                4: 1500,  // 1.5 seconds
+                5: 1200   // 1.2 seconds for experts
+            };
+            return levelDelays[settings.level as keyof typeof levelDelays] || 1800;
         }
     };
 
@@ -548,7 +548,7 @@ const MentalDivisionGame: React.FC<MentalDivisionGameProps> = ({ onBackToHome })
             console.log('Audio not available:', error);
         }
     };
-    
+
     // Calculate delays (question delay and calculating answer delay) based on level
     const getDelays = (level: number) => {
         const baseNumberDelay = Math.max(0.5, 2 - (level - 1) * 0.3);
@@ -972,7 +972,7 @@ const MentalDivisionGame: React.FC<MentalDivisionGameProps> = ({ onBackToHome })
             }
             return;
         } else if (calculatingAnswer) {
-            if (settings.speechEnabled) {                
+            if (settings.speechEnabled) {
                 const levelDelay = Math.max(1200, 3000 - settings.level * 600);
                 const timer = setTimeout(() => {
                     setDisplayText(currentQ.answer.toString());
@@ -1150,68 +1150,83 @@ const MentalDivisionGame: React.FC<MentalDivisionGameProps> = ({ onBackToHome })
                             </div>
 
                             {/* Number Digits Settings */}
-<div className="bg-gradient-to-r from-green-50 to-blue-50 rounded-2xl p-4 sm:p-6">
-    <label className="block text-lg sm:text-xl font-bold text-green-800 mb-3 sm:mb-4">Division Digits:</label>
-    
-    <div className="flex items-center justify-center gap-2 sm:gap-4">
-        {/* Dividend Selection */}
-        <div className="flex flex-col items-center gap-2 flex-1">
-            <div className="grid grid-cols-2 gap-1 sm:gap-2 w-full max-w-[140px]">
-                {[1, 2, 3, 4].map(digits => (
-                    <button
-                        key={digits}
-                        onClick={() => {
-                            playSound('settingChange');
-                            updateSettings(prev => ({
-                                ...prev,
-                                dividendDigits: digits as GameSettings['dividendDigits'],
-                                divisorDigits: digits < prev.divisorDigits ? digits as GameSettings['divisorDigits'] : prev.divisorDigits
-                            }));
-                        }}
-                        className={`p-2 sm:p-3 rounded-lg text-sm sm:text-base font-bold transition-all ${
-                            settings.dividendDigits === digits
-                                ? 'bg-green-500 text-white shadow-lg'
-                                : 'bg-white text-green-600 border border-green-200 hover:bg-green-50'
-                        }`}
-                    >
-                        {digits}
-                    </button>
-                ))}
-            </div>
-        </div>
+                            <div className="bg-gradient-to-r from-green-50 to-blue-50 rounded-2xl p-4 sm:p-6 border border-green-200 shadow-lg">
+                                <label className="block text-lg sm:text-xl font-bold text-green-800 mb-3 sm:mb-4 flex items-center gap-2">                                    
+                                    Division Digits:
+                                </label>
 
-        {/* Divide Icon */}
-        <div className="flex items-center justify-center px-2 sm:px-4">
-            <Divide className="w-6 h-6 sm:w-8 sm:h-8 lg:w-10 lg:h-10 text-green-600" />
-        </div>
+                                <div className="flex items-center justify-center gap-2 sm:gap-4">
+                                    {/* Dividend Selection */}
+                                    <div className="flex flex-col items-center gap-3 flex-1">
+                                        <div className="grid grid-cols-2 gap-1 sm:gap-2 w-full max-w-[140px]">
+                                            {[1, 2, 3, 4].map(digits => (
+                                                <button
+                                                    key={digits}
+                                                    onClick={() => {
+                                                        playSound('settingChange');
+                                                        updateSettings(prev => ({
+                                                            ...prev,
+                                                            dividendDigits: digits as GameSettings['dividendDigits'],
+                                                            divisorDigits: digits < prev.divisorDigits ? digits as GameSettings['divisorDigits'] : prev.divisorDigits
+                                                        }));
+                                                    }}
+                                                    className={`h-[35px] sm:h-[40px] rounded-xl text-lg sm:text-xl font-bold transition-all transform hover:scale-105 ${settings.dividendDigits === digits
+                                                            ? 'bg-green-500 text-white shadow-lg ring-2 ring-green-300'
+                                                            : 'bg-white text-green-600 border-2 border-green-200 hover:bg-green-50 hover:border-green-300'
+                                                        }`}
+                                                >
+                                                    {digits}
+                                                </button>
+                                            ))}
+                                        </div>
+                                        <div className="bg-white px-3 py-1 rounded-full border-2 border-green-200 shadow-sm h-[28px] flex items-center justify-center w-[60px] mt-2">
+                                            <span className="text-xs sm:text-sm text-green-700 font-bold">
+                                                {settings.dividendDigits === 1 ? 'digit' : 'digits'}
+                                            </span>
+                                        </div>
+                                    </div>
 
-        {/* Divisor Selection */}
-        <div className="flex flex-col items-center gap-2 flex-1">
-            <div className="grid grid-cols-2 gap-1 sm:gap-2 w-full max-w-[140px]">
-                {[1, 2, 3, 4].filter(digits => digits <= settings.dividendDigits).map(digits => (
-                    <button
-                        key={digits}
-                        onClick={() => {
-                            playSound('settingChange');
-                            updateSettings(prev => ({
-                                ...prev,
-                                divisorDigits: digits as GameSettings['divisorDigits'],
-                                dividendDigits: digits > prev.dividendDigits ? digits as GameSettings['dividendDigits'] : prev.dividendDigits
-                            }));
-                        }}
-                        className={`p-2 sm:p-3 rounded-lg text-sm sm:text-base font-bold transition-all ${
-                            settings.divisorDigits === digits
-                                ? 'bg-blue-500 text-white shadow-lg'
-                                : 'bg-white text-blue-600 border border-blue-200 hover:bg-blue-50'
-                        }`}
-                    >
-                        {digits}
-                    </button>
-                ))}
-            </div>
-        </div>
-    </div>
-</div>
+                                    {/* Divide Icon */}
+                                    <div className="flex items-center justify-center px-2 sm:px-4">
+                                        <div className="bg-white p-2 sm:p-3 rounded-full shadow-lg border-2 border-green-300">
+                                            <Divide className="w-6 h-6 sm:w-8 sm:h-8 lg:w-10 lg:h-10 text-green-600" />
+                                        </div>
+                                    </div>
+
+                                    {/* Divisor Selection */}
+                                    <div className="flex flex-col items-center gap-3 flex-1">
+                                        <div className="grid grid-cols-2 gap-1 sm:gap-2 w-full max-w-[140px]">
+                                            {[1, 2, 3, 4].map(digits => (
+                                                <button
+                                                    key={digits}
+                                                    onClick={() => {
+                                                        playSound('settingChange');
+                                                        updateSettings(prev => ({
+                                                            ...prev,
+                                                            divisorDigits: digits as GameSettings['divisorDigits'],
+                                                            dividendDigits: digits > prev.dividendDigits ? digits as GameSettings['dividendDigits'] : prev.dividendDigits
+                                                        }));
+                                                    }}
+                                                    style={{
+                                                        visibility: digits <= settings.dividendDigits ? 'visible' : 'hidden'
+                                                    }}
+                                                    className={`h-[35px] sm:h-[40px] rounded-xl text-lg sm:text-xl font-bold transition-all transform hover:scale-105 ${settings.divisorDigits === digits
+                                                            ? 'bg-blue-500 text-white shadow-lg ring-2 ring-blue-300'
+                                                            : 'bg-white text-blue-600 border-2 border-blue-200 hover:bg-blue-50 hover:border-blue-300'
+                                                        }`}
+                                                >
+                                                    {digits}
+                                                </button>
+                                            ))}
+                                        </div>
+                                        <div className="bg-white px-3 py-1 rounded-full border-2 border-blue-200 shadow-sm h-[28px] flex items-center justify-center w-[60px] mt-2">
+                                            <span className="text-xs sm:text-sm text-blue-700 font-bold">
+                                                {settings.divisorDigits === 1 ? 'digit' : 'digits'}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
 
                             {/* Number of Questions */}
                             <div className="bg-orange-50 rounded-2xl p-4 sm:p-6">
