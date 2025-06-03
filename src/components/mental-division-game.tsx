@@ -1330,13 +1330,13 @@ const MentalDivisionGame: React.FC<MentalDivisionGameProps> = ({ onBackToHome })
                                         {calculatingAnswer ? (
                                             <span className="text-xl sm:text-2xl md:text-3xl lg:text-4xl">Calculating...</span>
                                         ) : showingAnswer ? (
-                                            // Answer display - slightly smaller for better fit
-                                            <div className="text-3xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl leading-tight">
+                                            // Answer display - original size
+                                            <div className="text-8xl font-bold leading-tight">
                                                 {displayText}
                                             </div>
                                         ) : (
-                                            // Question display - responsive division equation
-                                            <div className="text-2xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl leading-tight break-words">
+                                            // Question display - larger on mobile
+                                            <div className="text-4xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl leading-tight break-words">
                                                 {displayText}
                                             </div>
                                         )}
