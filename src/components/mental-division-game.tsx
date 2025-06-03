@@ -190,18 +190,56 @@ const MentalDivisionGame: React.FC<MentalDivisionGameProps> = ({ onBackToHome })
         let dividend: number;
         let answer: number;
         let dividendDigitCount: number;
+        let attempts = 0;
+        const maxAttempts = 1000; // Prevent infinite loops
 
-        // Keep generating until we get a whole number result
+        // Keep generating until we get a valid question
         do {
-            //TODO: Make sure divisor = 1 to be less frequent
-            divisor = generateNumber(settings.divisorDigits);
+            attempts++;
+            if (attempts > maxAttempts) {
+                // Fallback to ensure we don't get stuck
+                divisor = generateNumber(settings.divisorDigits);
+                answer = Math.floor(Math.random() * 999) + 2; // 2-1000 range
+                dividend = divisor * answer;
+                dividendDigitCount = dividend.toString().length;
+                break;
+            }
 
-            //TODO: Improve this, the answer should be able to more than 2 digits
-            // Generate a random answer first (1-99 for reasonable division results)
-            answer = Math.floor(Math.random() * 99) + 1;
+            // Generate divisor with bias against 1 (make divisor = 1 less frequent)
+            if (settings.divisorDigits === 1 && Math.random() < 0.1) {
+                // Only 10% chance of getting divisor = 1 for single digit
+                divisor = 1;
+            } else {
+                divisor = generateNumber(settings.divisorDigits);
+                // Ensure we don't get divisor = 1 when we don't want it
+                while (divisor === 1 && Math.random() < 0.9) {
+                    divisor = generateNumber(settings.divisorDigits);
+                }
+            }
 
-            // Calculate dividend by multiplying divisor * answer
+            // Generate answer with wider range (can be more than 2 digits)
+            // Range depends on dividend digits to ensure realistic division problems
+            const maxAnswer = Math.floor(Math.pow(10, settings.dividendDigits) / divisor);
+            const minAnswer = 2; // Minimum answer to avoid trivial cases
+
+            if (maxAnswer <= minAnswer) {
+                // Set dummy values to avoid "not assigned" error and continue loop
+                answer = minAnswer;
+                dividend = divisor * answer;
+                dividendDigitCount = dividend.toString().length;
+                continue; // Skip if impossible to generate valid question
+            }
+
+            answer = Math.floor(Math.random() * (maxAnswer - minAnswer)) + minAnswer;
+
+            // Calculate dividend
             dividend = divisor * answer;
+
+            // Avoid division by itself (dividend = divisor, which gives answer = 1)
+            if (dividend === divisor) {
+                dividendDigitCount = dividend.toString().length; // Assign before continue
+                continue;
+            }
 
             // Check if dividend has the correct number of digits
             dividendDigitCount = dividend.toString().length;
