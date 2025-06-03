@@ -383,11 +383,11 @@ const MentalDivisionGame: React.FC<MentalDivisionGameProps> = ({ onBackToHome })
             }, speakDelay);
         });
     };
-
+    
     // Enhanced speech duration estimation
     const estimateSpeechDuration = (text: string): number => {
-        const wordsPerMinute = 100;
-        const words = text.replace(/\d+/g, '').split(/\s+/).filter(word => word.length > 0);
+        const wordsPerMinute = 100;        
+        const words = text.replace(' divided by ', '').replace(/\d+/g, '').split(/\s+/).filter(word => word.length > 0);
 
         const speedMultipliers = {
             1: 1.0,
@@ -395,11 +395,11 @@ const MentalDivisionGame: React.FC<MentalDivisionGameProps> = ({ onBackToHome })
             3: 0.75
         };
 
-        const speedMultiplier = speedMultipliers[settings.level as keyof typeof speedMultipliers] || 1.0;
+        const speedMultiplier = speedMultipliers[settings.level as keyof typeof speedMultipliers] || 1.0;        
         let baseTime = (words.length / wordsPerMinute) * 60 * 1000 * speedMultiplier;
 
         const numbers = text.match(/\d+/g) || [];
-        const hasDividedBy = /divided by/i.test(text);
+        //const hasDividedBy = /divided by/i.test(text);
         const hasAnswerPhrase = /the answer is/i.test(text);
 
         let numberTime = 0;
@@ -416,9 +416,9 @@ const MentalDivisionGame: React.FC<MentalDivisionGameProps> = ({ onBackToHome })
             }
         });
 
-        if (hasDividedBy) {
-            numberTime += 800 * speedMultiplier; // "divided by" takes time to say
-        }
+        /*if (hasDividedBy) {
+            numberTime += 600 * speedMultiplier; // "divided by" takes time to say
+        }*/
 
         if (hasAnswerPhrase) {
             baseTime += 800 * speedMultiplier;
@@ -428,7 +428,7 @@ const MentalDivisionGame: React.FC<MentalDivisionGameProps> = ({ onBackToHome })
 
         return Math.max(minimumTime, baseTime + numberTime);
     };
-
+    
     // Calculate dynamic delays based on level and speech duration
     const calculateSpeechDelay = (text: string, level: number): number => {
         if (!settings.speechEnabled) return 0;
@@ -436,39 +436,42 @@ const MentalDivisionGame: React.FC<MentalDivisionGameProps> = ({ onBackToHome })
         const baseDuration = estimateSpeechDuration(text);
 
         const levelMultipliers = {
-            1: 2.4,
-            2: 1.9,
-            3: 1.4
+            1: 2.4,  // Much longer pause for beginners, especially with complex numbers
+            2: 1.9,  // Medium-long pause
+            3: 1.4   // Shorter but still safe pause for advanced
         };
 
+        // Extra multiplier for longer numbers
         const numbers = text.match(/\d+/g) || [];
         let complexityMultiplier = 1.0;
         numbers.forEach(num => {
             if (num.length >= 3) {
-                complexityMultiplier += 0.3;
+                complexityMultiplier += 0.3; // Add extra time for 3+ digit numbers
             }
         });
 
         const multiplier = (levelMultipliers[level as keyof typeof levelMultipliers] || 1.4) * complexityMultiplier;
-        const bufferTime = 500;
+        const bufferTime = 500; // Increased base buffer time
 
         return baseDuration * multiplier + bufferTime;
     };
-
-    // Calculate delay specifically for after answer announcement
+    
+    // Calculate delay specifically for after answer announcement    
     const calculatePostAnswerDelay = (answerText: string): number => {
         if (settings.speechEnabled) {
-            const speechDuration = estimateSpeechDuration(answerText);
-            return speechDuration - 900;
+        // For speech mode: ensure speech completes + brief pause
+        const speechDuration = estimateSpeechDuration(answerText);
+        return speechDuration - 900; // Speech duration - 0.9 second
         } else {
-            const levelDelays = {
-                1: 2500,
-                2: 2100,
-                3: 1800,
-                4: 1500,
-                5: 1200
-            };
-            return levelDelays[settings.level as keyof typeof levelDelays] || 1800;
+        // For non-speech mode: slightly longer, level-based delays
+        const levelDelays = {
+            1: 2500,  // 2.5 seconds for beginners
+            2: 2100,  // 2.1 seconds
+            3: 1800,  // 1.8 seconds
+            4: 1500,  // 1.5 seconds
+            5: 1200   // 1.2 seconds for experts
+        };
+        return levelDelays[settings.level as keyof typeof levelDelays] || 1800;
         }
     };
 
@@ -545,14 +548,14 @@ const MentalDivisionGame: React.FC<MentalDivisionGameProps> = ({ onBackToHome })
             console.log('Audio not available:', error);
         }
     };
-
-    // Calculate delays based on level with speech consideration
+    
+    // Calculate delays (question delay and calculating answer delay) based on level
     const getDelays = (level: number) => {
-        const baseNumberDelay = Math.max(0.5, 2 - (level - 1) * 0.5);
+        const baseNumberDelay = Math.max(0.5, 2 - (level - 1) * 0.3);
         const baseAnswerDelay = Math.max(1.25, 5 - (level) * 0.75);
 
         return {
-            numberDelay: baseNumberDelay,
+            numberDelay: baseNumberDelay * 2, //Times 2, Because division is only per question, not per number, so it needs more delay time
             answerDelay: baseAnswerDelay
         };
     };
@@ -969,7 +972,7 @@ const MentalDivisionGame: React.FC<MentalDivisionGameProps> = ({ onBackToHome })
             }
             return;
         } else if (calculatingAnswer) {
-            if (settings.speechEnabled) {
+            if (settings.speechEnabled) {                
                 const levelDelay = Math.max(1200, 3000 - settings.level * 600);
                 const timer = setTimeout(() => {
                     setDisplayText(currentQ.answer.toString());
@@ -1374,7 +1377,7 @@ const MentalDivisionGame: React.FC<MentalDivisionGameProps> = ({ onBackToHome })
                                             </div>
                                         ) : (
                                             // Question display - larger on mobile
-                                            <div className="text-4xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl leading-tight break-words">
+                                            <div className="text-4xl sm:text-4xl md:text-4xl lg:text-5xl xl:text-6xl leading-tight break-words">
                                                 {displayText}
                                             </div>
                                         )}
