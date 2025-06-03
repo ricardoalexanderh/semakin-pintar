@@ -31,7 +31,8 @@ const Breadcrumb: React.FC = () => {
       if (segments[1]) {
         const gameNames: Record<string, string> = {
           'mental-arithmetic': 'Mental Arithmetic',
-          'multiplication-table': 'Multiplication Table'
+          'multiplication-table': 'Multiplication Table',
+          'mental-division': 'Mental Division'
         };
         
         breadcrumbs.push({

@@ -55,7 +55,7 @@ const LandingPage: React.FC<LandingPageProps> = () => {
             name: 'Mental Division',
             description: 'Perfect your division abilities',
             icon: <Divide className="w-12 h-12" />,
-            available: false,
+            available: true,
             gradient: 'from-emerald-500 to-teal-500',
             path: '/games/mental-division'
         },

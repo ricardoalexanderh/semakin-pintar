@@ -65,7 +65,7 @@ const GamesIndex: React.FC = () => {
       description: 'Master division skills',
       longDescription: 'Practice mental division with various difficulty levels. Develop strong foundational skills for advanced mathematics.',
       icon: <Divide className="w-8 h-8" />,
-      available: false,
+      available: true,
       gradient: 'from-emerald-500 to-teal-500',
       path: '/games/mental-division',
       difficulty: 'Beginner to Expert',

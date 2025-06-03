@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import LandingPage from './components/landing-page';
 import MentalArithmeticGame from './components/mental-arithmetic-game';
+import MentalDivisionGame from './components/mental-division-game';
 import MultiplicationTable from './components/multiplication-table';
 import GamesIndex from './components/games-index';
 import GamesLayout from './components/games-layout';
@@ -89,6 +90,12 @@ const GamesIndexPage = () => {
           "position": 2,
           "name": "Multiplication Table",
           "url": "https://www.semakinpintar.com/games/multiplication-table"
+        },
+        {
+          "@type": "Game",
+          "position": 3,
+          "name": "Mental Division Game",
+          "url": "https://www.semakinpintar.com/games/mental-division"
         }
       ]
     }
@@ -181,6 +188,41 @@ const MultiplicationTablePage = () => {
   );
 };
 
+// Mental Division Game page with SEO
+const MentalDivisionPage = () => {
+  const gameJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Game",
+    "name": "Mental Division Game",
+    "description": "Train your brain with fun mental division calculations. Improve cognitive skills through progressive difficulty levels.",
+    "url": "https://www.semakinpintar.com/games/mental-division",
+    "genre": "Educational",
+    "gamePlatform": "Web Browser",
+    "applicationCategory": "EducationalApplication",
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD"
+    }
+  };
+
+  return (
+    <>
+      <SEOHead
+        title="Mental Division Game - Brain Training & Math Practice | Semakin Pintar"
+        description="Train your brain with our free mental division game. Progressive difficulty levels, customizable settings, and speech support. Perfect for kids and adults learning math."
+        keywords="mental division, brain training, math practice, cognitive skills, mental math game, arithmetic training, educational games, kids math"
+        canonicalUrl="https://www.semakinpintar.com/games/mental-division"
+        ogTitle="Mental Division Game - Brain Training & Math Practice"
+        ogDescription="Train your brain with our free mental division game. Progressive difficulty levels and customizable settings."
+        ogImage="https://www.semakinpintar.com/logo.png"
+        jsonLd={gameJsonLd}
+      />
+      <MentalDivisionGame />
+    </>
+  );
+};
+
 function App() {
   useEffect(() => {
     // Initialize Google Analytics    
@@ -217,33 +259,12 @@ function App() {
             <GamesLayout>
               <MultiplicationTablePage />
             </GamesLayout>
-          } />
-          <Route path="/mental-arithmetic-game" element={
-            <div style={{ 
-              display: 'flex', 
-              justifyContent: 'center', 
-              alignItems: 'center', 
-              height: '100vh',
-              flexDirection: 'column',
-              gap: '20px'
-            }}>
-              <p>Redirecting to new URL...</p>
-              <script>{`window.location.href = '/games/mental-arithmetic';`}</script>
-            </div>
-          } />
-          <Route path="/multiplication-table" element={
-            <div style={{ 
-              display: 'flex', 
-              justifyContent: 'center', 
-              alignItems: 'center', 
-              height: '100vh',
-              flexDirection: 'column',
-              gap: '20px'
-            }}>
-              <p>Redirecting to new URL...</p>
-              <script>{`window.location.href = '/games/multiplication-table';`}</script>
-            </div>
-          } />
+          } />  
+          <Route path="/games/mental-division" element={
+            <GamesLayout>
+              <MentalDivisionPage />
+            </GamesLayout>
+          } />        
           <Route path="*" element={
             <div style={{ 
               display: 'flex', 

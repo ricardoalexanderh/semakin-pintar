@@ -12,7 +12,8 @@ export default defineConfig({
         '/',
         '/games',
         '/games/mental-arithmetic',
-        '/games/multiplication-table'
+        '/games/multiplication-table',
+        '/games/mental-division',
       ],
       lastmod: new Date(),
     }),
