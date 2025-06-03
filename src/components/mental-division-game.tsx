@@ -1325,12 +1325,20 @@ const MentalDivisionGame: React.FC<MentalDivisionGameProps> = ({ onBackToHome })
                             </div>
 
                             <div className="mb-8">
-                                <div className={`flex items-center justify-center gap-6 transition-opacity duration-200 opacity-100`}>
-                                    <div className={`text-8xl font-bold ${currentTheme.primary}`}>
+                                <div className={`flex items-center justify-center gap-6 transition-opacity duration-200 opacity-100 px-2 sm:px-4`}>
+                                    <div className={`font-bold ${currentTheme.primary} text-center w-full`}>
                                         {calculatingAnswer ? (
-                                            <span className="text-4xl">Calculating...</span>
+                                            <span className="text-xl sm:text-2xl md:text-3xl lg:text-4xl">Calculating...</span>
+                                        ) : showingAnswer ? (
+                                            // Answer display - slightly smaller for better fit
+                                            <div className="text-3xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl leading-tight">
+                                                {displayText}
+                                            </div>
                                         ) : (
-                                            displayText
+                                            // Question display - responsive division equation
+                                            <div className="text-2xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl leading-tight break-words">
+                                                {displayText}
+                                            </div>
                                         )}
                                     </div>
                                 </div>
