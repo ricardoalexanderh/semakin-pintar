@@ -53,7 +53,7 @@ const GamesIndex: React.FC = () => {
       description: 'Advanced multiplication practice',
       longDescription: 'Challenge yourself with larger numbers and complex multiplication problems. Build speed and accuracy in mental calculations.',
       icon: <X className="w-8 h-8" />,
-      available: false,
+      available: true,
       gradient: 'from-yellow-500 to-orange-400',
       path: '/games/mental-multiplication',
       difficulty: 'Beginner to Expert',

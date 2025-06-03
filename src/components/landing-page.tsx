@@ -46,7 +46,7 @@ const LandingPage: React.FC<LandingPageProps> = () => {
             name: 'Mental Multiplication',
             description: 'Master multiplication skills',
             icon: <X className="w-12 h-12" />,
-            available: false,
+            available: true,
             gradient: 'from-yellow-500 to-orange-400',
             path: '/games/mental-multiplication'
         },
