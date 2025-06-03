@@ -1150,67 +1150,68 @@ const MentalDivisionGame: React.FC<MentalDivisionGameProps> = ({ onBackToHome })
                             </div>
 
                             {/* Number Digits Settings */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-                                <div className="bg-green-50 rounded-2xl p-4 sm:p-6">
-                                    <label className="block text-lg sm:text-xl font-bold text-green-800 mb-3 sm:mb-4">Dividend Digits:</label>
-                                    <div className="grid grid-cols-3 gap-2 sm:gap-3">
-                                        {[2, 3, 4].map(digits => (
-                                            <button
-                                                key={digits}
-                                                onClick={() => {
-                                                    playSound('settingChange');
-                                                    updateSettings(prev => ({
-                                                        ...prev,
-                                                        dividendDigits: digits as GameSettings['dividendDigits'],
-                                                        // Ensure divisor <= dividend
-                                                        divisorDigits: digits < prev.divisorDigits ? digits as GameSettings['divisorDigits'] : prev.divisorDigits
-                                                    }));
-                                                }}
-                                                disabled={digits < settings.divisorDigits}
-                                                className={`p-2 sm:p-3 rounded-xl text-base sm:text-lg font-bold transition-all ${settings.dividendDigits === digits
-                                                    ? 'bg-green-500 text-white shadow-lg transform scale-105'
-                                                    : digits < settings.divisorDigits
-                                                        ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                                                        : 'bg-white text-green-600 hover:bg-green-100'
-                                                    }`}
-                                            >
-                                                {digits}
-                                            </button>
-                                        ))}
-                                    </div>
-                                    <p className="text-xs sm:text-sm text-green-600 mt-2">Number being divided</p>
-                                </div>
+<div className="bg-gradient-to-r from-green-50 to-blue-50 rounded-2xl p-4 sm:p-6">
+    <label className="block text-lg sm:text-xl font-bold text-green-800 mb-3 sm:mb-4">Division Digits:</label>
+    
+    <div className="flex items-center justify-center gap-2 sm:gap-4">
+        {/* Dividend Selection */}
+        <div className="flex flex-col items-center gap-2 flex-1">
+            <div className="grid grid-cols-2 gap-1 sm:gap-2 w-full max-w-[140px]">
+                {[1, 2, 3, 4].map(digits => (
+                    <button
+                        key={digits}
+                        onClick={() => {
+                            playSound('settingChange');
+                            updateSettings(prev => ({
+                                ...prev,
+                                dividendDigits: digits as GameSettings['dividendDigits'],
+                                divisorDigits: digits < prev.divisorDigits ? digits as GameSettings['divisorDigits'] : prev.divisorDigits
+                            }));
+                        }}
+                        className={`p-2 sm:p-3 rounded-lg text-sm sm:text-base font-bold transition-all ${
+                            settings.dividendDigits === digits
+                                ? 'bg-green-500 text-white shadow-lg'
+                                : 'bg-white text-green-600 border border-green-200 hover:bg-green-50'
+                        }`}
+                    >
+                        {digits}
+                    </button>
+                ))}
+            </div>
+        </div>
 
-                                <div className="bg-blue-50 rounded-2xl p-4 sm:p-6">
-                                    <label className="block text-lg sm:text-xl font-bold text-blue-800 mb-3 sm:mb-4">Divisor Digits:</label>
-                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
-                                        {[1, 2, 3, 4].map(digits => (
-                                            <button
-                                                key={digits}
-                                                onClick={() => {
-                                                    playSound('settingChange');
-                                                    updateSettings(prev => ({
-                                                        ...prev,
-                                                        divisorDigits: digits as GameSettings['divisorDigits'],
-                                                        // Ensure divisor <= dividend
-                                                        dividendDigits: digits > prev.dividendDigits ? digits as GameSettings['dividendDigits'] : prev.dividendDigits
-                                                    }));
-                                                }}
-                                                disabled={digits > settings.dividendDigits}
-                                                className={`p-2 sm:p-3 rounded-xl text-base sm:text-lg font-bold transition-all ${settings.divisorDigits === digits
-                                                    ? 'bg-blue-500 text-white shadow-lg transform scale-105'
-                                                    : digits > settings.dividendDigits
-                                                        ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                                                        : 'bg-white text-blue-600 hover:bg-blue-100'
-                                                    }`}
-                                            >
-                                                {digits}
-                                            </button>
-                                        ))}
-                                    </div>
-                                    <p className="text-xs sm:text-sm text-blue-600 mt-2">Number being divided by</p>
-                                </div>
-                            </div>
+        {/* Divide Icon */}
+        <div className="flex items-center justify-center px-2 sm:px-4">
+            <Divide className="w-6 h-6 sm:w-8 sm:h-8 lg:w-10 lg:h-10 text-green-600" />
+        </div>
+
+        {/* Divisor Selection */}
+        <div className="flex flex-col items-center gap-2 flex-1">
+            <div className="grid grid-cols-2 gap-1 sm:gap-2 w-full max-w-[140px]">
+                {[1, 2, 3, 4].filter(digits => digits <= settings.dividendDigits).map(digits => (
+                    <button
+                        key={digits}
+                        onClick={() => {
+                            playSound('settingChange');
+                            updateSettings(prev => ({
+                                ...prev,
+                                divisorDigits: digits as GameSettings['divisorDigits'],
+                                dividendDigits: digits > prev.dividendDigits ? digits as GameSettings['dividendDigits'] : prev.dividendDigits
+                            }));
+                        }}
+                        className={`p-2 sm:p-3 rounded-lg text-sm sm:text-base font-bold transition-all ${
+                            settings.divisorDigits === digits
+                                ? 'bg-blue-500 text-white shadow-lg'
+                                : 'bg-white text-blue-600 border border-blue-200 hover:bg-blue-50'
+                        }`}
+                    >
+                        {digits}
+                    </button>
+                ))}
+            </div>
+        </div>
+    </div>
+</div>
 
                             {/* Number of Questions */}
                             <div className="bg-orange-50 rounded-2xl p-4 sm:p-6">
