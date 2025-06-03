@@ -391,6 +391,7 @@ const MentalMultiplicationGame: React.FC<MentalMultiplicationGameProps> = ({ onB
         let baseTime = (words.length / wordsPerMinute) * 60 * 1000 * speedMultiplier;
 
         const numbers = text.match(/\d+/g) || [];
+        const hasTimes = /times/i.test(text);
         const hasAnswerPhrase = /the answer is/i.test(text);
 
         let numberTime = 0;
@@ -406,6 +407,10 @@ const MentalMultiplicationGame: React.FC<MentalMultiplicationGameProps> = ({ onB
                 numberTime += 1800 * speedMultiplier;
             }
         });
+
+        if (hasTimes) {
+            numberTime += 500 * speedMultiplier;
+        }
 
         if (hasAnswerPhrase) {
             baseTime += 800 * speedMultiplier;

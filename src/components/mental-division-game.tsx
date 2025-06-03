@@ -399,7 +399,7 @@ const MentalDivisionGame: React.FC<MentalDivisionGameProps> = ({ onBackToHome })
         let baseTime = (words.length / wordsPerMinute) * 60 * 1000 * speedMultiplier;
 
         const numbers = text.match(/\d+/g) || [];
-        //const hasDividedBy = /divided by/i.test(text);
+        const hasDividedBy = /divided by/i.test(text);
         const hasAnswerPhrase = /the answer is/i.test(text);
 
         let numberTime = 0;
@@ -416,9 +416,9 @@ const MentalDivisionGame: React.FC<MentalDivisionGameProps> = ({ onBackToHome })
             }
         });
 
-        /*if (hasDividedBy) {
-            numberTime += 600 * speedMultiplier; // "divided by" takes time to say
-        }*/
+        if (hasDividedBy) {
+            numberTime += 500 * speedMultiplier;
+        }
 
         if (hasAnswerPhrase) {
             baseTime += 800 * speedMultiplier;
