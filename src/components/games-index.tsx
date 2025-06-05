@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Calculator, Grid3X3, X, Divide, Shapes, ImageIcon, Play, Home, Search } from 'lucide-react';
+import { Calculator, Grid3X3, X, Divide, Shapes, Play, Home, Search, Rocket } from 'lucide-react';
 import { trackButtonClick } from '../utils/analytics';
 import FloatingButtons from './floating-buttons';
 import Breadcrumb from './breadcrumb';
@@ -96,16 +96,16 @@ const GamesIndex: React.FC = () => {
       duration: '5-15 minutes'
     },
     {
-      id: 'picture-algebra',
-      name: 'Picture Algebra',
-      description: 'Solve equations with pictures',
-      longDescription: 'Learn algebraic thinking through visual puzzles and picture-based equations. Build foundational skills for advanced mathematics.',
-      icon: <ImageIcon className="w-8 h-8" />,
-      available: false,
-      gradient: 'from-orange-500 to-red-400',
-      path: '/games/picture-algebra',
-      difficulty: 'Elementary',
-      duration: '5-15 minutes'
+      id: 'rocket-math',
+      name: 'Rocket Math',
+      description: 'Space math adventure',
+      longDescription: 'Fly your rocket through space while solving math problems! Navigate through asteroid fields while practicing mental arithmetic for an exciting learning experience.',
+      icon: <Rocket className="w-8 h-8" />,
+      available: true,
+      gradient: 'from-blue-600 to-purple-600',
+      path: '/games/rocket-math',
+      difficulty: 'Elementary to Advanced',
+      duration: '5-20 minutes'
     }
   ];
 

@@ -15,6 +15,7 @@ import InstallBanner from './components/install-banner';
 import UpdateNotification from './components/update-notification';
 import OfflineStatus from './components/offline-status';
 import PatternsDetectiveGame from './components/patterns-detective';
+import RocketMathGame from './components/rocket-math/rocket-math';
 
 // Component to handle page tracking and SEO
 const PageTracker = () => {
@@ -104,6 +105,18 @@ const GamesIndexPage = () => {
           "position": 4,
           "name": "Mental Multiplication Game",
           "url": "https://www.semakinpintar.com/games/mental-multiplication"
+        },
+        {
+          "@type": "Game",
+          "position": 5,
+          "name": "Patterns Detective Game",
+          "url": "https://www.semakinpintar.com/games/patterns-detective"
+        },
+        {
+          "@type": "Game",
+          "position": 6,
+          "name": "Rocket Math Game",
+          "url": "https://www.semakinpintar.com/games/rocket-math"
         }
       ]
     }
@@ -266,7 +279,42 @@ const MentalMultiplicationPage = () => {
   );
 };
 
-// Mental Division Game page with SEO
+// Rocket Math Game page with SEO
+const RocketMathPage = () => {
+  const gameJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Game",
+    "name": "Rocket Math Game",
+    "description": "Space-themed math adventure game combining rocket navigation with mental arithmetic practice. Fly through space while solving math problems.",
+    "url": "https://www.semakinpintar.com/games/rocket-math",
+    "genre": "Educational",
+    "gamePlatform": "Web Browser",
+    "applicationCategory": "EducationalApplication",
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD"
+    }
+  };
+
+  return (
+    <>
+      <SEOHead
+        title="Rocket Math Game - Space Math Adventure & Brain Training | Semakin Pintar"
+        description="Space-themed math adventure game! Fly your rocket through space while solving math problems. Navigate through asteroid fields with mental arithmetic practice."
+        keywords="rocket math, space math game, math adventure, mental arithmetic, brain training, educational games, kids math, space game, flying game"
+        canonicalUrl="https://www.semakinpintar.com/games/rocket-math"
+        ogTitle="Rocket Math Game - Space Math Adventure & Brain Training"
+        ogDescription="Space-themed math adventure game! Fly your rocket through space while solving math problems."
+        ogImage="https://www.semakinpintar.com/logo.png"
+        jsonLd={gameJsonLd}
+      />
+      <RocketMathGame />
+    </>
+  );
+};
+
+// Patterns Detective Game page with SEO
 const PatternsDetectivePage = () => {
   const gameJsonLd = {
     "@context": "https://schema.org",
@@ -351,6 +399,11 @@ function App() {
           <Route path="/games/patterns-detective" element={
             <GamesLayout>
               <PatternsDetectivePage />
+            </GamesLayout>
+          } />
+          <Route path="/games/rocket-math" element={
+            <GamesLayout>
+              <RocketMathPage />
             </GamesLayout>
           } />     
           <Route path="*" element={

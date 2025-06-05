@@ -1,0 +1,492 @@
+.game-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100vw;
+    height: 100vh;
+    background: radial-gradient(ellipse at center, #0F0F23 0%, #000 70%, #000 100%);
+    font-family: 'Press Start 2P', cursive;
+    cursor: pointer;
+    user-select: none;
+    padding: 20px;
+    box-sizing: border-box;
+    touch-action: manipulation;
+}
+
+.game-canvas {
+    position: relative;
+    background: radial-gradient(ellipse at center, #1a1a2e 0%, #16213e 50%, #0f0f23 100%);
+    border: 3px solid #4A90E2;
+    overflow: hidden;
+    box-shadow: 0 0 30px rgba(74, 144, 226, 0.5);
+    max-width: 100%;
+    max-height: 100vh;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.bird {
+    position: absolute;
+    width: 24px;
+    height: 32px;
+    background: linear-gradient(180deg, #FF6B6B 0%, #FF4757 30%, #E8E8E8 30%, #DCDDE1 70%, #4ECDC4 70%, #3DC1D3 100%);
+    border-radius: 60% 60% 20% 60%;
+    border: 2px solid #2C3E50;
+    z-index: 10;
+    will-change: transform;
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    box-shadow: 0 0 15px rgba(255, 107, 107, 0.6), inset 2px 2px 4px rgba(255, 255, 255, 0.3);
+}
+
+.bird:before {
+    content: '';
+    position: absolute;
+    top: 6px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 8px;
+    height: 8px;
+    background: radial-gradient(circle, #00D2FF, #0078FF);
+    border-radius: 50%;
+    box-shadow: 0 0 8px #00D2FF;
+}
+
+.bird:after {
+    content: '';
+    position: absolute;
+    bottom: -12px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0;
+    height: 0;
+    border-left: 6px solid transparent;
+    border-right: 6px solid transparent;
+    border-top: 12px solid #FF9F43;
+    animation: thruster 0.15s infinite alternate;
+    filter: drop-shadow(0 0 5px #FF9F43);
+}
+
+@keyframes thruster {
+    0% {
+        border-top-color: #FF9F43;
+        transform: translateX(-50%) scale(1);
+        border-top-width: 12px;
+    }
+
+    100% {
+        border-top-color: #FFA502;
+        transform: translateX(-50%) scale(1.3);
+        border-top-width: 15px;
+    }
+}
+
+.pipe {
+    position: absolute;
+    width: 50px;
+    background: radial-gradient(circle, #706fd3, #474787);
+    border: 2px solid #5352ed;
+    border-radius: 20px;
+    will-change: transform;
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    box-shadow: inset -5px -5px 10px rgba(0, 0, 0, 0.3), 0 0 15px rgba(83, 82, 237, 0.3);
+}
+
+.pipe-top {
+    top: 0;
+    border-bottom: 5px solid #3742fa;
+}
+
+.pipe-bottom {
+    border-top: 5px solid #3742fa;
+}
+
+.pipe-middle {
+    background: radial-gradient(circle, #ff6b6b, #c44569);
+    border: 2px solid #ff3838;
+    box-shadow: inset -5px -5px 10px rgba(0, 0, 0, 0.3), 0 0 15px rgba(255, 56, 56, 0.3);
+}
+
+.math-equation-display {
+    position: absolute;
+    font-size: 14px;
+    color: #00D2FF;
+    text-align: center;
+    text-shadow: 2px 2px 0px #000, -2px -2px 0px #000, 2px -2px 0px #000, -2px 2px 0px #000, 0 0 10px #00D2FF;
+    z-index: 5;
+    pointer-events: none;
+    background: rgba(0, 15, 35, 0.9);
+    padding: 5px 10px;
+    border-radius: 5px;
+    border: 2px solid #00D2FF;
+    box-shadow: 0 0 15px rgba(0, 210, 255, 0.5);
+}
+
+.answer-gap {
+    position: absolute;
+    background: rgba(0, 210, 255, 0.2);
+    border: 2px solid #00D2FF;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: bold;
+    color: #00D2FF;
+    z-index: 10;
+    transition: all 0.3s ease;
+    text-shadow: 0 0 5px #00D2FF;
+    box-shadow: inset 0 0 10px rgba(0, 210, 255, 0.3), 0 0 10px rgba(0, 210, 255, 0.3);
+}
+
+.answer-gap.correct {
+    background: rgba(0, 255, 0, 0.8);
+    border-color: #00AA00;
+    color: white;
+}
+
+.answer-gap.wrong {
+    background: rgba(255, 0, 0, 0.8);
+    border-color: #AA0000;
+    color: white;
+}
+
+.answer-feedback {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 20px;
+    font-weight: bold;
+    z-index: 60;
+    animation: fadeInOut 1s ease-in-out;
+}
+
+.correct-feedback {
+    color: #00FF00;
+    text-shadow: 2px 2px 0px #000;
+}
+
+.wrong-feedback {
+    color: #FF0000;
+    text-shadow: 2px 2px 0px #000;
+}
+
+@keyframes fadeInOut {
+    0% {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(0.5);
+    }
+
+    50% {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1.1);
+    }
+
+    100% {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(1);
+    }
+}
+
+.difficulty-select {
+    position: absolute;
+    top: 60%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(0, 0, 0, 0.95);
+    color: white;
+    padding: 30px;
+    border: 3px solid #FFD700;
+    text-align: center;
+    z-index: 40;
+    min-width: 300px;
+}
+
+.difficulty-title {
+    font-size: 14px;
+    color: #00D2FF;
+    margin-bottom: 25px;
+    text-shadow: 1px 1px 0px #000, 0 0 10px #00D2FF;
+}
+
+.selection-group {
+    margin-bottom: 20px;
+}
+
+.selection-label {
+    font-size: 12px;
+    color: white;
+    margin-bottom: 10px;
+    text-shadow: 1px 1px 0px #000;
+}
+
+.button-group {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.difficulty-btn,
+.question-btn,
+.sound-btn {
+    background: #228B22;
+    border: 2px solid #006400;
+    color: white;
+    padding: 8px 12px;
+    font-family: 'Press Start 2P', cursive;
+    font-size: 8px;
+    cursor: pointer;
+    transition: all 0.1s ease;
+    text-shadow: 1px 1px 0px #000;
+    min-width: 80px;
+}
+
+.difficulty-btn:hover,
+.question-btn:hover,
+.sound-btn:hover,
+.difficulty-btn:active,
+.question-btn:active,
+.sound-btn:active {
+    background: #32CD32;
+    transform: scale(0.95);
+}
+
+.difficulty-btn.selected,
+.question-btn.selected,
+.sound-btn.selected {
+    background: #FFD700;
+    border-color: #FFA500;
+    color: #000;
+    text-shadow: none;
+}
+
+.sound-btn {
+    min-width: 100px;
+}
+
+.start-game-btn {
+    background: #FF6347;
+    border: 2px solid #FF4500;
+    color: white;
+    padding: 12px 20px;
+    font-family: 'Press Start 2P', cursive;
+    font-size: 10px;
+    cursor: pointer;
+    transition: all 0.1s ease;
+    text-shadow: 1px 1px 0px #000;
+    margin-top: 10px;
+}
+
+.start-game-btn:hover,
+.start-game-btn:active {
+    background: #FF4500;
+    transform: scale(0.95);
+}
+
+.game-title {
+    position: absolute;
+    top: 35px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 24px;
+    color: #00D2FF;
+    text-shadow: 2px 2px 0px #000, -2px -2px 0px #000, 2px -2px 0px #000, -2px 2px 0px #000, 0 0 15px #00D2FF;
+    z-index: 25;
+    letter-spacing: 3px;
+    text-align: center;
+}
+
+.score-container {
+    position: absolute;
+    top: 15px;
+    left: 15px;
+    z-index: 20;
+}
+
+.score,
+.math-score {
+    font-size: 10px;
+    color: white;
+    text-shadow: 1px 1px 0px #000, -1px -1px 0px #000, 1px -1px 0px #000, -1px 1px 0px #000;
+    margin-bottom: 5px;
+}
+
+.start-message {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(0, 0, 0, 0.9);
+    color: white;
+    padding: 20px;
+    border: 3px solid #FFD700;
+    font-size: 12px;
+    text-align: center;
+    z-index: 30;
+    text-shadow: 1px 1px 0px #000;
+}
+
+.game-subtitle {
+    color: #00D2FF;
+    font-size: 14px;
+    margin-bottom: 15px;
+    text-shadow: 1px 1px 0px #000, 0 0 5px #00D2FF;
+}
+
+.game-over {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(255, 0, 0, 0.9);
+    color: white;
+    padding: 20px;
+    border: 3px solid darkred;
+    text-align: center;
+    font-size: 10px;
+    z-index: 30;
+    text-shadow: 1px 1px 0px #000;
+}
+
+.game-over div {
+    margin: 8px 0;
+}
+
+.game-over div:first-child {
+    font-size: 16px;
+    margin-bottom: 12px;
+    color: #FFD700;
+}
+
+.mobile-jump-btn {
+    position: absolute;
+    bottom: 20px;
+    right: 20px;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.9);
+    border: 3px solid #333;
+    font-size: 24px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+    z-index: 40;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.mobile-jump-btn:active {
+    transform: scale(0.95);
+    background: rgba(255, 255, 255, 0.8);
+}
+
+@media (max-width: 768px) {
+    .game-container {
+        padding: 10px;
+    }
+
+    .game-canvas {
+        border-width: 2px;
+    }
+
+    .game-title {
+        font-size: 18px;
+        top: 25px;
+    }
+
+    .score-container {
+        top: 10px;
+        left: 10px;
+    }
+
+    .score,
+    .math-score {
+        font-size: 8px;
+    }
+
+    .start-message,
+    .game-over {
+        font-size: 10px;
+        padding: 15px;
+    }
+
+    .game-over div:first-child {
+        font-size: 14px;
+    }
+
+    .mobile-jump-btn {
+        width: 50px;
+        height: 50px;
+        font-size: 20px;
+        bottom: 15px;
+        right: 15px;
+    }
+
+    .difficulty-select {
+        padding: 20px;
+        min-width: 280px;
+    }
+
+    .difficulty-title {
+        font-size: 12px;
+    }
+
+    .selection-label {
+        font-size: 10px;
+    }
+
+    .difficulty-btn,
+    .question-btn,
+    .sound-btn {
+        font-size: 7px;
+        padding: 6px 8px;
+        min-width: 70px;
+    }
+
+    .sound-btn {
+        min-width: 85px;
+    }
+
+    .start-game-btn {
+        font-size: 9px;
+        padding: 10px 16px;
+    }
+
+    .math-equation-display {
+        font-size: 10px;
+        padding: 3px 6px;
+    }
+
+    .answer-gap {
+        font-size: 10px;
+    }
+
+    .answer-feedback {
+        font-size: 16px;
+    }
+}
+
+
+@media (max-height: 600px) {
+    .game-container {
+        padding: 5px;
+    }
+
+    .mobile-jump-btn {
+        bottom: 10px;
+        right: 10px;
+    }
+
+    .math-equation-display {
+        font-size: 10px;
+    }
+
+    .answer-gap {
+        font-size: 12px;
+    }
+}

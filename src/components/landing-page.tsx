@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Calculator, Shapes, ImageIcon, X, Divide, Grid3X3, Lightbulb, Puzzle, Mail, ExternalLink, Layers, Search, Target, Workflow } from 'lucide-react';
+import { Calculator, Shapes, Rocket, X, Divide, Grid3X3, Lightbulb, Puzzle, Mail, ExternalLink, Layers, Search, Target, Workflow } from 'lucide-react';
 import { trackButtonClick, trackDonationClick } from '../utils/analytics';
 import FloatingButtons from './floating-buttons';
 
@@ -78,13 +78,13 @@ const LandingPage: React.FC<LandingPageProps> = () => {
             path: '/games/patterns-detective'
         },
         {
-            id: 'picture-algebra',
-            name: 'Picture Algebra',
-            description: 'Solve equations with pictures',
-            icon: <ImageIcon className="w-12 h-12" />,
-            available: false,
-            gradient: 'from-orange-500 to-red-400',
-            path: '/games/picture-algebra'
+            id: 'rocket-math',
+            name: 'Rocket Math',
+            description: 'Space math adventure',
+            icon: <Rocket className="w-12 h-12" />,
+            available: true,
+            gradient: 'from-blue-600 to-purple-600',
+            path: '/games/rocket-math'
         }
     ];
 

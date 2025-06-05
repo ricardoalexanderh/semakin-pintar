@@ -35,6 +35,7 @@ const Breadcrumb: React.FC = () => {
           'mental-division': 'Mental Division',
           'mental-multiplication': 'Mental Multiplication',
           'patterns-detective': 'Patterns Detective',
+          'rocket-math': 'Rocket Math',
         };
         
         breadcrumbs.push({
