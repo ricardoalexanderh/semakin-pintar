@@ -142,9 +142,6 @@ const generateMathProblem = (questionType: 1 | 2 | 3) => {
 
 const RocketMath: React.FC = () => {
   const [dimensions, setDimensions] = useState(getGameDimensions())
-  const [rocketY, setRocketY] = useState(dimensions.height / 2)
-  const [rocketVelocity, setRocketVelocity] = useState(0)
-  const [asteroids, setAsteroids] = useState<Pipe[]>([])
   const [score, setScore] = useState(0)
   const [gameStarted, setGameStarted] = useState(false)
   const [gameOver, setGameOver] = useState(false)
@@ -154,24 +151,24 @@ const RocketMath: React.FC = () => {
   const [questionType, setQuestionType] = useState<1 | 2 | 3>(1)
   const [mathScore, setMathScore] = useState(0)
   const [soundEnabled, setSoundEnabled] = useState(true)
+  const [, forceRender] = useState({})
   
   const gameLoopRef = useRef<number | null>(null)
   const lastTimeRef = useRef<number>(0)
+  const rocketYRef = useRef(dimensions.height / 2)
+  const rocketVelocityRef = useRef(0)
+  const asteroidsRef = useRef<Pipe[]>([])
+  const rocketElementRef = useRef<HTMLDivElement>(null)
+  const gameCanvasRef = useRef<HTMLDivElement>(null)
   
   const difficultySettings = useMemo(() => getDifficultySettings(difficulty), [difficulty])
-  const rocketStyle = useMemo(() => ({
-    top: rocketY,
-    left: dimensions.width / 2 - dimensions.rocketSize / 2,
-    width: dimensions.rocketSize,
-    height: dimensions.rocketHeight || dimensions.rocketSize
-  }), [rocketY, dimensions])
 
   const thrust = useCallback(() => {
     if (!gameStarted) {
       setGameStarted(true)
     }
     if (!gameOver) {
-      setRocketVelocity(difficultySettings.jumpStrength)
+      rocketVelocityRef.current = difficultySettings.jumpStrength
       playSound('jump', soundEnabled)
     }
   }, [gameStarted, gameOver, soundEnabled, difficultySettings.jumpStrength])
@@ -179,9 +176,9 @@ const RocketMath: React.FC = () => {
   const resetGame = useCallback(() => {
     const newDimensions = getGameDimensions()
     setDimensions(newDimensions)
-    setRocketY(newDimensions.height / 2)
-    setRocketVelocity(0)
-    setAsteroids([])
+    rocketYRef.current = newDimensions.height / 2
+    rocketVelocityRef.current = 0
+    asteroidsRef.current = []
     setScore(0)
     setMathScore(0)
     setGameStarted(false)
@@ -202,7 +199,7 @@ const RocketMath: React.FC = () => {
       if (!gameStarted) {
         const newDimensions = getGameDimensions()
         setDimensions(newDimensions)
-        setRocketY(newDimensions.height / 2)
+        rocketYRef.current = newDimensions.height / 2
       }
     }
 
@@ -275,69 +272,78 @@ const RocketMath: React.FC = () => {
 
     const gameLoop = (currentTime: number) => {
       if (currentTime - lastTimeRef.current >= 16) {
-        // Use memoized difficulty settings
-        setRocketY(prev => prev + rocketVelocity)
-        setRocketVelocity(prev => prev + difficultySettings.gravity)
+        // Update rocket position directly
+        rocketYRef.current += rocketVelocityRef.current
+        rocketVelocityRef.current += difficultySettings.gravity
 
-        setAsteroids(prev => {
-          const newAsteroids = prev.map(asteroid => ({
-            ...asteroid,
-            x: asteroid.x - difficultySettings.pipeSpeed
-          })).filter(asteroid => asteroid.x > -dimensions.asteroidWidth)
+        // Update rocket DOM element directly
+        if (rocketElementRef.current) {
+          rocketElementRef.current.style.top = `${rocketYRef.current}px`
+        }
 
-          if (newAsteroids.length === 0 || newAsteroids[newAsteroids.length - 1].x < dimensions.width - 300) {
-            const mathProblem = generateMathProblem(questionType)
-            const gapSize = difficultySettings.gapSize
-            const separatorHeight = 40
-            const totalGapHeight = gapSize * 2 + separatorHeight
-            const topGapStart = Math.random() * (dimensions.height - totalGapHeight - 120) + 60
-            
-            const correctAnswerInTop = Math.random() > 0.5
-            const pipeWithAnswers = {
-              ...mathProblem,
-              correctAnswerInTop
-            }
-            
-            newAsteroids.push({
-              x: dimensions.width,
-              topHeight: topGapStart,
-              bottomHeight: dimensions.height - (topGapStart + totalGapHeight),
-              passed: false,
-              mathProblem: pipeWithAnswers,
-              pathChosen: null
-            })
+        // Update asteroids
+        const newAsteroids = asteroidsRef.current.map(asteroid => ({
+          ...asteroid,
+          x: asteroid.x - difficultySettings.pipeSpeed
+        })).filter(asteroid => asteroid.x > -dimensions.asteroidWidth)
+
+        if (newAsteroids.length === 0 || newAsteroids[newAsteroids.length - 1].x < dimensions.width - 300) {
+          const mathProblem = generateMathProblem(questionType)
+          const gapSize = difficultySettings.gapSize
+          const separatorHeight = 40
+          const totalGapHeight = gapSize * 2 + separatorHeight
+          const topGapStart = Math.random() * (dimensions.height - totalGapHeight - 120) + 60
+          
+          const correctAnswerInTop = Math.random() > 0.5
+          const pipeWithAnswers = {
+            ...mathProblem,
+            correctAnswerInTop
           }
-
-          newAsteroids.forEach(asteroid => {
-            const rocketCenterX = dimensions.width / 2
-            const rocketCenterY = rocketY + dimensions.rocketSize / 2
-            
-            if (!asteroid.passed && asteroid.x + dimensions.asteroidWidth < rocketCenterX) {
-              asteroid.passed = true
-              setScore(prev => prev + 1)
-              
-              const currentGapSize = difficultySettings.gapSize
-              
-              if (rocketCenterY < asteroid.topHeight + currentGapSize) {
-                asteroid.pathChosen = 'top'
-                const isCorrect = asteroid.mathProblem.correctAnswerInTop
-                setLastAnswerCorrect(isCorrect)
-                playSound(isCorrect ? 'correct' : 'wrong', soundEnabled)
-                if (isCorrect) setMathScore(prev => prev + 1)
-              } else {
-                asteroid.pathChosen = 'bottom'
-                const isCorrect = !asteroid.mathProblem.correctAnswerInTop
-                setLastAnswerCorrect(isCorrect)
-                playSound(isCorrect ? 'correct' : 'wrong', soundEnabled)
-                if (isCorrect) setMathScore(prev => prev + 1)
-              }
-              
-              setTimeout(() => setLastAnswerCorrect(null), 1000)
-            }
+          
+          newAsteroids.push({
+            x: dimensions.width,
+            topHeight: topGapStart,
+            bottomHeight: dimensions.height - (topGapStart + totalGapHeight),
+            passed: false,
+            mathProblem: pipeWithAnswers,
+            pathChosen: null
           })
+        }
 
-          return newAsteroids
+        newAsteroids.forEach(asteroid => {
+          const rocketCenterX = dimensions.width / 2
+          const rocketCenterY = rocketYRef.current + dimensions.rocketSize / 2
+          
+          if (!asteroid.passed && asteroid.x + dimensions.asteroidWidth < rocketCenterX) {
+            asteroid.passed = true
+            setScore(prev => prev + 1)
+            
+            const currentGapSize = difficultySettings.gapSize
+            
+            if (rocketCenterY < asteroid.topHeight + currentGapSize) {
+              asteroid.pathChosen = 'top'
+              const isCorrect = asteroid.mathProblem.correctAnswerInTop
+              setLastAnswerCorrect(isCorrect)
+              playSound(isCorrect ? 'correct' : 'wrong', soundEnabled)
+              if (isCorrect) setMathScore(prev => prev + 1)
+            } else {
+              asteroid.pathChosen = 'bottom'
+              const isCorrect = !asteroid.mathProblem.correctAnswerInTop
+              setLastAnswerCorrect(isCorrect)
+              playSound(isCorrect ? 'correct' : 'wrong', soundEnabled)
+              if (isCorrect) setMathScore(prev => prev + 1)
+            }
+            
+            setTimeout(() => setLastAnswerCorrect(null), 1000)
+          }
         })
+
+        asteroidsRef.current = newAsteroids
+        
+        // Force re-render of asteroids every few frames
+        if (Math.floor(currentTime / 16) % 2 === 0) {
+          forceRender({})
+        }
         
         lastTimeRef.current = currentTime
       }
@@ -353,61 +359,67 @@ const RocketMath: React.FC = () => {
         gameLoopRef.current = null
       }
     }
-  }, [gameStarted, gameOver, rocketVelocity, dimensions, difficulty, questionType, soundEnabled, difficultySettings, rocketY])
+  }, [gameStarted, gameOver, dimensions, difficulty, questionType, soundEnabled, difficultySettings])
 
 
   useEffect(() => {
     if (!gameStarted || gameOver) return
 
-    if (rocketY < 0 || rocketY > dimensions.height - (dimensions.rocketHeight || dimensions.rocketSize)) {
-      setGameOver(true)
-      playSound('gameOver', soundEnabled)
-      
-      // Track game over
-      trackGameEvent('rocket-math', 'complete', {
-        score,
-        mathScore,
-        difficulty,
-        questionType
+    const checkCollisions = () => {
+      if (rocketYRef.current < 0 || rocketYRef.current > dimensions.height - (dimensions.rocketHeight || dimensions.rocketSize)) {
+        setGameOver(true)
+        playSound('gameOver', soundEnabled)
+        
+        // Track game over
+        trackGameEvent('rocket-math', 'complete', {
+          score,
+          mathScore,
+          difficulty,
+          questionType
+        })
+        return
+      }
+
+      asteroidsRef.current.forEach(asteroid => {
+        const rocketLeft = dimensions.width / 2 - dimensions.rocketSize / 2
+        const rocketRight = dimensions.width / 2 + dimensions.rocketSize / 2
+        const rocketTop = rocketYRef.current
+        const rocketBottom = rocketYRef.current + dimensions.rocketSize
+
+        if (rocketRight > asteroid.x && rocketLeft < asteroid.x + dimensions.asteroidWidth) {
+          const currentGapSize = getDifficultySettings(difficulty).gapSize
+          const topGapStart = asteroid.topHeight
+          const topGapEnd = asteroid.topHeight + currentGapSize
+          const bottomGapStart = asteroid.topHeight + currentGapSize + 40
+          const bottomGapEnd = dimensions.height - asteroid.bottomHeight
+          
+          const inTopGap = rocketTop >= topGapStart && rocketBottom <= topGapEnd
+          const inBottomGap = rocketTop >= bottomGapStart && rocketBottom <= bottomGapEnd
+          
+          if (!inTopGap && !inBottomGap) {
+            setGameOver(true)
+            playSound('gameOver', soundEnabled)
+            
+            // Track collision game over
+            trackGameEvent('rocket-math', 'complete', {
+              score,
+              mathScore,
+              difficulty,
+              questionType
+            })
+          }
+        }
       })
-      return
     }
 
-    asteroids.forEach(asteroid => {
-      const rocketLeft = dimensions.width / 2 - dimensions.rocketSize / 2
-      const rocketRight = dimensions.width / 2 + dimensions.rocketSize / 2
-      const rocketTop = rocketY
-      const rocketBottom = rocketY + dimensions.rocketSize
-
-      if (rocketRight > asteroid.x && rocketLeft < asteroid.x + dimensions.asteroidWidth) {
-        const currentGapSize = getDifficultySettings(difficulty).gapSize
-        const topGapStart = asteroid.topHeight
-        const topGapEnd = asteroid.topHeight + currentGapSize
-        const bottomGapStart = asteroid.topHeight + currentGapSize + 40
-        const bottomGapEnd = dimensions.height - asteroid.bottomHeight
-        
-        const inTopGap = rocketTop >= topGapStart && rocketBottom <= topGapEnd
-        const inBottomGap = rocketTop >= bottomGapStart && rocketBottom <= bottomGapEnd
-        
-        if (!inTopGap && !inBottomGap) {
-          setGameOver(true)
-          playSound('gameOver', soundEnabled)
-          
-          // Track collision game over
-          trackGameEvent('rocket-math', 'complete', {
-            score,
-            mathScore,
-            difficulty,
-            questionType
-          })
-        }
-      }
-    })
-  }, [rocketY, asteroids, gameStarted, gameOver, dimensions, difficulty, soundEnabled])
+    const collisionInterval = setInterval(checkCollisions, 16)
+    return () => clearInterval(collisionInterval)
+  }, [gameStarted, gameOver, dimensions, difficulty, soundEnabled, score, mathScore, questionType])
 
   return (
     <div className="game-container" onClick={showDifficultySelect ? undefined : (gameOver ? resetGame : thrust)}>
       <div 
+        ref={gameCanvasRef}
         className="game-canvas"
         style={{
           width: dimensions.width,
@@ -415,11 +427,17 @@ const RocketMath: React.FC = () => {
         }}
       >
         <div 
+          ref={rocketElementRef}
           className="bird" 
-          style={rocketStyle}
+          style={{
+            top: rocketYRef.current,
+            left: dimensions.width / 2 - dimensions.rocketSize / 2,
+            width: dimensions.rocketSize,
+            height: dimensions.rocketHeight || dimensions.rocketSize
+          }}
         />
         
-        {asteroids.map((asteroid, index) => {
+        {asteroidsRef.current.map((asteroid, index) => {
           const correctAnswerInTop = asteroid.mathProblem.correctAnswerInTop
           const currentGapSize = difficultySettings.gapSize
           return (
