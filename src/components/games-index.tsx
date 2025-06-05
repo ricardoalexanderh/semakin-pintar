@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Calculator, Grid3X3, X, Divide, Shapes, ImageIcon, Play, Home } from 'lucide-react';
+import { Calculator, Grid3X3, X, Divide, Shapes, ImageIcon, Play, Home, Search } from 'lucide-react';
 import { trackButtonClick } from '../utils/analytics';
 import FloatingButtons from './floating-buttons';
 import Breadcrumb from './breadcrumb';
@@ -71,7 +71,7 @@ const GamesIndex: React.FC = () => {
       difficulty: 'Beginner to Expert',
       duration: '5-15 minutes'
     },
-    {
+    /*{
       id: 'patterns',
       name: 'Patterns',
       description: 'Discover and complete patterns',
@@ -81,6 +81,18 @@ const GamesIndex: React.FC = () => {
       gradient: 'from-purple-500 to-pink-400',
       path: '/games/patterns',
       difficulty: 'Elementary',
+      duration: '5-15 minutes'
+    },*/
+    {
+      id: 'patterns-detective',
+      name: 'Patterns Detective',
+      description: 'Solve pattern puzzles',
+      longDescription: 'Develop computational thinking skills through pattern recognition. Train your brain to identify sequences, relationships, and logical rules in numbers.',
+      icon: <Search className="w-8 h-8" />,
+      available: true,
+      gradient: 'from-purple-500 to-blue-500',
+      path: '/games/patterns-detective',
+      difficulty: 'Beginner to Expert',
       duration: '5-15 minutes'
     },
     {
@@ -111,10 +123,10 @@ const GamesIndex: React.FC = () => {
           </Link>
           <Breadcrumb />
         </div>
-        
+
         {/* Header */}
         <div className="mb-8">
-          
+
           {/* Website Logo */}
           <div className="text-center mb-6">
             <div className="flex justify-center mb-4">
@@ -122,24 +134,24 @@ const GamesIndex: React.FC = () => {
                 {/* Simple Logo Container - No decorative elements */}
                 <div className="w-[180px] h-[180px] sm:w-[220px] sm:h-[220px] md:w-[260px] md:h-[260px] flex items-center justify-center">
                   {/* Logo Image - Clean and simple */}
-                  <div className="w-full h-full mx-auto relative">                                        
+                  <div className="w-full h-full mx-auto relative">
                     <img
                       src={logo}
                       alt="Semakin Pintar Logo - Free Educational Games Platform"
                       className="w-full h-full object-contain rounded-xl shadow-lg"
                     />
-                  </div>                                    
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-          
+
           <div className="text-center">
             <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-purple-800 mb-4">
               Educational Games & Learning Tools Collection
             </h1>
             <p className="text-lg md:text-xl text-purple-600 max-w-3xl mx-auto">
-              Discover our collection of free educational games designed to make learning fun and engaging. 
+              Discover our collection of free educational games designed to make learning fun and engaging.
               Perfect for kids, students, and anyone looking to sharpen their cognitive skills.
             </p>
           </div>
@@ -158,9 +170,8 @@ const GamesIndex: React.FC = () => {
           {games.map((game) => (
             <div
               key={game.id}
-              className={`bg-white rounded-3xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 overflow-hidden border-2 flex flex-col h-full ${
-                game.available ? 'border-gray-200 hover:border-purple-300' : 'border-gray-200 opacity-75'
-              }`}
+              className={`bg-white rounded-3xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 overflow-hidden border-2 flex flex-col h-full ${game.available ? 'border-gray-200 hover:border-purple-300' : 'border-gray-200 opacity-75'
+                }`}
             >
               {/* Game Header - Fixed height */}
               <div className={`bg-gradient-to-r ${game.gradient} p-6 text-white relative`}>
@@ -186,7 +197,7 @@ const GamesIndex: React.FC = () => {
                     {game.longDescription}
                   </p>
                 </div>
-                
+
                 {/* Game Details - Fixed position above button */}
                 <div className="space-y-2 mb-4">
                   <div className="flex justify-between text-sm">

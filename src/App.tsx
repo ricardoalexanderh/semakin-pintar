@@ -14,6 +14,7 @@ import PWARouteHandler from './components/pwa-route-handler';
 import InstallBanner from './components/install-banner';
 import UpdateNotification from './components/update-notification';
 import OfflineStatus from './components/offline-status';
+import PatternsDetectiveGame from './components/patterns-detective';
 
 // Component to handle page tracking and SEO
 const PageTracker = () => {
@@ -265,6 +266,41 @@ const MentalMultiplicationPage = () => {
   );
 };
 
+// Mental Division Game page with SEO
+const PatternsDetectivePage = () => {
+  const gameJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Game",
+    "name": "Patterns Detective Game",
+    "description": "Train computational thinking skills through pattern recognition. Improve logical reasoning and problem-solving abilities with progressive difficulty levels.",
+    "url": "https://www.semakinpintar.com/games/patterns-detective",
+    "genre": "Educational",
+    "gamePlatform": "Web Browser",
+    "applicationCategory": "EducationalApplication",
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD"
+    }
+  };
+  
+  return (
+    <>
+      <SEOHead
+        title="Patterns Detective Game - Computational Thinking & Pattern Recognition | Semakin Pintar"
+        description="Train your computational thinking with our free patterns detective game. Develop pattern recognition, logical reasoning, and problem-solving skills through interactive gameplay."
+        keywords="pattern recognition, computational thinking, logical reasoning, problem solving, educational games, kids learning, math patterns, sequence games, brain training"
+        canonicalUrl="https://www.semakinpintar.com/games/patterns-detective"
+        ogTitle="Patterns Detective Game - Computational Thinking & Pattern Recognition"
+        ogDescription="Train your computational thinking with our free patterns detective game. Develop pattern recognition and logical reasoning skills."
+        ogImage="https://www.semakinpintar.com/logo.png"
+        jsonLd={gameJsonLd}
+      />
+      <PatternsDetectiveGame />
+    </>
+  );
+};
+
 function App() {
   useEffect(() => {
     // Initialize Google Analytics    
@@ -310,6 +346,11 @@ function App() {
           <Route path="/games/mental-multiplication" element={
             <GamesLayout>
               <MentalMultiplicationPage />
+            </GamesLayout>
+          } />   
+          <Route path="/games/patterns-detective" element={
+            <GamesLayout>
+              <PatternsDetectivePage />
             </GamesLayout>
           } />     
           <Route path="*" element={

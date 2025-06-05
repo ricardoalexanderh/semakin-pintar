@@ -59,7 +59,7 @@ const LandingPage: React.FC<LandingPageProps> = () => {
             gradient: 'from-emerald-500 to-teal-500',
             path: '/games/mental-division'
         },
-        {
+        /*{
             id: 'patterns',
             name: 'Patterns',
             description: 'Discover and complete patterns',
@@ -67,6 +67,15 @@ const LandingPage: React.FC<LandingPageProps> = () => {
             available: false,
             gradient: 'from-purple-500 to-pink-400',
             path: '/games/patterns'
+        },*/
+        {
+            id: 'patterns-detective',
+            name: 'Patterns Detective',
+            description: 'Solve pattern puzzles',
+            icon: <Search className="w-12 h-12" />,
+            available: true,
+            gradient: 'from-purple-500 to-pink-400',
+            path: '/games/patterns-detective'
         },
         {
             id: 'picture-algebra',

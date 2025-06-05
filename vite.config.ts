@@ -14,6 +14,7 @@ export default defineConfig({
         '/games/mental-arithmetic',
         '/games/multiplication-table',
         '/games/mental-division',
+        '/games/patterns-detective',
       ],
       lastmod: new Date(),
     }),
