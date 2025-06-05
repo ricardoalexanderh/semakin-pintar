@@ -5,7 +5,7 @@
     width: 100vw;
     height: 100vh;
     background: radial-gradient(ellipse at center, #0F0F23 0%, #000 70%, #000 100%);
-    font-family: 'Press Start 2P', cursive;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     cursor: pointer;
     user-select: none;
     padding: 20px;
@@ -110,17 +110,19 @@
 
 .math-equation-display {
     position: absolute;
-    font-size: 14px;
+    font-size: 18px;
+    font-weight: bold;
     color: #00D2FF;
     text-align: center;
     text-shadow: 2px 2px 0px #000, -2px -2px 0px #000, 2px -2px 0px #000, -2px 2px 0px #000, 0 0 10px #00D2FF;
     z-index: 5;
     pointer-events: none;
-    background: rgba(0, 15, 35, 0.9);
-    padding: 5px 10px;
-    border-radius: 5px;
+    background: rgba(0, 15, 35, 0.95);
+    padding: 8px 12px;
+    border-radius: 8px;
     border: 2px solid #00D2FF;
     box-shadow: 0 0 15px rgba(0, 210, 255, 0.5);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
 .answer-gap {
@@ -130,13 +132,14 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 14px;
+    font-size: 20px;
     font-weight: bold;
     color: #00D2FF;
     z-index: 10;
     transition: all 0.3s ease;
     text-shadow: 0 0 5px #00D2FF;
     box-shadow: inset 0 0 10px rgba(0, 210, 255, 0.3), 0 0 10px rgba(0, 210, 255, 0.3);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
 .answer-gap.correct {
@@ -156,10 +159,11 @@
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    font-size: 20px;
+    font-size: 28px;
     font-weight: bold;
     z-index: 60;
     animation: fadeInOut 1s ease-in-out;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
 .correct-feedback {
@@ -198,13 +202,16 @@
     color: white;
     padding: 30px;
     border: 3px solid #FFD700;
+    border-radius: 12px;
     text-align: center;
     z-index: 40;
     min-width: 300px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
 .difficulty-title {
-    font-size: 14px;
+    font-size: 20px;
+    font-weight: bold;
     color: #00D2FF;
     margin-bottom: 25px;
     text-shadow: 1px 1px 0px #000, 0 0 10px #00D2FF;
@@ -215,7 +222,8 @@
 }
 
 .selection-label {
-    font-size: 12px;
+    font-size: 16px;
+    font-weight: bold;
     color: white;
     margin-bottom: 10px;
     text-shadow: 1px 1px 0px #000;
@@ -234,13 +242,15 @@
     background: #228B22;
     border: 2px solid #006400;
     color: white;
-    padding: 8px 12px;
-    font-family: 'Press Start 2P', cursive;
-    font-size: 8px;
+    padding: 12px 16px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 14px;
+    font-weight: bold;
     cursor: pointer;
     transition: all 0.1s ease;
     text-shadow: 1px 1px 0px #000;
-    min-width: 80px;
+    min-width: 100px;
+    border-radius: 8px;
 }
 
 .difficulty-btn:hover,
@@ -290,12 +300,14 @@
     top: 35px;
     left: 50%;
     transform: translateX(-50%);
-    font-size: 24px;
+    font-size: 32px;
+    font-weight: bold;
     color: #00D2FF;
     text-shadow: 2px 2px 0px #000, -2px -2px 0px #000, 2px -2px 0px #000, -2px 2px 0px #000, 0 0 15px #00D2FF;
     z-index: 25;
-    letter-spacing: 3px;
+    letter-spacing: 2px;
     text-align: center;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
 .score-container {
@@ -307,10 +319,12 @@
 
 .score,
 .math-score {
-    font-size: 10px;
+    font-size: 16px;
+    font-weight: bold;
     color: white;
     text-shadow: 1px 1px 0px #000, -1px -1px 0px #000, 1px -1px 0px #000, -1px 1px 0px #000;
     margin-bottom: 5px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
 .start-message {
@@ -320,19 +334,24 @@
     transform: translate(-50%, -50%);
     background: rgba(0, 0, 0, 0.9);
     color: white;
-    padding: 20px;
+    padding: 24px;
     border: 3px solid #FFD700;
-    font-size: 12px;
+    font-size: 18px;
+    font-weight: bold;
     text-align: center;
     z-index: 30;
     text-shadow: 1px 1px 0px #000;
+    border-radius: 12px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
 .game-subtitle {
     color: #00D2FF;
-    font-size: 14px;
+    font-size: 20px;
+    font-weight: bold;
     margin-bottom: 15px;
     text-shadow: 1px 1px 0px #000, 0 0 5px #00D2FF;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
 .game-over {
@@ -342,12 +361,15 @@
     transform: translate(-50%, -50%);
     background: rgba(255, 0, 0, 0.9);
     color: white;
-    padding: 20px;
+    padding: 24px;
     border: 3px solid darkred;
     text-align: center;
-    font-size: 10px;
+    font-size: 18px;
+    font-weight: bold;
     z-index: 30;
     text-shadow: 1px 1px 0px #000;
+    border-radius: 12px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
 .game-over div {
@@ -355,7 +377,8 @@
 }
 
 .game-over div:first-child {
-    font-size: 16px;
+    font-size: 24px;
+    font-weight: bold;
     margin-bottom: 12px;
     color: #FFD700;
 }
@@ -395,7 +418,8 @@
     }
 
     .game-title {
-        font-size: 18px;
+        font-size: 24px;
+        font-weight: bold;
         top: 25px;
     }
 
@@ -406,17 +430,36 @@
 
     .score,
     .math-score {
-        font-size: 8px;
+        font-size: 18px;
+        font-weight: bold;
     }
 
     .start-message,
     .game-over {
-        font-size: 10px;
-        padding: 15px;
+        font-size: 20px;
+        font-weight: bold;
+        padding: 20px;
     }
 
     .game-over div:first-child {
-        font-size: 14px;
+        font-size: 26px;
+        font-weight: bold;
+    }
+
+    .math-equation-display {
+        font-size: 20px;
+        font-weight: bold;
+        padding: 10px 14px;
+    }
+
+    .answer-gap {
+        font-size: 24px;
+        font-weight: bold;
+    }
+
+    .answer-feedback {
+        font-size: 32px;
+        font-weight: bold;
     }
 
     .mobile-jump-btn {

@@ -20,16 +20,16 @@ interface Pipe {
 
 const getGameDimensions = () => {
   const isMobile = window.innerWidth <= 768
-  const maxWidth = Math.min(window.innerWidth - 40, 400)
-  const maxHeight = Math.min(window.innerHeight - 40, 600)
+  const maxWidth = Math.min(window.innerWidth - 20, 600) // Bigger game box
+  const maxHeight = Math.min(window.innerHeight - 40, 700) // Taller game box
   
   return {
-    width: isMobile ? maxWidth : 400,
-    height: isMobile ? maxHeight : 600,
-    rocketSize: isMobile ? 20 : 24,
-    rocketHeight: isMobile ? 26 : 32,
-    asteroidWidth: isMobile ? 40 : 50,
-    asteroidGap: isMobile ? 120 : 150,
+    width: isMobile ? maxWidth : 600, // Increased from 400 to 600
+    height: isMobile ? maxHeight : 700, // Increased from 600 to 700
+    rocketSize: isMobile ? 24 : 30, // Bigger rocket
+    rocketHeight: isMobile ? 30 : 38, // Bigger rocket
+    asteroidWidth: isMobile ? 50 : 60, // Bigger asteroids
+    asteroidGap: isMobile ? 140 : 170, // Bigger gaps
     isMobile
   }
 }
@@ -507,7 +507,6 @@ const RocketMath: React.FC = () => {
         
         {showDifficultySelect && (
           <div className="difficulty-select">
-            <div className="difficulty-title">Choose Difficulty & Question Type</div>
             
             <div className="selection-group">
               <div className="selection-label">Game Speed:</div>
@@ -624,22 +623,6 @@ const RocketMath: React.FC = () => {
           </div>
         )}
         
-        {dimensions.isMobile && !showDifficultySelect && (
-          <button 
-            className="mobile-jump-btn"
-            onTouchStart={(e) => {
-              e.preventDefault()
-              e.stopPropagation()
-              if (gameOver) {
-                resetGame()
-              } else if (gameStarted) {
-                thrust()
-              }
-            }}
-          >
-            {gameOver ? '🔄' : '⬆️'}
-          </button>
-        )}
       </div>
     </div>
   )
