@@ -439,9 +439,11 @@
 
     .start-message,
     .game-over {
-        font-size: 20px;
+        font-size: 22px;
         font-weight: bold;
-        padding: 20px;
+        padding: 25px;
+        max-width: 90vw;
+        min-width: 320px;
     }
 
     .game-over div:first-child {
@@ -450,13 +452,13 @@
     }
 
     .math-equation-display {
-        font-size: 20px;
+        font-size: 32px;
         font-weight: bold;
-        padding: 10px 14px;
+        padding: 14px 18px;
     }
 
     .answer-gap {
-        font-size: 24px;
+        font-size: 36px;
         font-weight: bold;
     }
 
