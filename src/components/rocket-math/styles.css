@@ -454,13 +454,13 @@
     }
 
     .math-equation-display {
-        font-size: 32px;
+        font-size: 16px;
         font-weight: bold;
-        padding: 14px 18px;
+        padding: 8px 12px;
     }
 
     .answer-gap {
-        font-size: 36px;
+        font-size: 20px;
         font-weight: bold;
     }
 
@@ -514,12 +514,12 @@
     }
 
     .math-equation-display {
-        font-size: 10px;
-        padding: 3px 6px;
+        font-size: 16px;
+        padding: 8px 12px;
     }
 
     .answer-gap {
-        font-size: 10px;
+        font-size: 20px;
     }
 
     .answer-feedback {

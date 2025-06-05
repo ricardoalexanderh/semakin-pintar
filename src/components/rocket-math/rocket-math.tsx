@@ -557,13 +557,8 @@ const RocketMath: React.FC = () => {
               <div className="button-group">
                 <button
                   className={`sound-btn ${soundEnabled ? 'selected' : ''}`}
-                  onClick={() => {
-                    const newSoundState = !soundEnabled
-                    setSoundEnabled(newSoundState)
-                    playSound('toggle', newSoundState)
-                    trackButtonClick(`sound-${newSoundState ? 'on' : 'off'}`, 'rocket-math-settings')
-                  }}
-                  onTouchStart={() => {
+                  onClick={(e) => {
+                    e.preventDefault()
                     const newSoundState = !soundEnabled
                     setSoundEnabled(newSoundState)
                     playSound('toggle', newSoundState)
