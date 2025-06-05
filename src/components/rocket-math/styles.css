@@ -441,15 +441,15 @@
 
     .start-message,
     .game-over {
-        font-size: 22px;
+        font-size: 18px;
         font-weight: bold;
-        padding: 25px;
+        padding: 20px;
         max-width: 90vw;
         min-width: 320px;
     }
 
     .game-over div:first-child {
-        font-size: 26px;
+        font-size: 22px;
         font-weight: bold;
     }
 
