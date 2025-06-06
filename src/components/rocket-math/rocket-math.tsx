@@ -298,32 +298,59 @@ const RocketMath: React.FC = () => {
     const currentGapSize = difficultySettings.gapSize
     const correctAnswerInTop = mathProblem.correctAnswerInTop
     
-    // Enhanced space-themed pipe design
+    // Enhanced space-themed pipe design with neon glow
     const pipeGradient = ctx.createLinearGradient(x, 0, x + dimensions.asteroidWidth, 0)
     pipeGradient.addColorStop(0, '#706fd3')
     pipeGradient.addColorStop(0.5, '#474787')
     pipeGradient.addColorStop(1, '#5352ed')
     
+    // Add subtle glow effect to pipes
+    ctx.save()
+    ctx.shadowColor = '#5352ed'
+    ctx.shadowBlur = 8
+    ctx.shadowOffsetX = 0
+    ctx.shadowOffsetY = 0
+    
     // Top pipe with space theme
     ctx.fillStyle = pipeGradient
     ctx.fillRect(x, 0, dimensions.asteroidWidth, topHeight)
-    ctx.strokeStyle = '#3742fa'
-    ctx.lineWidth = 2
+    ctx.strokeStyle = '#5352ed'
+    ctx.lineWidth = 3
     ctx.strokeRect(x, 0, dimensions.asteroidWidth, topHeight)
+    ctx.restore()
     
-    // Bottom pipe
+    // Bottom pipe with subtle glow
+    ctx.save()
+    ctx.shadowColor = '#5352ed'
+    ctx.shadowBlur = 8
+    ctx.shadowOffsetX = 0
+    ctx.shadowOffsetY = 0
+    
+    ctx.fillStyle = pipeGradient
     ctx.fillRect(x, dimensions.height - bottomHeight, dimensions.asteroidWidth, bottomHeight)
+    ctx.strokeStyle = '#5352ed'
+    ctx.lineWidth = 3
     ctx.strokeRect(x, dimensions.height - bottomHeight, dimensions.asteroidWidth, bottomHeight)
+    ctx.restore()
     
-    // Middle separator with danger colors
+    // Middle separator with danger colors and subtle glow
     const separatorGradient = ctx.createLinearGradient(x, 0, x + dimensions.asteroidWidth, 0)
     separatorGradient.addColorStop(0, '#ff6b6b')
     separatorGradient.addColorStop(0.5, '#c44569')
     separatorGradient.addColorStop(1, '#ff3838')
+    
+    ctx.save()
+    ctx.shadowColor = '#ff3838'
+    ctx.shadowBlur = 10
+    ctx.shadowOffsetX = 0
+    ctx.shadowOffsetY = 0
+    
     ctx.fillStyle = separatorGradient
     ctx.fillRect(x, topHeight + currentGapSize, dimensions.asteroidWidth, 40)
     ctx.strokeStyle = '#ff3838'
+    ctx.lineWidth = 3
     ctx.strokeRect(x, topHeight + currentGapSize, dimensions.asteroidWidth, 40)
+    ctx.restore()
     
     // Draw answer gaps with enhanced colors and glow
     const topGapColor = asteroid.pathChosen === 'top' 
@@ -333,17 +360,33 @@ const RocketMath: React.FC = () => {
       ? (!correctAnswerInTop ? '#4CAF50' : '#F44336') 
       : 'rgba(0, 210, 255, 0.3)'
     
-    // Top gap with glow effect
+    // Top gap with subtle glow effect
+    ctx.save()
+    ctx.shadowColor = '#00D2FF'
+    ctx.shadowBlur = 6
+    ctx.shadowOffsetX = 0
+    ctx.shadowOffsetY = 0
+    
     ctx.fillStyle = topGapColor
     ctx.fillRect(x, topHeight, dimensions.asteroidWidth, currentGapSize)
     ctx.strokeStyle = '#00D2FF'
     ctx.lineWidth = 2
     ctx.strokeRect(x, topHeight, dimensions.asteroidWidth, currentGapSize)
+    ctx.restore()
     
-    // Bottom gap with glow effect
+    // Bottom gap with subtle glow effect
+    ctx.save()
+    ctx.shadowColor = '#00D2FF'
+    ctx.shadowBlur = 6
+    ctx.shadowOffsetX = 0
+    ctx.shadowOffsetY = 0
+    
     ctx.fillStyle = bottomGapColor
     ctx.fillRect(x, topHeight + currentGapSize + 40, dimensions.asteroidWidth, currentGapSize)
+    ctx.strokeStyle = '#00D2FF'
+    ctx.lineWidth = 2
     ctx.strokeRect(x, topHeight + currentGapSize + 40, dimensions.asteroidWidth, currentGapSize)
+    ctx.restore()
     
     // Enhanced text rendering with better mobile support and question type scaling
     const equationFontSize = dimensions.isMobile ? 16 : 18
@@ -365,8 +408,15 @@ const RocketMath: React.FC = () => {
     
     const boxSize = getQuestionBoxSize()
     
-    // Math equation above with background and glow
+    // Math equation above with background and subtle glow
     ctx.save()
+    
+    // Enhanced background with subtle border glow
+    ctx.shadowColor = '#00D2FF'
+    ctx.shadowBlur = 8
+    ctx.shadowOffsetX = 0
+    ctx.shadowOffsetY = 0
+    
     ctx.fillStyle = 'rgba(0, 15, 35, 0.95)'
     const eqX = x + dimensions.asteroidWidth / 2
     const eqY = Math.max(25, topHeight - 15)
@@ -376,10 +426,10 @@ const RocketMath: React.FC = () => {
     // Draw equation background
     ctx.fillRect(eqX - eqWidth/2, eqY - eqHeight/2, eqWidth, eqHeight)
     ctx.strokeStyle = '#00D2FF'
-    ctx.lineWidth = 2
+    ctx.lineWidth = 3
     ctx.strokeRect(eqX - eqWidth/2, eqY - eqHeight/2, eqWidth, eqHeight)
     
-    // Draw equation text with glow
+    // Draw equation text with subtle glow
     ctx.fillStyle = '#00D2FF'
     ctx.font = `bold ${equationFontSize}px Arial`
     ctx.textAlign = 'center'
@@ -389,14 +439,14 @@ const RocketMath: React.FC = () => {
     ctx.fillText(mathProblem.equation, eqX, eqY)
     ctx.restore()
     
-    // Top answer with enhanced styling
+    // Top answer with subtle styling
     ctx.save()
     ctx.fillStyle = '#FFFFFF'
     ctx.font = `bold ${answerFontSize}px Arial`
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
-    ctx.shadowColor = '#000'
-    ctx.shadowBlur = 3
+    ctx.shadowColor = '#FFFFFF'
+    ctx.shadowBlur = 4
     ctx.fillText(
       (correctAnswerInTop ? mathProblem.correctAnswer : mathProblem.wrongAnswer).toString(),
       x + dimensions.asteroidWidth / 2,
@@ -404,14 +454,14 @@ const RocketMath: React.FC = () => {
     )
     ctx.restore()
     
-    // Bottom answer with enhanced styling
+    // Bottom answer with subtle styling
     ctx.save()
     ctx.fillStyle = '#FFFFFF'
     ctx.font = `bold ${answerFontSize}px Arial`
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
-    ctx.shadowColor = '#000'
-    ctx.shadowBlur = 3
+    ctx.shadowColor = '#FFFFFF'
+    ctx.shadowBlur = 4
     ctx.fillText(
       (!correctAnswerInTop ? mathProblem.correctAnswer : mathProblem.wrongAnswer).toString(),
       x + dimensions.asteroidWidth / 2,
@@ -439,13 +489,24 @@ const RocketMath: React.FC = () => {
     ctx.fillStyle = gradient
     ctx.fillRect(0, 0, dimensions.width, dimensions.height)
     
-    // Draw twinkling stars with different sizes and brightness
+    // Draw twinkling stars with neon glow effects
     const time = currentTime * 0.001
+    ctx.save()
     for (let i = 0; i < 80; i++) {
       const x = (i * 123 + time * 10) % dimensions.width
       const y = (i * 456) % dimensions.height
       const twinkle = 0.3 + 0.7 * Math.sin(time * 2 + i)
       const size = 1 + (i % 3)
+      
+      // Add subtle glow to larger stars
+      if (size > 1) {
+        ctx.shadowColor = '#FFFFFF'
+        ctx.shadowBlur = size * 2
+        ctx.shadowOffsetX = 0
+        ctx.shadowOffsetY = 0
+      } else {
+        ctx.shadowBlur = 0
+      }
       
       ctx.fillStyle = `rgba(255, 255, 255, ${twinkle})`
       if (size === 1) {
@@ -456,14 +517,22 @@ const RocketMath: React.FC = () => {
         ctx.fill()
       }
     }
+    ctx.restore()
     
-    // Draw distant planets/nebula
+    // Draw distant planets/nebula with enhanced glow
     ctx.save()
+    
+    // Add neon glow to the planet
+    ctx.shadowColor = '#8A2BE2'
+    ctx.shadowBlur = 25
+    ctx.shadowOffsetX = 0
+    ctx.shadowOffsetY = 0
+    
     const planetGradient = ctx.createRadialGradient(
       dimensions.width * 0.8, dimensions.height * 0.2, 0,
       dimensions.width * 0.8, dimensions.height * 0.2, 30
     )
-    planetGradient.addColorStop(0, 'rgba(138, 43, 226, 0.3)')
+    planetGradient.addColorStop(0, 'rgba(138, 43, 226, 0.5)')
     planetGradient.addColorStop(1, 'rgba(138, 43, 226, 0)')
     ctx.fillStyle = planetGradient
     ctx.beginPath()
