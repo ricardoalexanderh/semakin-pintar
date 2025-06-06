@@ -201,6 +201,14 @@ const RocketMath: React.FC = () => {
   
   const difficultySettings = useMemo(() => getDifficultySettings(difficulty), [difficulty])
 
+  // Auto scroll to bottom on page enter
+  useEffect(() => {
+    window.scrollTo({
+      top: document.body.scrollHeight,
+      behavior: 'smooth'
+    })
+  }, [])
+
   // Load rocket SVG
   useEffect(() => {
     const loadRocketSVG = async () => {
@@ -696,10 +704,10 @@ const RocketMath: React.FC = () => {
         setCanContinue(false)
         playSound('gameOver', soundEnabled)
         
-        // Enable continue after 2 seconds
+        // Enable continue after 1.5 seconds
         setTimeout(() => {
           setCanContinue(true)
-        }, 2000)
+        }, 1500)
         
         // Track game over
         trackGameEvent('rocket-math', 'complete', {
@@ -732,10 +740,10 @@ const RocketMath: React.FC = () => {
             setCanContinue(false)
             playSound('gameOver', soundEnabled)
             
-            // Enable continue after 2 seconds
+            // Enable continue after 1.5 seconds
             setTimeout(() => {
               setCanContinue(true)
-            }, 2000)
+            }, 1500)
             
             // Track collision game over
             trackGameEvent('rocket-math', 'complete', {
@@ -877,12 +885,14 @@ const RocketMath: React.FC = () => {
         {gameOver && (
           <div className="game-over">
             <div>Game Over!</div>
-            <div>Asteroids Passed: {score}</div>
-            <div>Problems Solved: {mathScore}</div>
             {canContinue ? (
-              <div>{dimensions.isMobile ? 'Tap to restart' : 'Click or press SPACE to restart'}</div>
+              <>
+                <div>Asteroids Passed: {score}</div>
+                <div>Problems Solved: {mathScore}</div>
+                <div>{dimensions.isMobile ? 'Tap to restart' : 'Click or press SPACE to restart'}</div>
+              </>
             ) : (
-              <div>Please wait...</div>
+              <div>Calculating score...</div>
             )}
           </div>
         )}
