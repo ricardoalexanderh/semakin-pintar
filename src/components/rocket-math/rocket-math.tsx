@@ -550,11 +550,13 @@ const RocketMath: React.FC = () => {
     const eqWidth = boxSize.width
     const eqHeight = boxSize.height
     
-    // Draw equation background
-    ctx.fillRect(eqX - eqWidth/2, eqY - eqHeight/2, eqWidth, eqHeight)
+    // Draw equation background with rounded corners
+    ctx.beginPath()
+    ctx.roundRect(eqX - eqWidth/2, eqY - eqHeight/2, eqWidth, eqHeight, 8)
+    ctx.fill()
     ctx.strokeStyle = '#00D2FF'
     ctx.lineWidth = 3
-    ctx.strokeRect(eqX - eqWidth/2, eqY - eqHeight/2, eqWidth, eqHeight)
+    ctx.stroke()
     
     // Draw equation text with subtle glow (only if visual effects enabled)
     ctx.fillStyle = '#00D2FF'
@@ -570,12 +572,12 @@ const RocketMath: React.FC = () => {
     
     // Top answer with subtle styling (only glow if visual effects enabled)
     ctx.save()
-    ctx.fillStyle = '#FFFFFF'
+    ctx.fillStyle = '#00D2FF'
     ctx.font = `bold ${answerFontSize}px Arial`
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
     if (backgroundEnabled) {
-      ctx.shadowColor = '#FFFFFF'
+      ctx.shadowColor = '#00D2FF'
       ctx.shadowBlur = 4
     }
     ctx.fillText(
@@ -587,12 +589,12 @@ const RocketMath: React.FC = () => {
     
     // Bottom answer with subtle styling (only glow if visual effects enabled)
     ctx.save()
-    ctx.fillStyle = '#FFFFFF'
+    ctx.fillStyle = '#00D2FF'
     ctx.font = `bold ${answerFontSize}px Arial`
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
     if (backgroundEnabled) {
-      ctx.shadowColor = '#FFFFFF'
+      ctx.shadowColor = '#00D2FF'
       ctx.shadowBlur = 4
     }
     ctx.fillText(
