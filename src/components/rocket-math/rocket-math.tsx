@@ -151,17 +151,132 @@ const RocketMath: React.FC = () => {
   const [questionType, setQuestionType] = useState<1 | 2 | 3>(1)
   const [mathScore, setMathScore] = useState(0)
   const [soundEnabled, setSoundEnabled] = useState(true)
-  const [, forceRender] = useState({})
   
   const gameLoopRef = useRef<number | null>(null)
   const lastTimeRef = useRef<number>(0)
   const rocketYRef = useRef(dimensions.height / 2)
   const rocketVelocityRef = useRef(0)
   const asteroidsRef = useRef<Pipe[]>([])
-  const rocketElementRef = useRef<HTMLDivElement>(null)
-  const gameCanvasRef = useRef<HTMLDivElement>(null)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const ctxRef = useRef<CanvasRenderingContext2D | null>(null)
+  const rocketImageRef = useRef<HTMLImageElement | null>(null)
   
   const difficultySettings = useMemo(() => getDifficultySettings(difficulty), [difficulty])
+
+  // Load SVG rocket image
+  useEffect(() => {
+    const img = new Image()
+    img.onload = () => {
+      rocketImageRef.current = img
+    }
+    img.src = '/rocket.svg'
+  }, [])
+
+  // Canvas drawing functions
+  const drawRocket = useCallback((ctx: CanvasRenderingContext2D) => {
+    if (!rocketImageRef.current) return
+    
+    const x = dimensions.width / 2 - dimensions.rocketSize / 2
+    const y = rocketYRef.current
+    const width = dimensions.rocketSize
+    const height = dimensions.rocketHeight || dimensions.rocketSize
+    
+    // Draw SVG rocket
+    ctx.drawImage(rocketImageRef.current, x, y, width, height)
+  }, [dimensions])
+
+  const drawAsteroid = useCallback((ctx: CanvasRenderingContext2D, asteroid: Pipe) => {
+    const { x, topHeight, bottomHeight, mathProblem } = asteroid
+    const currentGapSize = difficultySettings.gapSize
+    const correctAnswerInTop = mathProblem.correctAnswerInTop
+    
+    // Draw pipe sections
+    ctx.fillStyle = '#9E9E9E'
+    
+    // Top pipe
+    ctx.fillRect(x, 0, dimensions.asteroidWidth, topHeight)
+    
+    // Bottom pipe
+    ctx.fillRect(x, dimensions.height - bottomHeight, dimensions.asteroidWidth, bottomHeight)
+    
+    // Middle separator
+    ctx.fillRect(x, topHeight + currentGapSize, dimensions.asteroidWidth, 40)
+    
+    // Draw answer gaps with colors
+    const topGapColor = asteroid.pathChosen === 'top' 
+      ? (correctAnswerInTop ? '#4CAF50' : '#F44336') 
+      : '#2196F3'
+    const bottomGapColor = asteroid.pathChosen === 'bottom' 
+      ? (!correctAnswerInTop ? '#4CAF50' : '#F44336') 
+      : '#2196F3'
+    
+    // Top gap
+    ctx.fillStyle = topGapColor
+    ctx.fillRect(x, topHeight, dimensions.asteroidWidth, currentGapSize)
+    
+    // Bottom gap
+    ctx.fillStyle = bottomGapColor
+    ctx.fillRect(x, topHeight + currentGapSize + 40, dimensions.asteroidWidth, currentGapSize)
+    
+    // Draw text
+    ctx.fillStyle = '#000'
+    ctx.font = `${dimensions.isMobile ? '12' : '14'}px Arial`
+    ctx.textAlign = 'center'
+    
+    // Math equation above
+    ctx.fillText(
+      mathProblem.equation,
+      x + dimensions.asteroidWidth / 2,
+      Math.max(20, topHeight - 10)
+    )
+    
+    // Top answer
+    ctx.fillStyle = '#FFF'
+    ctx.fillText(
+      (correctAnswerInTop ? mathProblem.correctAnswer : mathProblem.wrongAnswer).toString(),
+      x + dimensions.asteroidWidth / 2,
+      topHeight + currentGapSize / 2 + 5
+    )
+    
+    // Bottom answer
+    ctx.fillText(
+      (!correctAnswerInTop ? mathProblem.correctAnswer : mathProblem.wrongAnswer).toString(),
+      x + dimensions.asteroidWidth / 2,
+      topHeight + currentGapSize + 40 + currentGapSize / 2 + 5
+    )
+  }, [dimensions, difficultySettings])
+
+  const drawGame = useCallback(() => {
+    if (!ctxRef.current) return
+    
+    const ctx = ctxRef.current
+    
+    // Clear canvas
+    ctx.clearRect(0, 0, dimensions.width, dimensions.height)
+    
+    // Draw background gradient
+    const gradient = ctx.createLinearGradient(0, 0, 0, dimensions.height)
+    gradient.addColorStop(0, '#1a1a2e')
+    gradient.addColorStop(1, '#16213e')
+    ctx.fillStyle = gradient
+    ctx.fillRect(0, 0, dimensions.width, dimensions.height)
+    
+    // Draw stars
+    ctx.fillStyle = '#FFF'
+    for (let i = 0; i < 50; i++) {
+      const x = (i * 123) % dimensions.width
+      const y = (i * 456) % dimensions.height
+      ctx.fillRect(x, y, 1, 1)
+    }
+    
+    // Draw asteroids
+    asteroidsRef.current.forEach(asteroid => {
+      drawAsteroid(ctx, asteroid)
+    })
+    
+    // Draw rocket
+    drawRocket(ctx)
+  }, [dimensions, drawRocket, drawAsteroid])
 
   const thrust = useCallback(() => {
     if (!gameStarted) {
@@ -186,6 +301,13 @@ const RocketMath: React.FC = () => {
     setLastAnswerCorrect(null)
     setShowDifficultySelect(true)
     
+    // Initialize canvas
+    if (canvasRef.current) {
+      canvasRef.current.width = newDimensions.width
+      canvasRef.current.height = newDimensions.height
+      ctxRef.current = canvasRef.current.getContext('2d')
+    }
+    
     // Track game restart
     trackGameEvent('rocket-math', 'restart', {
       difficulty,
@@ -200,12 +322,28 @@ const RocketMath: React.FC = () => {
         const newDimensions = getGameDimensions()
         setDimensions(newDimensions)
         rocketYRef.current = newDimensions.height / 2
+        
+        // Resize canvas
+        if (canvasRef.current) {
+          canvasRef.current.width = newDimensions.width
+          canvasRef.current.height = newDimensions.height
+          ctxRef.current = canvasRef.current.getContext('2d')
+        }
       }
     }
 
     window.addEventListener('resize', handleResize)
     return () => window.removeEventListener('resize', handleResize)
   }, [gameStarted])
+
+  // Initialize canvas on mount
+  useEffect(() => {
+    if (canvasRef.current) {
+      canvasRef.current.width = dimensions.width
+      canvasRef.current.height = dimensions.height
+      ctxRef.current = canvasRef.current.getContext('2d')
+    }
+  }, [dimensions.width, dimensions.height])
 
   useEffect(() => {
     let touchTimeout: number | null = null
@@ -231,11 +369,11 @@ const RocketMath: React.FC = () => {
       }, 0)
     }
 
-    const gameCanvas = document.querySelector('.game-canvas')
-    if (gameCanvas) {
-      gameCanvas.addEventListener('touchstart', handleTouch, { passive: false })
+    const canvas = canvasRef.current
+    if (canvas) {
+      canvas.addEventListener('touchstart', handleTouch, { passive: false })
       return () => {
-        gameCanvas.removeEventListener('touchstart', handleTouch)
+        canvas.removeEventListener('touchstart', handleTouch)
         if (touchTimeout) {
           clearTimeout(touchTimeout)
         }
@@ -275,11 +413,6 @@ const RocketMath: React.FC = () => {
         // Update rocket position directly
         rocketYRef.current += rocketVelocityRef.current
         rocketVelocityRef.current += difficultySettings.gravity
-
-        // Update rocket DOM element directly using transform
-        if (rocketElementRef.current) {
-          rocketElementRef.current.style.transform = `translateY(${rocketYRef.current}px)`
-        }
 
         // Update asteroids directly without creating new objects
         asteroidsRef.current.forEach(asteroid => {
@@ -338,10 +471,8 @@ const RocketMath: React.FC = () => {
           }
         })
 
-        // Force re-render of asteroids every few frames to update positions
-        if (Math.floor(currentTime / 16) % 3 === 0) {
-          forceRender({})
-        }
+        // Draw the game
+        drawGame()
         
         lastTimeRef.current = currentTime
       }
@@ -357,7 +488,7 @@ const RocketMath: React.FC = () => {
         gameLoopRef.current = null
       }
     }
-  }, [gameStarted, gameOver, dimensions, difficulty, questionType, soundEnabled, difficultySettings])
+  }, [gameStarted, gameOver, dimensions, difficulty, questionType, soundEnabled, difficultySettings, drawGame])
 
 
   useEffect(() => {
@@ -416,111 +547,13 @@ const RocketMath: React.FC = () => {
 
   return (
     <div className="game-container" onClick={showDifficultySelect ? undefined : (gameOver ? resetGame : thrust)}>
-      <div 
-        ref={gameCanvasRef}
-        className="game-canvas"
-        style={{
-          width: dimensions.width,
-          height: dimensions.height
-        }}
-      >
-        <div 
-          ref={rocketElementRef}
-          className="bird" 
-          style={{
-            top: 0,
-            left: dimensions.width / 2 - dimensions.rocketSize / 2,
-            width: dimensions.rocketSize,
-            height: dimensions.rocketHeight || dimensions.rocketSize,
-            transform: `translateY(${rocketYRef.current}px)`,
-            willChange: 'transform'
-          }}
+      <div className="game-canvas" style={{ width: dimensions.width, height: dimensions.height }}>
+        <canvas
+          ref={canvasRef}
+          width={dimensions.width}
+          height={dimensions.height}
+          style={{ display: 'block' }}
         />
-        
-        {asteroidsRef.current.map((asteroid, index) => {
-          const correctAnswerInTop = asteroid.mathProblem.correctAnswerInTop
-          const currentGapSize = difficultySettings.gapSize
-          return (
-            <div 
-              key={`asteroid-${index}-${Math.floor(asteroid.x / 50)}`}
-              style={{
-                position: 'absolute',
-                transform: `translateX(${asteroid.x}px)`,
-                willChange: 'transform'
-              }}
-            >
-              {/* Math equation above pipe */}
-              <div 
-                className="math-equation-display"
-                style={{
-                  left: -30,
-                  top: Math.max(10, asteroid.topHeight - 60),
-                  width: dimensions.asteroidWidth + 60
-                }}
-              >
-                {asteroid.mathProblem.equation}
-              </div>
-              
-              {/* Top pipe section */}
-              <div 
-                className="pipe pipe-top"
-                style={{
-                  left: 0,
-                  height: asteroid.topHeight,
-                  width: dimensions.asteroidWidth
-                }}
-              />
-              
-              {/* Top gap with answer */}
-              <div 
-                className={`answer-gap top-gap ${asteroid.pathChosen === 'top' ? (correctAnswerInTop ? 'correct' : 'wrong') : ''}`}
-                style={{
-                  left: 0,
-                  top: asteroid.topHeight,
-                  width: dimensions.asteroidWidth,
-                  height: currentGapSize
-                }}
-              >
-                {correctAnswerInTop ? asteroid.mathProblem.correctAnswer : asteroid.mathProblem.wrongAnswer}
-              </div>
-              
-              {/* Middle pipe section */}
-              <div 
-                className="pipe pipe-middle"
-                style={{
-                  left: 0,
-                  top: asteroid.topHeight + currentGapSize,
-                  width: dimensions.asteroidWidth,
-                  height: 40
-                }}
-              />
-              
-              {/* Bottom gap with answer */}
-              <div 
-                className={`answer-gap bottom-gap ${asteroid.pathChosen === 'bottom' ? (!correctAnswerInTop ? 'correct' : 'wrong') : ''}`}
-                style={{
-                  left: 0,
-                  top: asteroid.topHeight + currentGapSize + 40,
-                  width: dimensions.asteroidWidth,
-                  height: currentGapSize
-                }}
-              >
-                {!correctAnswerInTop ? asteroid.mathProblem.correctAnswer : asteroid.mathProblem.wrongAnswer}
-              </div>
-              
-              {/* Bottom pipe section */}
-              <div 
-                className="pipe pipe-bottom"
-                style={{
-                  left: 0,
-                  top: dimensions.height - asteroid.bottomHeight,
-                  height: asteroid.bottomHeight,
-                  width: dimensions.asteroidWidth
-                }}
-              />
-            </div>
-          )
-        })}
 
         {showDifficultySelect && <div className="game-title">ROCKET MATH</div>}
         {!showDifficultySelect && (
