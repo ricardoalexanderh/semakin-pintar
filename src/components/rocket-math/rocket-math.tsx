@@ -157,17 +157,19 @@ const loadSavedSettings = () => {
   return {
     difficulty: 1,
     questionType: 1,
-    soundEnabled: true
+    soundEnabled: true,
+    backgroundEnabled: true
   }
 }
 
 // Save settings to localStorage
-const saveSettings = (difficulty: number, questionType: number, soundEnabled: boolean) => {
+const saveSettings = (difficulty: number, questionType: number, soundEnabled: boolean, backgroundEnabled: boolean) => {
   try {
     localStorage.setItem('rocket-math-settings', JSON.stringify({
       difficulty,
       questionType,
-      soundEnabled
+      soundEnabled,
+      backgroundEnabled
     }))
   } catch (error) {
     console.warn('Failed to save settings:', error)
@@ -187,6 +189,7 @@ const RocketMath: React.FC = () => {
   const [questionType, setQuestionType] = useState<1 | 2 | 3>(savedSettings.questionType as 1 | 2 | 3)
   const [mathScore, setMathScore] = useState(0)
   const [soundEnabled, setSoundEnabled] = useState(savedSettings.soundEnabled)
+  const [backgroundEnabled, setBackgroundEnabled] = useState(savedSettings.backgroundEnabled)
   const [canContinue, setCanContinue] = useState(true)
   const [startEnabled, setStartEnabled] = useState(false)
   
@@ -501,56 +504,58 @@ const RocketMath: React.FC = () => {
     ctx.fillStyle = gradient
     ctx.fillRect(0, 0, dimensions.width, dimensions.height)
     
-    // Draw twinkling stars with neon glow effects
-    const time = currentTime * 0.001
-    ctx.save()
-    for (let i = 0; i < 80; i++) {
-      const x = (i * 123 + time * 10) % dimensions.width
-      const y = (i * 456) % dimensions.height
-      const twinkle = 0.3 + 0.7 * Math.sin(time * 2 + i)
-      const size = 1 + (i % 3)
-      
-      // Add subtle glow to larger stars
-      if (size > 1) {
-        ctx.shadowColor = '#FFFFFF'
-        ctx.shadowBlur = size * 2
-        ctx.shadowOffsetX = 0
-        ctx.shadowOffsetY = 0
-      } else {
-        ctx.shadowBlur = 0
+    // Draw twinkling stars with neon glow effects (only if background enabled)
+    if (backgroundEnabled) {
+      const time = currentTime * 0.001
+      ctx.save()
+      for (let i = 0; i < 80; i++) {
+        const x = (i * 123 + time * 10) % dimensions.width
+        const y = (i * 456) % dimensions.height
+        const twinkle = 0.3 + 0.7 * Math.sin(time * 2 + i)
+        const size = 1 + (i % 3)
+        
+        // Add subtle glow to larger stars
+        if (size > 1) {
+          ctx.shadowColor = '#FFFFFF'
+          ctx.shadowBlur = size * 2
+          ctx.shadowOffsetX = 0
+          ctx.shadowOffsetY = 0
+        } else {
+          ctx.shadowBlur = 0
+        }
+        
+        ctx.fillStyle = `rgba(255, 255, 255, ${twinkle})`
+        if (size === 1) {
+          ctx.fillRect(x, y, 1, 1)
+        } else {
+          ctx.beginPath()
+          ctx.arc(x, y, size * 0.5, 0, Math.PI * 2)
+          ctx.fill()
+        }
       }
+      ctx.restore()
       
-      ctx.fillStyle = `rgba(255, 255, 255, ${twinkle})`
-      if (size === 1) {
-        ctx.fillRect(x, y, 1, 1)
-      } else {
-        ctx.beginPath()
-        ctx.arc(x, y, size * 0.5, 0, Math.PI * 2)
-        ctx.fill()
-      }
+      // Draw distant planets/nebula with enhanced glow
+      ctx.save()
+      
+      // Add neon glow to the planet
+      ctx.shadowColor = '#8A2BE2'
+      ctx.shadowBlur = 25
+      ctx.shadowOffsetX = 0
+      ctx.shadowOffsetY = 0
+      
+      const planetGradient = ctx.createRadialGradient(
+        dimensions.width * 0.8, dimensions.height * 0.2, 0,
+        dimensions.width * 0.8, dimensions.height * 0.2, 30
+      )
+      planetGradient.addColorStop(0, 'rgba(138, 43, 226, 0.5)')
+      planetGradient.addColorStop(1, 'rgba(138, 43, 226, 0)')
+      ctx.fillStyle = planetGradient
+      ctx.beginPath()
+      ctx.arc(dimensions.width * 0.8, dimensions.height * 0.2, 30, 0, Math.PI * 2)
+      ctx.fill()
+      ctx.restore()
     }
-    ctx.restore()
-    
-    // Draw distant planets/nebula with enhanced glow
-    ctx.save()
-    
-    // Add neon glow to the planet
-    ctx.shadowColor = '#8A2BE2'
-    ctx.shadowBlur = 25
-    ctx.shadowOffsetX = 0
-    ctx.shadowOffsetY = 0
-    
-    const planetGradient = ctx.createRadialGradient(
-      dimensions.width * 0.8, dimensions.height * 0.2, 0,
-      dimensions.width * 0.8, dimensions.height * 0.2, 30
-    )
-    planetGradient.addColorStop(0, 'rgba(138, 43, 226, 0.5)')
-    planetGradient.addColorStop(1, 'rgba(138, 43, 226, 0)')
-    ctx.fillStyle = planetGradient
-    ctx.beginPath()
-    ctx.arc(dimensions.width * 0.8, dimensions.height * 0.2, 30, 0, Math.PI * 2)
-    ctx.fill()
-    ctx.restore()
     
     // Draw asteroids
     asteroidsRef.current.forEach(asteroid => {
@@ -559,7 +564,7 @@ const RocketMath: React.FC = () => {
     
     // Draw rocket with current time for animation
     drawRocket(ctx, currentTime)
-  }, [dimensions, drawRocket, drawAsteroid, questionType])
+  }, [dimensions, drawRocket, drawAsteroid, questionType, backgroundEnabled])
 
   const thrust = useCallback(() => {
     if (!gameStarted && !startEnabled) {
@@ -601,9 +606,10 @@ const RocketMath: React.FC = () => {
     trackGameEvent('rocket-math', 'restart', {
       difficulty,
       questionType,
-      soundEnabled
+      soundEnabled,
+      backgroundEnabled
     })
-  }, [difficulty, questionType, soundEnabled])
+  }, [difficulty, questionType, soundEnabled, backgroundEnabled])
 
   useEffect(() => {
     const handleResize = () => {
@@ -766,7 +772,7 @@ const RocketMath: React.FC = () => {
         gameLoopRef.current = null
       }
     }
-  }, [gameStarted, gameOver, dimensions, difficulty, questionType, soundEnabled, difficultySettings, drawGame])
+  }, [gameStarted, gameOver, dimensions, difficulty, questionType, soundEnabled, backgroundEnabled, difficultySettings, drawGame])
 
 
   useEffect(() => {
@@ -788,7 +794,8 @@ const RocketMath: React.FC = () => {
           score,
           mathScore,
           difficulty,
-          questionType
+          questionType,
+          backgroundEnabled
         })
         return
       }
@@ -824,7 +831,8 @@ const RocketMath: React.FC = () => {
               score,
               mathScore,
               difficulty,
-              questionType
+              questionType,
+              backgroundEnabled
             })
           }
         }
@@ -833,7 +841,7 @@ const RocketMath: React.FC = () => {
 
     const collisionInterval = setInterval(checkCollisions, 16)
     return () => clearInterval(collisionInterval)
-  }, [gameStarted, gameOver, dimensions, difficulty, soundEnabled, score, mathScore, questionType])
+  }, [gameStarted, gameOver, dimensions, difficulty, soundEnabled, backgroundEnabled, score, mathScore, questionType])
 
   return (
     <div className="game-container">
@@ -855,7 +863,6 @@ const RocketMath: React.FC = () => {
         
         {showDifficultySelect && (
           <div className="difficulty-select">
-            
             <div className="selection-group">
               <div className="selection-label">Game Speed:</div>
               <div className="button-group">
@@ -865,12 +872,12 @@ const RocketMath: React.FC = () => {
                     className={`difficulty-btn ${difficulty === level ? 'selected' : ''}`}
                     onClick={() => {
                       setDifficulty(level)
-                      saveSettings(level, questionType, soundEnabled)
+                      saveSettings(level, questionType, soundEnabled, backgroundEnabled)
                       trackButtonClick(`difficulty-${level}`, 'rocket-math-settings')
                     }}
                     onTouchStart={() => {
                       setDifficulty(level)
-                      saveSettings(level, questionType, soundEnabled)
+                      saveSettings(level, questionType, soundEnabled, backgroundEnabled)
                       trackButtonClick(`difficulty-${level}`, 'rocket-math-settings')
                     }}
                   >
@@ -889,12 +896,12 @@ const RocketMath: React.FC = () => {
                     className={`question-btn ${questionType === type ? 'selected' : ''}`}
                     onClick={() => {
                       setQuestionType(type)
-                      saveSettings(difficulty, type, soundEnabled)
+                      saveSettings(difficulty, type, soundEnabled, backgroundEnabled)
                       trackButtonClick(`question-type-${type}`, 'rocket-math-settings')
                     }}
                     onTouchStart={() => {
                       setQuestionType(type)
-                      saveSettings(difficulty, type, soundEnabled)
+                      saveSettings(difficulty, type, soundEnabled, backgroundEnabled)
                       trackButtonClick(`question-type-${type}`, 'rocket-math-settings')
                     }}
                   >
@@ -913,12 +920,30 @@ const RocketMath: React.FC = () => {
                     e.preventDefault()
                     const newSoundState = !soundEnabled
                     setSoundEnabled(newSoundState)
-                    saveSettings(difficulty, questionType, newSoundState)
+                    saveSettings(difficulty, questionType, newSoundState, backgroundEnabled)
                     playSound('toggle', newSoundState)
                     trackButtonClick(`sound-${newSoundState ? 'on' : 'off'}`, 'rocket-math-settings')
                   }}
                 >
                   {soundEnabled ? '🔊 ON' : '🔇 OFF'}
+                </button>
+              </div>
+            </div>
+            
+            <div className="selection-group">
+              <div className="selection-label">Background Effects:</div>
+              <div className="button-group">
+                <button
+                  className={`sound-btn ${backgroundEnabled ? 'selected' : ''}`}
+                  onClick={(e) => {
+                    e.preventDefault()
+                    const newBackgroundState = !backgroundEnabled
+                    setBackgroundEnabled(newBackgroundState)
+                    saveSettings(difficulty, questionType, soundEnabled, newBackgroundState)
+                    trackButtonClick(`background-${newBackgroundState ? 'on' : 'off'}`, 'rocket-math-settings')
+                  }}
+                >
+                  {backgroundEnabled ? '✨ ON' : '⚫ OFF'}
                 </button>
               </div>
             </div>
@@ -931,7 +956,8 @@ const RocketMath: React.FC = () => {
                 trackGameEvent('rocket-math', 'start', {
                   difficulty,
                   questionType,
-                  soundEnabled
+                  soundEnabled,
+                  backgroundEnabled
                 })
               }}
               onTouchStart={() => {
@@ -940,7 +966,8 @@ const RocketMath: React.FC = () => {
                 trackGameEvent('rocket-math', 'start', {
                   difficulty,
                   questionType,
-                  soundEnabled
+                  soundEnabled,
+                  backgroundEnabled
                 })
               }}
             >

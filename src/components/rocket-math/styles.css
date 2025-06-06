@@ -95,18 +95,19 @@ body {
     transform: translate(-50%, -50%);
     background: rgba(0, 0, 0, 0.95);
     color: white;
-    padding: 20px;
-    border: 3px solid #FFD700;
-    border-radius: 12px;
+    padding: 18px;
+    border: 2px solid #FFD700;
+    border-radius: 10px;
     text-align: center;
     z-index: 40;
-    min-width: 300px;
-    max-width: calc(100% - 60px);
-    max-height: calc(100% - 120px);
+    min-width: 320px;
+    max-width: calc(100% - 40px);
+    max-height: calc(100% - 100px);
     overflow-y: auto;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     box-sizing: border-box;
     margin-top: 30px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.7);
 }
 
 .difficulty-title {
@@ -118,40 +119,47 @@ body {
 }
 
 .selection-group {
-    margin-bottom: 20px;
+    margin-bottom: 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
 }
 
 .selection-label {
-    font-size: 16px;
-    font-weight: bold;
-    color: white;
-    margin-bottom: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #FFD700;
+    margin-bottom: 8px;
     text-shadow: 1px 1px 0px #000;
+    letter-spacing: 0.5px;
 }
 
 .button-group {
     display: flex;
-    gap: 10px;
+    gap: 8px;
     justify-content: center;
     flex-wrap: wrap;
+    width: 100%;
 }
 
 .difficulty-btn,
 .question-btn,
 .sound-btn {
-    background: #228B22;
-    border: 2px solid #00FF00;
+    background: #2E7D32;
+    border: 1.5px solid #4CAF50;
     color: white;
-    padding: 12px 16px;
+    padding: 8px 12px;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    font-size: 14px;
-    font-weight: bold;
+    font-size: 12px;
+    font-weight: 600;
     cursor: pointer;
     transition: all 0.2s ease;
-    text-shadow: 1px 1px 0px #000, 0 0 3px rgba(0, 255, 0, 0.5);
-    min-width: 100px;
-    border-radius: 8px;
-    box-shadow: 0 0 5px rgba(0, 255, 0, 0.2), inset 0 0 5px rgba(0, 255, 0, 0.05);
+    text-shadow: 1px 1px 0px #000;
+    min-width: 80px;
+    border-radius: 6px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    flex: 1;
+    max-width: 120px;
 }
 
 .difficulty-btn:hover,
@@ -160,51 +168,54 @@ body {
 .difficulty-btn:active,
 .question-btn:active,
 .sound-btn:active {
-    background: #32CD32;
-    transform: scale(0.95);
-    box-shadow: 0 0 8px rgba(0, 255, 0, 0.4), inset 0 0 8px rgba(0, 255, 0, 0.1);
-    text-shadow: 1px 1px 0px #000, 0 0 5px rgba(0, 255, 0, 0.7);
+    background: #388E3C;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    border-color: #66BB6A;
 }
 
 .difficulty-btn.selected,
 .question-btn.selected,
 .sound-btn.selected {
     background: #FFD700;
-    border-color: #FFA500;
+    border-color: #FFC107;
     color: #000;
-    text-shadow: 0 0 3px rgba(255, 215, 0, 0.6);
-    box-shadow: 0 0 8px rgba(255, 215, 0, 0.5), inset 0 0 8px rgba(255, 215, 0, 0.15);
+    text-shadow: none;
+    box-shadow: 0 2px 8px rgba(255, 193, 7, 0.4), inset 0 1px 3px rgba(255, 255, 255, 0.3);
+    font-weight: 700;
 }
 
 .sound-btn {
-    min-width: 100px;
+    min-width: 90px;
+    max-width: 100px;
 }
 
 .start-game-btn {
-    background: #FF6347;
+    background: linear-gradient(135deg, #FF6B35, #FF4500);
     border: 2px solid #FF4500;
     color: white;
-    padding: 12px 20px;
+    padding: 12px 24px;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    font-size: 14px;
-    font-weight: bold;
+    font-size: 15px;
+    font-weight: 700;
     cursor: pointer;
     transition: all 0.2s ease;
-    text-shadow: 1px 1px 0px #000, 0 0 4px rgba(255, 99, 71, 0.6);
-    margin-top: 15px;
+    text-shadow: 1px 1px 0px #000;
+    margin-top: 18px;
     border-radius: 8px;
-    box-shadow: 0 0 8px rgba(255, 99, 71, 0.3), inset 0 0 8px rgba(255, 99, 71, 0.05);
+    box-shadow: 0 4px 15px rgba(255, 69, 0, 0.3);
     width: 100%;
     min-height: 48px;
     flex-shrink: 0;
+    letter-spacing: 0.5px;
 }
 
 .start-game-btn:hover,
 .start-game-btn:active {
-    background: #FF4500;
-    transform: scale(0.95);
-    box-shadow: 0 0 12px rgba(255, 69, 0, 0.5), inset 0 0 12px rgba(255, 69, 0, 0.1);
-    text-shadow: 1px 1px 0px #000, 0 0 6px rgba(255, 69, 0, 0.8);
+    background: linear-gradient(135deg, #FF4500, #E63900);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(255, 69, 0, 0.4);
+    border-color: #E63900;
 }
 
 .game-title {
@@ -404,40 +415,54 @@ body {
     /* Mobile jump button styles removed */
 
     .difficulty-select {
-        padding: 15px;
-        min-width: 260px;
-        max-width: calc(100% - 40px);
-        max-height: calc(100vh - 140px);
+        padding: 12px;
+        min-width: 280px;
+        max-width: calc(100% - 30px);
+        max-height: calc(100vh - 120px);
         top: 45%;
         overflow-y: auto;
+        border-width: 2px;
     }
 
     .difficulty-title {
         font-size: 12px;
     }
 
+    .selection-group {
+        margin-bottom: 12px;
+    }
+
     .selection-label {
-        font-size: 14px;
-        font-weight: bold;
+        font-size: 13px;
+        font-weight: 600;
+        margin-bottom: 6px;
+    }
+
+    .button-group {
+        gap: 6px;
     }
 
     .difficulty-btn,
     .question-btn,
     .sound-btn {
-        font-size: 12px;
-        font-weight: bold;
-        padding: 10px 12px;
-        min-width: 90px;
+        font-size: 11px;
+        font-weight: 600;
+        padding: 8px 10px;
+        min-width: 70px;
+        max-width: 100px;
+        border-radius: 5px;
     }
 
     .sound-btn {
-        min-width: 100px;
+        min-width: 80px;
+        max-width: 90px;
     }
 
     .start-game-btn {
         font-size: 14px;
-        font-weight: bold;
-        padding: 14px 20px;
+        font-weight: 700;
+        padding: 12px 20px;
+        margin-top: 14px;
     }
 
     .math-equation-display {
