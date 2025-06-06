@@ -550,26 +550,12 @@ const RocketMath: React.FC = () => {
       ctx.shadowOffsetY = 0
     }
     
+    // Math equation above pipe (original position)
     ctx.fillStyle = 'rgba(0, 15, 35, 0.95)'
-    // Position the question box based on difficulty level
-    const baseMinDistance = 30 // Base minimum gap between question box and pipe
-    const eqY = 60 // Position at the top
-    const eqWidth = boxSize.width * 1.3 + 24 // Make it bigger with extra padding space
-    const eqHeight = boxSize.height * 1.2 + 16 // Make it taller with extra padding space
-    
-    // Adjust distance based on difficulty level
-    let extraDistance = 0
-    if (difficulty === 1) {
-      // Easy level: move question box more to the left for extra reading time
-      extraDistance = 100
-    } else {
-      // Medium and Hard: keep current position but make questions appear faster
-      // (This is handled by the pipe distance settings in getDifficultySettings)
-      extraDistance = 0
-    }
-    
-    // Always position question box to the left of pipe with safe distance
-    const eqX = x - baseMinDistance - extraDistance - eqWidth/2
+    const eqX = x + dimensions.asteroidWidth / 2
+    const eqY = Math.max(35, topHeight - 25) // Moved higher to accommodate bigger box
+    const eqWidth = boxSize.width * 1.4 + 32 // Make it bigger with more padding (16px each side)
+    const eqHeight = boxSize.height * 1.3 + 20 // Make it taller with more padding (10px top/bottom)
     
     // Only draw if the question box is visible on screen
     if (eqX - eqWidth/2 < dimensions.width && eqX + eqWidth/2 > 0) {
