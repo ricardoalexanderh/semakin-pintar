@@ -46,6 +46,31 @@ const getDifficultySettings = (difficulty: 1 | 2 | 3) => {
   }
 }
 
+// Safari iOS compatible rounded rectangle function
+const drawRoundedRect = (ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number, radius: number | number[]) => {
+  // Handle radius array (top-left, top-right, bottom-right, bottom-left)
+  let radii: number[]
+  if (typeof radius === 'number') {
+    radii = [radius, radius, radius, radius]
+  } else {
+    radii = radius.length === 4 ? radius : [radius[0] || 0, radius[1] || 0, radius[2] || 0, radius[3] || 0]
+  }
+  
+  const [tl, tr, br, bl] = radii
+  
+  ctx.beginPath()
+  ctx.moveTo(x + tl, y)
+  ctx.lineTo(x + width - tr, y)
+  if (tr > 0) ctx.quadraticCurveTo(x + width, y, x + width, y + tr)
+  ctx.lineTo(x + width, y + height - br)
+  if (br > 0) ctx.quadraticCurveTo(x + width, y + height, x + width - br, y + height)
+  ctx.lineTo(x + bl, y + height)
+  if (bl > 0) ctx.quadraticCurveTo(x, y + height, x, y + height - bl)
+  ctx.lineTo(x, y + tl)
+  if (tl > 0) ctx.quadraticCurveTo(x, y, x + tl, y)
+  ctx.closePath()
+}
+
 let audioContext: AudioContext | null = null
 
 const getAudioContext = () => {
@@ -334,9 +359,8 @@ const RocketMath: React.FC = () => {
       bodyGradient.addColorStop(1, '#3DC1D3')
       
       ctx.fillStyle = bodyGradient
-      ctx.beginPath()
       // More rounded rocket body
-      ctx.roundRect(x + width * 0.15, y + height * 0.1, width * 0.7, height * 0.8, [width * 0.35, width * 0.35, width * 0.1, width * 0.1])
+      drawRoundedRect(ctx, x + width * 0.15, y + height * 0.1, width * 0.7, height * 0.8, [width * 0.35, width * 0.35, width * 0.1, width * 0.1])
       ctx.fill()
       
       // Cartoon-style outline
@@ -430,8 +454,7 @@ const RocketMath: React.FC = () => {
     
     // Top pipe with space theme and rounded corners
     ctx.fillStyle = pipeGradient
-    ctx.beginPath()
-    ctx.roundRect(x, 0, dimensions.asteroidWidth, topHeight, [0, 0, 12, 12])
+    drawRoundedRect(ctx, x, 0, dimensions.asteroidWidth, topHeight, [0, 0, 12, 12])
     ctx.fill()
     ctx.strokeStyle = '#5352ed'
     ctx.lineWidth = 3
@@ -448,8 +471,7 @@ const RocketMath: React.FC = () => {
     }
     
     ctx.fillStyle = pipeGradient
-    ctx.beginPath()
-    ctx.roundRect(x, dimensions.height - bottomHeight, dimensions.asteroidWidth, bottomHeight, [12, 12, 0, 0])
+    drawRoundedRect(ctx, x, dimensions.height - bottomHeight, dimensions.asteroidWidth, bottomHeight, [12, 12, 0, 0])
     ctx.fill()
     ctx.strokeStyle = '#5352ed'
     ctx.lineWidth = 3
@@ -471,8 +493,7 @@ const RocketMath: React.FC = () => {
     }
     
     ctx.fillStyle = separatorGradient
-    ctx.beginPath()
-    ctx.roundRect(x, topHeight + currentGapSize, dimensions.asteroidWidth, 40, 8)
+    drawRoundedRect(ctx, x, topHeight + currentGapSize, dimensions.asteroidWidth, 40, 8)
     ctx.fill()
     ctx.strokeStyle = '#ff3838'
     ctx.lineWidth = 3
@@ -560,8 +581,7 @@ const RocketMath: React.FC = () => {
     // Only draw if the question box is visible on screen
     if (eqX - eqWidth/2 < dimensions.width && eqX + eqWidth/2 > 0) {
       // Draw equation background with rounded corners
-      ctx.beginPath()
-      ctx.roundRect(eqX - eqWidth/2, eqY - eqHeight/2, eqWidth, eqHeight, 12)
+      drawRoundedRect(ctx, eqX - eqWidth/2, eqY - eqHeight/2, eqWidth, eqHeight, 12)
       ctx.fill()
       ctx.strokeStyle = '#00D2FF'
       ctx.lineWidth = 3
