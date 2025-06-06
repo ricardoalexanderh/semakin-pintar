@@ -354,9 +354,6 @@ const RocketMath: React.FC = () => {
       ctx.stroke()
       
       // Cartoon fins
-      const finWidth = width * 0.15
-      const finHeight = height * 0.3
-      
       // Left fin
       ctx.fillStyle = '#4ECDC4'
       ctx.beginPath()

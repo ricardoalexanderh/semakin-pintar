@@ -26,7 +26,7 @@ const InstallBanner: React.FC = () => {
   }
 
   return (
-    <div className="fixed top-4 left-4 right-4 z-40 mx-auto max-w-md">
+    <div className="fixed top-4 left-4 right-4 z-[9999] mx-auto max-w-md">
       <div className="bg-gradient-to-r from-purple-500 to-indigo-500 text-white p-4 rounded-xl shadow-lg border border-purple-300">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3 flex-1">
