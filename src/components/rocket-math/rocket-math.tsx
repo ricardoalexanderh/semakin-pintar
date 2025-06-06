@@ -41,8 +41,8 @@ const getGameDimensions = () => {
 const getDifficultySettings = (difficulty: 1 | 2 | 3) => {
   switch (difficulty) {
     case 1: return { pipeSpeed: 1.5, gravity: 0.4, gapSize: 180, jumpStrength: -6, pipeDistance: 450 }
-    case 2: return { pipeSpeed: 2.0, gravity: 0.5, gapSize: 150, jumpStrength: -7, pipeDistance: 350 }
-    case 3: return { pipeSpeed: 2.5, gravity: 0.6, gapSize: 140, jumpStrength: -8, pipeDistance: 300 } 
+    case 2: return { pipeSpeed: 2.0, gravity: 0.5, gapSize: 150, jumpStrength: -7, pipeDistance: 320 }
+    case 3: return { pipeSpeed: 2.5, gravity: 0.6, gapSize: 140, jumpStrength: -8, pipeDistance: 290 } 
   }
 }
 
@@ -571,12 +571,22 @@ const RocketMath: React.FC = () => {
       ctx.shadowOffsetY = 0
     }
     
-    // Math equation above pipe (original position)
+    // Math equation positioned between previous and next pipe
     ctx.fillStyle = 'rgba(0, 15, 35, 0.95)'
-    const eqX = x + dimensions.asteroidWidth / 2
-    const eqY = Math.max(35, topHeight - 25) // Moved higher to accommodate bigger box
-    const eqWidth = boxSize.width * 1.4 + 32 // Make it bigger with more padding (16px each side)
-    const eqHeight = boxSize.height * 1.3 + 20 // Make it taller with more padding (10px top/bottom)
+    // Position question box based on pipe distance to appear between pipes
+    let questionDistance = 0
+    if (difficulty === 1) {
+      questionDistance = difficultySettings.pipeDistance * 0.5 // Middle of pipe distance
+    } else if (difficulty === 2) {
+      questionDistance = difficultySettings.pipeDistance * 0.5 // Middle of pipe distance
+    } else {
+      questionDistance = difficultySettings.pipeDistance * 0.5 // Middle of pipe distance
+    }
+    
+    const eqX = x - questionDistance
+    const eqY = 100 // Position lower to avoid score overlap (score is at 15px with ~40px height)
+    const eqWidth = boxSize.width * 1.1 + 16 // Smaller with moderate padding (8px each side)
+    const eqHeight = boxSize.height * 1.1 + 12 // Smaller with moderate padding (6px top/bottom)
     
     // Only draw if the question box is visible on screen
     if (eqX - eqWidth/2 < dimensions.width && eqX + eqWidth/2 > 0) {
