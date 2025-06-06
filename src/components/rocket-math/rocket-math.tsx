@@ -41,8 +41,8 @@ const getGameDimensions = () => {
 const getDifficultySettings = (difficulty: 1 | 2 | 3) => {
   switch (difficulty) {
     case 1: return { pipeSpeed: 1.5, gravity: 0.4, gapSize: 180, jumpStrength: -6, pipeDistance: 450 }
-    case 2: return { pipeSpeed: 2.0, gravity: 0.5, gapSize: 150, jumpStrength: -7, pipeDistance: 250 } // Reduced for faster appearance
-    case 3: return { pipeSpeed: 2.5, gravity: 0.6, gapSize: 120, jumpStrength: -8, pipeDistance: 250 } // Reduced for faster appearance
+    case 2: return { pipeSpeed: 2.0, gravity: 0.5, gapSize: 150, jumpStrength: -7, pipeDistance: 350 }
+    case 3: return { pipeSpeed: 2.5, gravity: 0.6, gapSize: 140, jumpStrength: -8, pipeDistance: 300 } 
   }
 }
 
