@@ -238,6 +238,37 @@ const RocketMath: React.FC = () => {
   
   const difficultySettings = useMemo(() => getDifficultySettings(difficulty), [difficulty])
 
+  // Cache expensive canvas operations for better performance
+  const backgroundGradient = useMemo(() => {
+    if (!canvasRef.current) return null
+    const ctx = canvasRef.current.getContext('2d')
+    if (!ctx) return null
+    
+    const gradient = ctx.createRadialGradient(
+      dimensions.width / 2, dimensions.height / 2, 0,
+      dimensions.width / 2, dimensions.height / 2, Math.max(dimensions.width, dimensions.height)
+    )
+    gradient.addColorStop(0, '#1a1a2e')
+    gradient.addColorStop(0.5, '#16213e')
+    gradient.addColorStop(1, '#0f0f23')
+    return gradient
+  }, [dimensions.width, dimensions.height])
+
+  // Pre-calculate star positions for better performance
+  const starData = useMemo(() => {
+    const starCount = dimensions.isMobile ? 40 : 80 // Reduce stars on mobile
+    const stars = []
+    for (let i = 0; i < starCount; i++) {
+      stars.push({
+        baseX: (i * 123) % dimensions.width,
+        y: (i * 456) % dimensions.height,
+        size: 1 + (i % 3),
+        seed: i
+      })
+    }
+    return stars
+  }, [dimensions.width, dimensions.height, dimensions.isMobile])
+
   // Auto scroll to bottom on page enter
   useEffect(() => {
     window.scrollTo({
@@ -552,6 +583,10 @@ const RocketMath: React.FC = () => {
     const equationFontSize = dimensions.isMobile ? 18 : 22 // Larger for better readability in bigger box
     const answerFontSize = dimensions.isMobile ? 18 : 20
     
+    // Cache font settings for better performance
+    const equationFont = `bold ${equationFontSize}px Arial`
+    const answerFont = `bold ${answerFontSize}px Arial`
+    
     // Determine equation box size based on question type (more digits = bigger box)
     const getQuestionBoxSize = () => {
       const baseWidth = dimensions.asteroidWidth + 40
@@ -610,7 +645,7 @@ const RocketMath: React.FC = () => {
       
       // Draw equation text with clear visibility
       ctx.fillStyle = '#FFFFFF'
-      ctx.font = `bold ${equationFontSize}px Arial`
+      ctx.font = equationFont
       ctx.textAlign = 'center'
       ctx.textBaseline = 'middle'
       ctx.shadowBlur = 0
@@ -621,7 +656,7 @@ const RocketMath: React.FC = () => {
     // Top answer with clear styling
     ctx.save()
     ctx.fillStyle = '#FFFFFF'
-    ctx.font = `bold ${answerFontSize}px Arial`
+    ctx.font = answerFont
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
     ctx.shadowBlur = 0
@@ -635,7 +670,7 @@ const RocketMath: React.FC = () => {
     // Bottom answer with clear styling
     ctx.save()
     ctx.fillStyle = '#FFFFFF'
-    ctx.font = `bold ${answerFontSize}px Arial`
+    ctx.font = answerFont
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
     ctx.shadowBlur = 0
@@ -655,46 +690,44 @@ const RocketMath: React.FC = () => {
     // Clear canvas
     ctx.clearRect(0, 0, dimensions.width, dimensions.height)
     
-    // Draw deep space background gradient (matching original design)
-    const gradient = ctx.createRadialGradient(
-      dimensions.width / 2, dimensions.height / 2, 0,
-      dimensions.width / 2, dimensions.height / 2, Math.max(dimensions.width, dimensions.height)
-    )
-    gradient.addColorStop(0, '#1a1a2e')
-    gradient.addColorStop(0.5, '#16213e')
-    gradient.addColorStop(1, '#0f0f23')
-    ctx.fillStyle = gradient
-    ctx.fillRect(0, 0, dimensions.width, dimensions.height)
+    // Draw deep space background gradient using cached gradient
+    if (backgroundGradient) {
+      ctx.fillStyle = backgroundGradient
+      ctx.fillRect(0, 0, dimensions.width, dimensions.height)
+    }
     
-    // Draw twinkling stars with neon glow effects (only if background enabled)
+    // Draw optimized twinkling stars (only if background enabled)
     if (backgroundEnabled) {
       const time = currentTime * 0.001
       ctx.save()
-      for (let i = 0; i < 80; i++) {
-        const x = (i * 123 + time * 10) % dimensions.width
-        const y = (i * 456) % dimensions.height
-        const twinkle = 0.3 + 0.7 * Math.sin(time * 2 + i)
-        const size = 1 + (i % 3)
+      
+      // Remove expensive shadow effects on mobile for better performance
+      if (!dimensions.isMobile) {
+        ctx.shadowColor = '#FFFFFF'
+        ctx.shadowOffsetX = 0
+        ctx.shadowOffsetY = 0
+      }
+      
+      starData.forEach(star => {
+        const x = (star.baseX + time * 10) % dimensions.width
+        const twinkle = 0.3 + 0.7 * Math.sin(time * 2 + star.seed)
         
-        // Add subtle glow to larger stars
-        if (size > 1) {
-          ctx.shadowColor = '#FFFFFF'
-          ctx.shadowBlur = size * 2
-          ctx.shadowOffsetX = 0
-          ctx.shadowOffsetY = 0
+        // Only add glow to larger stars on desktop
+        if (!dimensions.isMobile && star.size > 1) {
+          ctx.shadowBlur = star.size * 2
         } else {
           ctx.shadowBlur = 0
         }
         
         ctx.fillStyle = `rgba(255, 255, 255, ${twinkle})`
-        if (size === 1) {
-          ctx.fillRect(x, y, 1, 1)
+        if (star.size === 1) {
+          ctx.fillRect(x, star.y, 1, 1)
         } else {
           ctx.beginPath()
-          ctx.arc(x, y, size * 0.5, 0, Math.PI * 2)
+          ctx.arc(x, star.y, star.size * 0.5, 0, Math.PI * 2)
           ctx.fill()
         }
-      }
+      })
       ctx.restore()
       
       // Draw distant planets/nebula with enhanced glow
@@ -726,7 +759,7 @@ const RocketMath: React.FC = () => {
     
     // Draw rocket with current time for animation
     drawRocket(ctx, currentTime)
-  }, [dimensions, drawRocket, drawAsteroid, questionType, backgroundEnabled])
+  }, [dimensions, drawRocket, drawAsteroid, questionType, backgroundEnabled, backgroundGradient, starData])
 
   const thrust = useCallback(() => {
     if (!gameStarted && !startEnabled) {
@@ -917,6 +950,58 @@ const RocketMath: React.FC = () => {
           }
         })
 
+        // Check collisions inline for better performance
+        if (rocketYRef.current < 0 || rocketYRef.current > dimensions.height - (dimensions.rocketHeight || dimensions.rocketSize)) {
+          setGameOver(true)
+          setCanContinue(false)
+          playSound('gameOver', soundEnabled)
+          
+          setTimeout(() => setCanContinue(true), 1500)
+          
+          trackGameEvent('rocket-math', 'complete', {
+            score,
+            mathScore,
+            difficulty,
+            questionType,
+            backgroundEnabled
+          })
+        } else {
+          // Check asteroid collisions
+          asteroidsRef.current.forEach(asteroid => {
+            const rocketLeft = dimensions.width / 2 - dimensions.rocketSize / 2
+            const rocketRight = dimensions.width / 2 + dimensions.rocketSize / 2
+            const rocketTop = rocketYRef.current
+            const rocketBottom = rocketYRef.current + dimensions.rocketSize
+
+            if (rocketRight > asteroid.x && rocketLeft < asteroid.x + dimensions.asteroidWidth) {
+              const currentGapSize = getDifficultySettings(difficulty).gapSize
+              const topGapStart = asteroid.topHeight
+              const topGapEnd = asteroid.topHeight + currentGapSize
+              const bottomGapStart = asteroid.topHeight + currentGapSize + 40
+              const bottomGapEnd = dimensions.height - asteroid.bottomHeight
+              
+              const inTopGap = rocketTop >= topGapStart && rocketBottom <= topGapEnd
+              const inBottomGap = rocketTop >= bottomGapStart && rocketBottom <= bottomGapEnd
+              
+              if (!inTopGap && !inBottomGap) {
+                setGameOver(true)
+                setCanContinue(false)
+                playSound('gameOver', soundEnabled)
+                
+                setTimeout(() => setCanContinue(true), 1500)
+                
+                trackGameEvent('rocket-math', 'complete', {
+                  score,
+                  mathScore,
+                  difficulty,
+                  questionType,
+                  backgroundEnabled
+                })
+              }
+            }
+          })
+        }
+
         // Draw the game with current time for animations
         drawGame(currentTime)
         
@@ -937,73 +1022,6 @@ const RocketMath: React.FC = () => {
   }, [gameStarted, gameOver, dimensions, difficulty, questionType, soundEnabled, backgroundEnabled, difficultySettings, drawGame])
 
 
-  useEffect(() => {
-    if (!gameStarted || gameOver) return
-
-    const checkCollisions = () => {
-      if (rocketYRef.current < 0 || rocketYRef.current > dimensions.height - (dimensions.rocketHeight || dimensions.rocketSize)) {
-        setGameOver(true)
-        setCanContinue(false)
-        playSound('gameOver', soundEnabled)
-        
-        // Enable continue after 1.5 seconds
-        setTimeout(() => {
-          setCanContinue(true)
-        }, 1500)
-        
-        // Track game over
-        trackGameEvent('rocket-math', 'complete', {
-          score,
-          mathScore,
-          difficulty,
-          questionType,
-          backgroundEnabled
-        })
-        return
-      }
-
-      asteroidsRef.current.forEach(asteroid => {
-        const rocketLeft = dimensions.width / 2 - dimensions.rocketSize / 2
-        const rocketRight = dimensions.width / 2 + dimensions.rocketSize / 2
-        const rocketTop = rocketYRef.current
-        const rocketBottom = rocketYRef.current + dimensions.rocketSize
-
-        if (rocketRight > asteroid.x && rocketLeft < asteroid.x + dimensions.asteroidWidth) {
-          const currentGapSize = getDifficultySettings(difficulty).gapSize
-          const topGapStart = asteroid.topHeight
-          const topGapEnd = asteroid.topHeight + currentGapSize
-          const bottomGapStart = asteroid.topHeight + currentGapSize + 40
-          const bottomGapEnd = dimensions.height - asteroid.bottomHeight
-          
-          const inTopGap = rocketTop >= topGapStart && rocketBottom <= topGapEnd
-          const inBottomGap = rocketTop >= bottomGapStart && rocketBottom <= bottomGapEnd
-          
-          if (!inTopGap && !inBottomGap) {
-            setGameOver(true)
-            setCanContinue(false)
-            playSound('gameOver', soundEnabled)
-            
-            // Enable continue after 1.5 seconds
-            setTimeout(() => {
-              setCanContinue(true)
-            }, 1500)
-            
-            // Track collision game over
-            trackGameEvent('rocket-math', 'complete', {
-              score,
-              mathScore,
-              difficulty,
-              questionType,
-              backgroundEnabled
-            })
-          }
-        }
-      })
-    }
-
-    const collisionInterval = setInterval(checkCollisions, 16)
-    return () => clearInterval(collisionInterval)
-  }, [gameStarted, gameOver, dimensions, difficulty, soundEnabled, backgroundEnabled, score, mathScore, questionType])
 
   return (
     <div className="game-container">
