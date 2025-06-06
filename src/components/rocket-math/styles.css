@@ -21,22 +21,22 @@
     background: radial-gradient(ellipse at center, #1a1a2e 0%, #16213e 50%, #0f0f23 100%);
     border: 3px solid #00D2FF;
     overflow: hidden;
-    box-shadow: 0 0 30px #00D2FF, 0 0 60px rgba(0, 210, 255, 0.5), inset 0 0 30px rgba(0, 210, 255, 0.1);
+    box-shadow: 0 0 15px rgba(0, 210, 255, 0.4), 0 0 30px rgba(0, 210, 255, 0.2);
     max-width: 100%;
     max-height: calc(100vh - 40px);
     touch-action: manipulation;
     -webkit-tap-highlight-color: transparent;
     box-sizing: border-box;
     flex-shrink: 0;
-    animation: canvasGlow 3s ease-in-out infinite alternate;
+    animation: canvasGlow 4s ease-in-out infinite alternate;
 }
 
 @keyframes canvasGlow {
     0% {
-        box-shadow: 0 0 30px #00D2FF, 0 0 60px rgba(0, 210, 255, 0.5), inset 0 0 30px rgba(0, 210, 255, 0.1);
+        box-shadow: 0 0 15px rgba(0, 210, 255, 0.4), 0 0 30px rgba(0, 210, 255, 0.2);
     }
     100% {
-        box-shadow: 0 0 40px #00D2FF, 0 0 80px rgba(0, 210, 255, 0.7), inset 0 0 40px rgba(0, 210, 255, 0.2);
+        box-shadow: 0 0 20px rgba(0, 210, 255, 0.5), 0 0 40px rgba(0, 210, 255, 0.3);
     }
 }
 
@@ -145,10 +145,10 @@ body {
     font-weight: bold;
     cursor: pointer;
     transition: all 0.2s ease;
-    text-shadow: 1px 1px 0px #000, 0 0 5px #00FF00;
+    text-shadow: 1px 1px 0px #000, 0 0 3px rgba(0, 255, 0, 0.5);
     min-width: 100px;
     border-radius: 8px;
-    box-shadow: 0 0 10px rgba(0, 255, 0, 0.3), inset 0 0 10px rgba(0, 255, 0, 0.1);
+    box-shadow: 0 0 5px rgba(0, 255, 0, 0.2), inset 0 0 5px rgba(0, 255, 0, 0.05);
 }
 
 .difficulty-btn:hover,
@@ -159,8 +159,8 @@ body {
 .sound-btn:active {
     background: #32CD32;
     transform: scale(0.95);
-    box-shadow: 0 0 20px rgba(0, 255, 0, 0.6), inset 0 0 20px rgba(0, 255, 0, 0.2);
-    text-shadow: 1px 1px 0px #000, 0 0 10px #00FF00;
+    box-shadow: 0 0 8px rgba(0, 255, 0, 0.4), inset 0 0 8px rgba(0, 255, 0, 0.1);
+    text-shadow: 1px 1px 0px #000, 0 0 5px rgba(0, 255, 0, 0.7);
 }
 
 .difficulty-btn.selected,
@@ -169,8 +169,8 @@ body {
     background: #FFD700;
     border-color: #FFA500;
     color: #000;
-    text-shadow: 0 0 5px #FFD700;
-    box-shadow: 0 0 15px rgba(255, 215, 0, 0.8), inset 0 0 15px rgba(255, 215, 0, 0.3);
+    text-shadow: 0 0 3px rgba(255, 215, 0, 0.6);
+    box-shadow: 0 0 8px rgba(255, 215, 0, 0.5), inset 0 0 8px rgba(255, 215, 0, 0.15);
 }
 
 .sound-btn {
@@ -187,18 +187,18 @@ body {
     font-weight: bold;
     cursor: pointer;
     transition: all 0.2s ease;
-    text-shadow: 1px 1px 0px #000, 0 0 10px #FF6347;
+    text-shadow: 1px 1px 0px #000, 0 0 4px rgba(255, 99, 71, 0.6);
     margin-top: 10px;
     border-radius: 8px;
-    box-shadow: 0 0 15px rgba(255, 99, 71, 0.5), inset 0 0 15px rgba(255, 99, 71, 0.1);
+    box-shadow: 0 0 8px rgba(255, 99, 71, 0.3), inset 0 0 8px rgba(255, 99, 71, 0.05);
 }
 
 .start-game-btn:hover,
 .start-game-btn:active {
     background: #FF4500;
     transform: scale(0.95);
-    box-shadow: 0 0 25px rgba(255, 69, 0, 0.8), inset 0 0 25px rgba(255, 69, 0, 0.2);
-    text-shadow: 1px 1px 0px #000, 0 0 15px #FF4500;
+    box-shadow: 0 0 12px rgba(255, 69, 0, 0.5), inset 0 0 12px rgba(255, 69, 0, 0.1);
+    text-shadow: 1px 1px 0px #000, 0 0 6px rgba(255, 69, 0, 0.8);
 }
 
 .game-title {
@@ -319,8 +319,7 @@ body {
         font-weight: bold;
     }
 
-    .start-message,
-    .game-over {
+    .start-message {
         font-size: 18px;
         font-weight: bold;
         padding: 20px;
@@ -328,8 +327,16 @@ body {
         min-width: 320px;
     }
 
+    .game-over {
+        font-size: 16px;
+        font-weight: bold;
+        padding: 16px;
+        max-width: 85vw;
+        min-width: 280px;
+    }
+
     .game-over div:first-child {
-        font-size: 22px;
+        font-size: 20px;
         font-weight: bold;
     }
 

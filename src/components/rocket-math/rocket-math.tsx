@@ -619,8 +619,6 @@ const RocketMath: React.FC = () => {
   }, [dimensions.width, dimensions.height])
 
   useEffect(() => {
-    let touchTimeout: number | null = null
-    
     const handleTouch = (e: Event) => {
       const touchEvent = e as TouchEvent
       if (showDifficultySelect) return
@@ -628,18 +626,11 @@ const RocketMath: React.FC = () => {
       touchEvent.preventDefault()
       touchEvent.stopPropagation()
       
-      if (touchTimeout) {
-        clearTimeout(touchTimeout)
+      if (gameOver && canContinue) {
+        resetGame()
+      } else if (!gameOver) {
+        thrust()
       }
-      
-      touchTimeout = setTimeout(() => {
-        if (gameOver && canContinue) {
-          resetGame()
-        } else if (!gameOver) {
-          thrust()
-        }
-        touchTimeout = null
-      }, 0)
     }
 
     const canvas = canvasRef.current
@@ -647,9 +638,6 @@ const RocketMath: React.FC = () => {
       canvas.addEventListener('touchstart', handleTouch, { passive: false })
       return () => {
         canvas.removeEventListener('touchstart', handleTouch)
-        if (touchTimeout) {
-          clearTimeout(touchTimeout)
-        }
       }
     }
   }, [thrust, gameOver, resetGame, showDifficultySelect, canContinue])
@@ -831,13 +819,14 @@ const RocketMath: React.FC = () => {
   }, [gameStarted, gameOver, dimensions, difficulty, soundEnabled, score, mathScore, questionType])
 
   return (
-    <div className="game-container" onClick={showDifficultySelect ? undefined : (gameOver && canContinue ? resetGame : (!gameOver ? thrust : undefined))}>
+    <div className="game-container">
       <div className="game-canvas" style={{ width: dimensions.width, height: dimensions.height }}>
         <canvas
           ref={canvasRef}
           width={dimensions.width}
           height={dimensions.height}
           style={{ display: 'block' }}
+          onClick={showDifficultySelect ? undefined : (gameOver && canContinue ? resetGame : (!gameOver ? thrust : undefined))}
         />
 
         {showDifficultySelect && <div className="game-title">ROCKET MATH</div>}
