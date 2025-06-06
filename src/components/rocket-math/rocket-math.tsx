@@ -30,10 +30,10 @@ const getGameDimensions = () => {
   return {
     width: Math.max(300, isMobile ? maxWidth : Math.min(600, window.innerWidth - widthMargin)),
     height: Math.max(400, isMobile ? maxHeight : Math.min(700, window.innerHeight - heightMargin)),
-    rocketSize: isMobile ? 32 : 40,
-    rocketHeight: isMobile ? 40 : 50,
-    asteroidWidth: isMobile ? 50 : 60,
-    asteroidGap: isMobile ? 140 : 170,
+    rocketSize: isMobile ? 26 : 32,
+    rocketHeight: isMobile ? 32 : 40,
+    asteroidWidth: isMobile ? 40 : 48,
+    asteroidGap: isMobile ? 120 : 140,
     isMobile
   }
 }
@@ -541,20 +541,20 @@ const RocketMath: React.FC = () => {
     ctx.restore()
     
     // Enhanced text rendering with better mobile support and question type scaling
-    const equationFontSize = dimensions.isMobile ? 20 : 24 // Increased for bigger question box
-    const answerFontSize = dimensions.isMobile ? 22 : 24
+    const equationFontSize = dimensions.isMobile ? 18 : 22 // Larger for better readability in bigger box
+    const answerFontSize = dimensions.isMobile ? 18 : 20
     
     // Determine equation box size based on question type (more digits = bigger box)
     const getQuestionBoxSize = () => {
-      const baseWidth = dimensions.asteroidWidth + 20
-      const baseHeight = 30
+      const baseWidth = dimensions.asteroidWidth + 40
+      const baseHeight = 40
       
       // Scale box size based on question type difficulty
-      const scaleFactor = 1 + (currentQuestionType - 1) * 0.3 // 1x, 1.3x, 1.6x for types 1, 2, 3
+      const scaleFactor = 1 + (currentQuestionType - 1) * 0.4 // 1x, 1.4x, 1.8x for types 1, 2, 3
       
       return {
         width: baseWidth * scaleFactor,
-        height: baseHeight + (currentQuestionType - 1) * 5 // Add 5px height per level
+        height: baseHeight + (currentQuestionType - 1) * 8 // Add 8px height per level
       }
     }
     
@@ -573,20 +573,22 @@ const RocketMath: React.FC = () => {
     
     // Math equation positioned between previous and next pipe
     ctx.fillStyle = 'rgba(0, 15, 35, 0.95)'
-    // Position question box based on pipe distance to appear between pipes
+    // Position question box closer to the pipe for faster appearance
     let questionDistance = 0
     if (difficulty === 1) {
-      questionDistance = difficultySettings.pipeDistance * 0.5 // Middle of pipe distance
+      questionDistance = difficultySettings.pipeDistance * 0.3 // Closer to pipe
     } else if (difficulty === 2) {
-      questionDistance = difficultySettings.pipeDistance * 0.5 // Middle of pipe distance
+      questionDistance = difficultySettings.pipeDistance * 0.25 // Even closer
     } else {
-      questionDistance = difficultySettings.pipeDistance * 0.5 // Middle of pipe distance
+      questionDistance = difficultySettings.pipeDistance * 0.2 // Very close
     }
     
-    const eqX = x - questionDistance
-    const eqY = 100 // Position lower to avoid score overlap (score is at 15px with ~40px height)
-    const eqWidth = boxSize.width * 1.1 + 16 // Smaller with moderate padding (8px each side)
-    const eqHeight = boxSize.height * 1.1 + 12 // Smaller with moderate padding (6px top/bottom)
+    const eqX = x - questionDistance - 50
+    const eqY = 120 // Position well below score to avoid overlap (score is at 15px with ~40px height)
+    // Adjust padding based on question type - more padding for 1-digit questions
+    const paddingMultiplier = currentQuestionType === 1 ? 1.5 : 1
+    const eqWidth = boxSize.width + (12 * paddingMultiplier) // More padding for 1-digit (9px each side)
+    const eqHeight = boxSize.height + (8 * paddingMultiplier) // More padding for 1-digit (6px top/bottom)
     
     // Only draw if the question box is visible on screen
     if (eqX - eqWidth/2 < dimensions.width && eqX + eqWidth/2 > 0) {
