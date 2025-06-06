@@ -20,25 +20,29 @@ interface Pipe {
 
 const getGameDimensions = () => {
   const isMobile = window.innerWidth <= 768
-  const maxWidth = Math.min(window.innerWidth - 20, 600) // Bigger game box
-  const maxHeight = Math.min(window.innerHeight - 40, 700) // Taller game box
+  // More conservative margins to prevent overflow
+  const widthMargin = 60 // padding + border + shadow + extra margin
+  const heightMargin = 80 // padding + border + shadow + extra margin
+  
+  const maxWidth = Math.min(window.innerWidth - widthMargin, 600)
+  const maxHeight = Math.min(window.innerHeight - heightMargin, 700)
   
   return {
-    width: isMobile ? maxWidth : 600, // Increased from 400 to 600
-    height: isMobile ? maxHeight : 700, // Increased from 600 to 700
-    rocketSize: isMobile ? 24 : 30, // Bigger rocket
-    rocketHeight: isMobile ? 30 : 38, // Bigger rocket
-    asteroidWidth: isMobile ? 50 : 60, // Bigger asteroids
-    asteroidGap: isMobile ? 140 : 170, // Bigger gaps
+    width: Math.max(300, isMobile ? maxWidth : Math.min(600, window.innerWidth - widthMargin)),
+    height: Math.max(400, isMobile ? maxHeight : Math.min(700, window.innerHeight - heightMargin)),
+    rocketSize: isMobile ? 24 : 30,
+    rocketHeight: isMobile ? 30 : 38,
+    asteroidWidth: isMobile ? 50 : 60,
+    asteroidGap: isMobile ? 140 : 170,
     isMobile
   }
 }
 
 const getDifficultySettings = (difficulty: 1 | 2 | 3) => {
   switch (difficulty) {
-    case 1: return { pipeSpeed: 1.5, gravity: 0.4, gapSize: 180, jumpStrength: -6 }
-    case 2: return { pipeSpeed: 2.0, gravity: 0.5, gapSize: 150, jumpStrength: -7 }
-    case 3: return { pipeSpeed: 2.5, gravity: 0.6, gapSize: 120, jumpStrength: -8 }
+    case 1: return { pipeSpeed: 1.5, gravity: 0.4, gapSize: 180, jumpStrength: -6, pipeDistance: 450 }
+    case 2: return { pipeSpeed: 2.0, gravity: 0.5, gapSize: 150, jumpStrength: -7, pipeDistance: 300 }
+    case 3: return { pipeSpeed: 2.5, gravity: 0.6, gapSize: 120, jumpStrength: -8, pipeDistance: 300 }
   }
 }
 
@@ -140,17 +144,50 @@ const generateMathProblem = (questionType: 1 | 2 | 3) => {
   return { num1, num2, correctAnswer, wrongAnswer, equation }
 }
 
+// Load saved settings from localStorage
+const loadSavedSettings = () => {
+  try {
+    const saved = localStorage.getItem('rocket-math-settings')
+    if (saved) {
+      return JSON.parse(saved)
+    }
+  } catch (error) {
+    console.warn('Failed to load saved settings:', error)
+  }
+  return {
+    difficulty: 1,
+    questionType: 1,
+    soundEnabled: true
+  }
+}
+
+// Save settings to localStorage
+const saveSettings = (difficulty: number, questionType: number, soundEnabled: boolean) => {
+  try {
+    localStorage.setItem('rocket-math-settings', JSON.stringify({
+      difficulty,
+      questionType,
+      soundEnabled
+    }))
+  } catch (error) {
+    console.warn('Failed to save settings:', error)
+  }
+}
+
 const RocketMath: React.FC = () => {
+  const savedSettings = loadSavedSettings()
+  
   const [dimensions, setDimensions] = useState(getGameDimensions())
   const [score, setScore] = useState(0)
   const [gameStarted, setGameStarted] = useState(false)
   const [gameOver, setGameOver] = useState(false)
   const [lastAnswerCorrect, setLastAnswerCorrect] = useState<boolean | null>(null)
   const [showDifficultySelect, setShowDifficultySelect] = useState(true)
-  const [difficulty, setDifficulty] = useState<1 | 2 | 3>(1)
-  const [questionType, setQuestionType] = useState<1 | 2 | 3>(1)
+  const [difficulty, setDifficulty] = useState<1 | 2 | 3>(savedSettings.difficulty as 1 | 2 | 3)
+  const [questionType, setQuestionType] = useState<1 | 2 | 3>(savedSettings.questionType as 1 | 2 | 3)
   const [mathScore, setMathScore] = useState(0)
-  const [soundEnabled, setSoundEnabled] = useState(true)
+  const [soundEnabled, setSoundEnabled] = useState(savedSettings.soundEnabled)
+  const [canContinue, setCanContinue] = useState(true)
   
   const gameLoopRef = useRef<number | null>(null)
   const lastTimeRef = useRef<number>(0)
@@ -160,93 +197,222 @@ const RocketMath: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const ctxRef = useRef<CanvasRenderingContext2D | null>(null)
   const rocketImageRef = useRef<HTMLImageElement | null>(null)
+  const lastThrustTimeRef = useRef<number>(0)
   
   const difficultySettings = useMemo(() => getDifficultySettings(difficulty), [difficulty])
 
-  // Load SVG rocket image
+  // Load rocket SVG
   useEffect(() => {
-    const img = new Image()
-    img.onload = () => {
-      rocketImageRef.current = img
+    const loadRocketSVG = async () => {
+      try {
+        const response = await fetch('/rocket.svg')
+        const svgText = await response.text()
+        const blob = new Blob([svgText], { type: 'image/svg+xml' })
+        const url = URL.createObjectURL(blob)
+        const img = new Image()
+        img.onload = () => {
+          rocketImageRef.current = img
+          URL.revokeObjectURL(url)
+        }
+        img.src = url
+      } catch (error) {
+        console.warn('Failed to load rocket SVG:', error)
+      }
     }
-    img.src = '/rocket.svg'
+    
+    loadRocketSVG()
   }, [])
 
-  // Canvas drawing functions
-  const drawRocket = useCallback((ctx: CanvasRenderingContext2D) => {
-    if (!rocketImageRef.current) return
-    
+  // Draw rocket using SVG
+  const drawRocket = useCallback((ctx: CanvasRenderingContext2D, currentTime: number) => {
     const x = dimensions.width / 2 - dimensions.rocketSize / 2
     const y = rocketYRef.current
     const width = dimensions.rocketSize
     const height = dimensions.rocketHeight || dimensions.rocketSize
     
-    // Draw SVG rocket
-    ctx.drawImage(rocketImageRef.current, x, y, width, height)
+    // Enhanced flicker effects for glow animation
+    const slowFlicker = 0.8 + 0.2 * Math.sin(currentTime * 0.02) // Slow glow for rocket
+    
+    ctx.save()
+    
+    // Add rocket glow effect
+    const glowIntensity = 0.3 + 0.7 * slowFlicker
+    ctx.shadowColor = '#00D2FF'
+    ctx.shadowBlur = 15 * glowIntensity
+    ctx.shadowOffsetX = 0
+    ctx.shadowOffsetY = 0
+    
+    // Draw rocket SVG if loaded
+    if (rocketImageRef.current) {
+      ctx.drawImage(rocketImageRef.current, x, y, width, height)
+    } else {
+      // Fallback: Draw simple rocket shape
+      const bodyGradient = ctx.createLinearGradient(x, y, x, y + height)
+      bodyGradient.addColorStop(0, '#FF6B6B')
+      bodyGradient.addColorStop(0.3, '#FF4757')
+      bodyGradient.addColorStop(0.3, '#E8E8E8')
+      bodyGradient.addColorStop(0.7, '#DCDDE1')
+      bodyGradient.addColorStop(0.7, '#4ECDC4')
+      bodyGradient.addColorStop(1, '#3DC1D3')
+      
+      ctx.fillStyle = bodyGradient
+      ctx.beginPath()
+      ctx.roundRect(x + width * 0.1, y, width * 0.8, height, [width * 0.4, width * 0.4, width * 0.1, width * 0.1])
+      ctx.fill()
+      
+      ctx.strokeStyle = '#2C3E50'
+      ctx.lineWidth = 2
+      ctx.stroke()
+      
+      // Engine/window
+      const engineSize = width * 0.4
+      const engineX = x + width / 2 - engineSize / 2
+      const engineY = y + height * 0.3
+      
+      const engineGradient = ctx.createRadialGradient(
+        engineX + engineSize / 2, engineY + engineSize / 2, 0,
+        engineX + engineSize / 2, engineY + engineSize / 2, engineSize / 2
+      )
+      engineGradient.addColorStop(0, '#00D2FF')
+      engineGradient.addColorStop(1, '#0078FF')
+      
+      ctx.fillStyle = engineGradient
+      ctx.beginPath()
+      ctx.arc(engineX + engineSize / 2, engineY + engineSize / 2, engineSize / 2, 0, Math.PI * 2)
+      ctx.fill()
+    }
+    
+    ctx.restore()
   }, [dimensions])
 
-  const drawAsteroid = useCallback((ctx: CanvasRenderingContext2D, asteroid: Pipe) => {
+  const drawAsteroid = useCallback((ctx: CanvasRenderingContext2D, asteroid: Pipe, currentQuestionType: number) => {
     const { x, topHeight, bottomHeight, mathProblem } = asteroid
     const currentGapSize = difficultySettings.gapSize
     const correctAnswerInTop = mathProblem.correctAnswerInTop
     
-    // Draw pipe sections
-    ctx.fillStyle = '#9E9E9E'
+    // Enhanced space-themed pipe design
+    const pipeGradient = ctx.createLinearGradient(x, 0, x + dimensions.asteroidWidth, 0)
+    pipeGradient.addColorStop(0, '#706fd3')
+    pipeGradient.addColorStop(0.5, '#474787')
+    pipeGradient.addColorStop(1, '#5352ed')
     
-    // Top pipe
+    // Top pipe with space theme
+    ctx.fillStyle = pipeGradient
     ctx.fillRect(x, 0, dimensions.asteroidWidth, topHeight)
+    ctx.strokeStyle = '#3742fa'
+    ctx.lineWidth = 2
+    ctx.strokeRect(x, 0, dimensions.asteroidWidth, topHeight)
     
     // Bottom pipe
     ctx.fillRect(x, dimensions.height - bottomHeight, dimensions.asteroidWidth, bottomHeight)
+    ctx.strokeRect(x, dimensions.height - bottomHeight, dimensions.asteroidWidth, bottomHeight)
     
-    // Middle separator
+    // Middle separator with danger colors
+    const separatorGradient = ctx.createLinearGradient(x, 0, x + dimensions.asteroidWidth, 0)
+    separatorGradient.addColorStop(0, '#ff6b6b')
+    separatorGradient.addColorStop(0.5, '#c44569')
+    separatorGradient.addColorStop(1, '#ff3838')
+    ctx.fillStyle = separatorGradient
     ctx.fillRect(x, topHeight + currentGapSize, dimensions.asteroidWidth, 40)
+    ctx.strokeStyle = '#ff3838'
+    ctx.strokeRect(x, topHeight + currentGapSize, dimensions.asteroidWidth, 40)
     
-    // Draw answer gaps with colors
+    // Draw answer gaps with enhanced colors and glow
     const topGapColor = asteroid.pathChosen === 'top' 
       ? (correctAnswerInTop ? '#4CAF50' : '#F44336') 
-      : '#2196F3'
+      : 'rgba(0, 210, 255, 0.3)'
     const bottomGapColor = asteroid.pathChosen === 'bottom' 
       ? (!correctAnswerInTop ? '#4CAF50' : '#F44336') 
-      : '#2196F3'
+      : 'rgba(0, 210, 255, 0.3)'
     
-    // Top gap
+    // Top gap with glow effect
     ctx.fillStyle = topGapColor
     ctx.fillRect(x, topHeight, dimensions.asteroidWidth, currentGapSize)
+    ctx.strokeStyle = '#00D2FF'
+    ctx.lineWidth = 2
+    ctx.strokeRect(x, topHeight, dimensions.asteroidWidth, currentGapSize)
     
-    // Bottom gap
+    // Bottom gap with glow effect
     ctx.fillStyle = bottomGapColor
     ctx.fillRect(x, topHeight + currentGapSize + 40, dimensions.asteroidWidth, currentGapSize)
+    ctx.strokeRect(x, topHeight + currentGapSize + 40, dimensions.asteroidWidth, currentGapSize)
     
-    // Draw text
-    ctx.fillStyle = '#000'
-    ctx.font = `${dimensions.isMobile ? '12' : '14'}px Arial`
+    // Enhanced text rendering with better mobile support and question type scaling
+    const equationFontSize = dimensions.isMobile ? 16 : 18
+    const answerFontSize = dimensions.isMobile ? 22 : 24
+    
+    // Determine equation box size based on question type (more digits = bigger box)
+    const getQuestionBoxSize = () => {
+      const baseWidth = dimensions.asteroidWidth + 20
+      const baseHeight = 30
+      
+      // Scale box size based on question type difficulty
+      const scaleFactor = 1 + (currentQuestionType - 1) * 0.3 // 1x, 1.3x, 1.6x for types 1, 2, 3
+      
+      return {
+        width: baseWidth * scaleFactor,
+        height: baseHeight + (currentQuestionType - 1) * 5 // Add 5px height per level
+      }
+    }
+    
+    const boxSize = getQuestionBoxSize()
+    
+    // Math equation above with background and glow
+    ctx.save()
+    ctx.fillStyle = 'rgba(0, 15, 35, 0.95)'
+    const eqX = x + dimensions.asteroidWidth / 2
+    const eqY = Math.max(25, topHeight - 15)
+    const eqWidth = boxSize.width
+    const eqHeight = boxSize.height
+    
+    // Draw equation background
+    ctx.fillRect(eqX - eqWidth/2, eqY - eqHeight/2, eqWidth, eqHeight)
+    ctx.strokeStyle = '#00D2FF'
+    ctx.lineWidth = 2
+    ctx.strokeRect(eqX - eqWidth/2, eqY - eqHeight/2, eqWidth, eqHeight)
+    
+    // Draw equation text with glow
+    ctx.fillStyle = '#00D2FF'
+    ctx.font = `bold ${equationFontSize}px Arial`
     ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.shadowColor = '#00D2FF'
+    ctx.shadowBlur = 5
+    ctx.fillText(mathProblem.equation, eqX, eqY)
+    ctx.restore()
     
-    // Math equation above
-    ctx.fillText(
-      mathProblem.equation,
-      x + dimensions.asteroidWidth / 2,
-      Math.max(20, topHeight - 10)
-    )
-    
-    // Top answer
-    ctx.fillStyle = '#FFF'
+    // Top answer with enhanced styling
+    ctx.save()
+    ctx.fillStyle = '#FFFFFF'
+    ctx.font = `bold ${answerFontSize}px Arial`
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.shadowColor = '#000'
+    ctx.shadowBlur = 3
     ctx.fillText(
       (correctAnswerInTop ? mathProblem.correctAnswer : mathProblem.wrongAnswer).toString(),
       x + dimensions.asteroidWidth / 2,
-      topHeight + currentGapSize / 2 + 5
+      topHeight + currentGapSize / 2
     )
+    ctx.restore()
     
-    // Bottom answer
+    // Bottom answer with enhanced styling
+    ctx.save()
+    ctx.fillStyle = '#FFFFFF'
+    ctx.font = `bold ${answerFontSize}px Arial`
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.shadowColor = '#000'
+    ctx.shadowBlur = 3
     ctx.fillText(
       (!correctAnswerInTop ? mathProblem.correctAnswer : mathProblem.wrongAnswer).toString(),
       x + dimensions.asteroidWidth / 2,
-      topHeight + currentGapSize + 40 + currentGapSize / 2 + 5
+      topHeight + currentGapSize + 40 + currentGapSize / 2
     )
+    ctx.restore()
   }, [dimensions, difficultySettings])
 
-  const drawGame = useCallback(() => {
+  const drawGame = useCallback((currentTime: number) => {
     if (!ctxRef.current) return
     
     const ctx = ctxRef.current
@@ -254,29 +420,57 @@ const RocketMath: React.FC = () => {
     // Clear canvas
     ctx.clearRect(0, 0, dimensions.width, dimensions.height)
     
-    // Draw background gradient
-    const gradient = ctx.createLinearGradient(0, 0, 0, dimensions.height)
+    // Draw deep space background gradient (matching original design)
+    const gradient = ctx.createRadialGradient(
+      dimensions.width / 2, dimensions.height / 2, 0,
+      dimensions.width / 2, dimensions.height / 2, Math.max(dimensions.width, dimensions.height)
+    )
     gradient.addColorStop(0, '#1a1a2e')
-    gradient.addColorStop(1, '#16213e')
+    gradient.addColorStop(0.5, '#16213e')
+    gradient.addColorStop(1, '#0f0f23')
     ctx.fillStyle = gradient
     ctx.fillRect(0, 0, dimensions.width, dimensions.height)
     
-    // Draw stars
-    ctx.fillStyle = '#FFF'
-    for (let i = 0; i < 50; i++) {
-      const x = (i * 123) % dimensions.width
+    // Draw twinkling stars with different sizes and brightness
+    const time = currentTime * 0.001
+    for (let i = 0; i < 80; i++) {
+      const x = (i * 123 + time * 10) % dimensions.width
       const y = (i * 456) % dimensions.height
-      ctx.fillRect(x, y, 1, 1)
+      const twinkle = 0.3 + 0.7 * Math.sin(time * 2 + i)
+      const size = 1 + (i % 3)
+      
+      ctx.fillStyle = `rgba(255, 255, 255, ${twinkle})`
+      if (size === 1) {
+        ctx.fillRect(x, y, 1, 1)
+      } else {
+        ctx.beginPath()
+        ctx.arc(x, y, size * 0.5, 0, Math.PI * 2)
+        ctx.fill()
+      }
     }
+    
+    // Draw distant planets/nebula
+    ctx.save()
+    const planetGradient = ctx.createRadialGradient(
+      dimensions.width * 0.8, dimensions.height * 0.2, 0,
+      dimensions.width * 0.8, dimensions.height * 0.2, 30
+    )
+    planetGradient.addColorStop(0, 'rgba(138, 43, 226, 0.3)')
+    planetGradient.addColorStop(1, 'rgba(138, 43, 226, 0)')
+    ctx.fillStyle = planetGradient
+    ctx.beginPath()
+    ctx.arc(dimensions.width * 0.8, dimensions.height * 0.2, 30, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.restore()
     
     // Draw asteroids
     asteroidsRef.current.forEach(asteroid => {
-      drawAsteroid(ctx, asteroid)
+      drawAsteroid(ctx, asteroid, questionType)
     })
     
-    // Draw rocket
-    drawRocket(ctx)
-  }, [dimensions, drawRocket, drawAsteroid])
+    // Draw rocket with current time for animation
+    drawRocket(ctx, currentTime)
+  }, [dimensions, drawRocket, drawAsteroid, questionType])
 
   const thrust = useCallback(() => {
     if (!gameStarted) {
@@ -284,6 +478,7 @@ const RocketMath: React.FC = () => {
     }
     if (!gameOver) {
       rocketVelocityRef.current = difficultySettings.jumpStrength
+      lastThrustTimeRef.current = Date.now()
       playSound('jump', soundEnabled)
     }
   }, [gameStarted, gameOver, soundEnabled, difficultySettings.jumpStrength])
@@ -298,6 +493,7 @@ const RocketMath: React.FC = () => {
     setMathScore(0)
     setGameStarted(false)
     setGameOver(false)
+    setCanContinue(true)
     setLastAnswerCorrect(null)
     setShowDifficultySelect(true)
     
@@ -360,9 +556,9 @@ const RocketMath: React.FC = () => {
       }
       
       touchTimeout = setTimeout(() => {
-        if (gameOver) {
+        if (gameOver && canContinue) {
           resetGame()
-        } else {
+        } else if (!gameOver) {
           thrust()
         }
         touchTimeout = null
@@ -379,7 +575,7 @@ const RocketMath: React.FC = () => {
         }
       }
     }
-  }, [thrust, gameOver, resetGame, showDifficultySelect])
+  }, [thrust, gameOver, resetGame, showDifficultySelect, canContinue])
 
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
@@ -387,9 +583,9 @@ const RocketMath: React.FC = () => {
       
       if (e.code === 'Space') {
         e.preventDefault()
-        if (gameOver) {
+        if (gameOver && canContinue) {
           resetGame()
-        } else {
+        } else if (!gameOver) {
           thrust()
         }
       }
@@ -397,7 +593,7 @@ const RocketMath: React.FC = () => {
 
     window.addEventListener('keydown', handleKeyPress)
     return () => window.removeEventListener('keydown', handleKeyPress)
-  }, [thrust, gameOver, resetGame, showDifficultySelect])
+  }, [thrust, gameOver, resetGame, showDifficultySelect, canContinue])
 
   useEffect(() => {
     if (!gameStarted || gameOver) {
@@ -420,7 +616,7 @@ const RocketMath: React.FC = () => {
         })
         asteroidsRef.current = asteroidsRef.current.filter(asteroid => asteroid.x > -dimensions.asteroidWidth)
 
-        if (asteroidsRef.current.length === 0 || asteroidsRef.current[asteroidsRef.current.length - 1].x < dimensions.width - 300) {
+        if (asteroidsRef.current.length === 0 || asteroidsRef.current[asteroidsRef.current.length - 1].x < dimensions.width - difficultySettings.pipeDistance) {
           const mathProblem = generateMathProblem(questionType)
           const gapSize = difficultySettings.gapSize
           const separatorHeight = 40
@@ -471,8 +667,8 @@ const RocketMath: React.FC = () => {
           }
         })
 
-        // Draw the game
-        drawGame()
+        // Draw the game with current time for animations
+        drawGame(currentTime)
         
         lastTimeRef.current = currentTime
       }
@@ -497,7 +693,13 @@ const RocketMath: React.FC = () => {
     const checkCollisions = () => {
       if (rocketYRef.current < 0 || rocketYRef.current > dimensions.height - (dimensions.rocketHeight || dimensions.rocketSize)) {
         setGameOver(true)
+        setCanContinue(false)
         playSound('gameOver', soundEnabled)
+        
+        // Enable continue after 2 seconds
+        setTimeout(() => {
+          setCanContinue(true)
+        }, 2000)
         
         // Track game over
         trackGameEvent('rocket-math', 'complete', {
@@ -527,7 +729,13 @@ const RocketMath: React.FC = () => {
           
           if (!inTopGap && !inBottomGap) {
             setGameOver(true)
+            setCanContinue(false)
             playSound('gameOver', soundEnabled)
+            
+            // Enable continue after 2 seconds
+            setTimeout(() => {
+              setCanContinue(true)
+            }, 2000)
             
             // Track collision game over
             trackGameEvent('rocket-math', 'complete', {
@@ -546,7 +754,7 @@ const RocketMath: React.FC = () => {
   }, [gameStarted, gameOver, dimensions, difficulty, soundEnabled, score, mathScore, questionType])
 
   return (
-    <div className="game-container" onClick={showDifficultySelect ? undefined : (gameOver ? resetGame : thrust)}>
+    <div className="game-container" onClick={showDifficultySelect ? undefined : (gameOver && canContinue ? resetGame : (!gameOver ? thrust : undefined))}>
       <div className="game-canvas" style={{ width: dimensions.width, height: dimensions.height }}>
         <canvas
           ref={canvasRef}
@@ -575,10 +783,12 @@ const RocketMath: React.FC = () => {
                     className={`difficulty-btn ${difficulty === level ? 'selected' : ''}`}
                     onClick={() => {
                       setDifficulty(level)
+                      saveSettings(level, questionType, soundEnabled)
                       trackButtonClick(`difficulty-${level}`, 'rocket-math-settings')
                     }}
                     onTouchStart={() => {
                       setDifficulty(level)
+                      saveSettings(level, questionType, soundEnabled)
                       trackButtonClick(`difficulty-${level}`, 'rocket-math-settings')
                     }}
                   >
@@ -597,10 +807,12 @@ const RocketMath: React.FC = () => {
                     className={`question-btn ${questionType === type ? 'selected' : ''}`}
                     onClick={() => {
                       setQuestionType(type)
+                      saveSettings(difficulty, type, soundEnabled)
                       trackButtonClick(`question-type-${type}`, 'rocket-math-settings')
                     }}
                     onTouchStart={() => {
                       setQuestionType(type)
+                      saveSettings(difficulty, type, soundEnabled)
                       trackButtonClick(`question-type-${type}`, 'rocket-math-settings')
                     }}
                   >
@@ -619,6 +831,7 @@ const RocketMath: React.FC = () => {
                     e.preventDefault()
                     const newSoundState = !soundEnabled
                     setSoundEnabled(newSoundState)
+                    saveSettings(difficulty, questionType, newSoundState)
                     playSound('toggle', newSoundState)
                     trackButtonClick(`sound-${newSoundState ? 'on' : 'off'}`, 'rocket-math-settings')
                   }}
@@ -666,7 +879,11 @@ const RocketMath: React.FC = () => {
             <div>Game Over!</div>
             <div>Asteroids Passed: {score}</div>
             <div>Problems Solved: {mathScore}</div>
-            <div>{dimensions.isMobile ? 'Tap to restart' : 'Click or press SPACE to restart'}</div>
+            {canContinue ? (
+              <div>{dimensions.isMobile ? 'Tap to restart' : 'Click or press SPACE to restart'}</div>
+            ) : (
+              <div>Please wait...</div>
+            )}
           </div>
         )}
         
