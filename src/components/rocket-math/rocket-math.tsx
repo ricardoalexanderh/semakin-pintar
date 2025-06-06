@@ -428,12 +428,14 @@ const RocketMath: React.FC = () => {
       ctx.shadowOffsetY = 0
     }
     
-    // Top pipe with space theme
+    // Top pipe with space theme and rounded corners
     ctx.fillStyle = pipeGradient
-    ctx.fillRect(x, 0, dimensions.asteroidWidth, topHeight)
+    ctx.beginPath()
+    ctx.roundRect(x, 0, dimensions.asteroidWidth, topHeight, [0, 0, 12, 12])
+    ctx.fill()
     ctx.strokeStyle = '#5352ed'
     ctx.lineWidth = 3
-    ctx.strokeRect(x, 0, dimensions.asteroidWidth, topHeight)
+    ctx.stroke()
     ctx.restore()
     
     // Bottom pipe with subtle glow (only if visual effects enabled)
@@ -446,10 +448,12 @@ const RocketMath: React.FC = () => {
     }
     
     ctx.fillStyle = pipeGradient
-    ctx.fillRect(x, dimensions.height - bottomHeight, dimensions.asteroidWidth, bottomHeight)
+    ctx.beginPath()
+    ctx.roundRect(x, dimensions.height - bottomHeight, dimensions.asteroidWidth, bottomHeight, [12, 12, 0, 0])
+    ctx.fill()
     ctx.strokeStyle = '#5352ed'
     ctx.lineWidth = 3
-    ctx.strokeRect(x, dimensions.height - bottomHeight, dimensions.asteroidWidth, bottomHeight)
+    ctx.stroke()
     ctx.restore()
     
     // Middle separator with danger colors and subtle glow
@@ -467,10 +471,12 @@ const RocketMath: React.FC = () => {
     }
     
     ctx.fillStyle = separatorGradient
-    ctx.fillRect(x, topHeight + currentGapSize, dimensions.asteroidWidth, 40)
+    ctx.beginPath()
+    ctx.roundRect(x, topHeight + currentGapSize, dimensions.asteroidWidth, 40, 8)
+    ctx.fill()
     ctx.strokeStyle = '#ff3838'
     ctx.lineWidth = 3
-    ctx.strokeRect(x, topHeight + currentGapSize, dimensions.asteroidWidth, 40)
+    ctx.stroke()
     ctx.restore()
     
     // Draw answer gaps with enhanced colors and glow
@@ -552,7 +558,7 @@ const RocketMath: React.FC = () => {
     
     // Draw equation background with rounded corners
     ctx.beginPath()
-    ctx.roundRect(eqX - eqWidth/2, eqY - eqHeight/2, eqWidth, eqHeight, 8)
+    ctx.roundRect(eqX - eqWidth/2, eqY - eqHeight/2, eqWidth, eqHeight, 12)
     ctx.fill()
     ctx.strokeStyle = '#00D2FF'
     ctx.lineWidth = 3
