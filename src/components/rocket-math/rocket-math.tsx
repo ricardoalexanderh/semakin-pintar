@@ -188,6 +188,7 @@ const RocketMath: React.FC = () => {
   const [mathScore, setMathScore] = useState(0)
   const [soundEnabled, setSoundEnabled] = useState(savedSettings.soundEnabled)
   const [canContinue, setCanContinue] = useState(true)
+  const [startEnabled, setStartEnabled] = useState(false)
   
   const gameLoopRef = useRef<number | null>(null)
   const lastTimeRef = useRef<number>(0)
@@ -208,6 +209,17 @@ const RocketMath: React.FC = () => {
       behavior: 'smooth'
     })
   }, [])
+
+  // Enable start after delay to prevent accidental touches on mobile
+  useEffect(() => {
+    if (!showDifficultySelect && !gameStarted) {
+      const timer = setTimeout(() => {
+        setStartEnabled(true)
+      }, 1000) // 1 second delay
+      
+      return () => clearTimeout(timer)
+    }
+  }, [showDifficultySelect, gameStarted])
 
   // Load rocket SVG
   useEffect(() => {
@@ -550,6 +562,9 @@ const RocketMath: React.FC = () => {
   }, [dimensions, drawRocket, drawAsteroid, questionType])
 
   const thrust = useCallback(() => {
+    if (!gameStarted && !startEnabled) {
+      return
+    }
     if (!gameStarted) {
       setGameStarted(true)
     }
@@ -558,7 +573,7 @@ const RocketMath: React.FC = () => {
       lastThrustTimeRef.current = Date.now()
       playSound('jump', soundEnabled)
     }
-  }, [gameStarted, gameOver, soundEnabled, difficultySettings.jumpStrength])
+  }, [gameStarted, gameOver, soundEnabled, startEnabled, difficultySettings.jumpStrength])
 
   const resetGame = useCallback(() => {
     const newDimensions = getGameDimensions()
@@ -573,6 +588,7 @@ const RocketMath: React.FC = () => {
     setCanContinue(true)
     setLastAnswerCorrect(null)
     setShowDifficultySelect(true)
+    setStartEnabled(false)
     
     // Initialize canvas
     if (canvasRef.current) {
@@ -694,8 +710,9 @@ const RocketMath: React.FC = () => {
             correctAnswerInTop
           }
           
+          const startingX = asteroidsRef.current.length === 0 ? dimensions.width + 200 : dimensions.width
           asteroidsRef.current.push({
-            x: dimensions.width,
+            x: startingX,
             topHeight: topGapStart,
             bottomHeight: dimensions.height - (topGapStart + totalGapHeight),
             passed: false,
@@ -936,12 +953,21 @@ const RocketMath: React.FC = () => {
         {!gameStarted && !showDifficultySelect && (
           <div className="start-message">
             <div className="game-subtitle">Space Math Adventure!</div>
-            <div>{dimensions.isMobile ? 'Tap to start' : 'Click or press SPACE to start'}</div>
+            <div>
+              {startEnabled 
+                ? (dimensions.isMobile ? 'Tap to start' : 'Click or press SPACE to start')
+                : 'Get ready...'
+              }
+            </div>
           </div>
         )}
         
         {gameOver && (
-          <div className="game-over">
+          <div 
+            className="game-over"
+            onClick={canContinue ? resetGame : undefined}
+            onTouchStart={canContinue ? resetGame : undefined}
+          >
             <div>Game Over!</div>
             {canContinue ? (
               <>
