@@ -102,10 +102,11 @@ body {
     z-index: 40;
     min-width: 300px;
     max-width: calc(100% - 60px);
-    max-height: calc(100vh - 160px);
+    max-height: calc(100% - 120px);
     overflow-y: auto;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     box-sizing: border-box;
+    margin-top: 30px;
 }
 
 .difficulty-title {
@@ -222,6 +223,22 @@ body {
     white-space: nowrap;
 }
 
+.game-title-top {
+    position: absolute;
+    top: 15px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 28px;
+    font-weight: bold;
+    color: #00D2FF;
+    text-shadow: 2px 2px 0px #000, -2px -2px 0px #000, 2px -2px 0px #000, -2px 2px 0px #000, 0 0 15px #00D2FF;
+    z-index: 50;
+    letter-spacing: 2px;
+    text-align: center;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    white-space: nowrap;
+}
+
 .score-container {
     position: absolute;
     top: 15px;
@@ -255,6 +272,14 @@ body {
     text-shadow: 1px 1px 0px #000;
     border-radius: 12px;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.start-message:hover {
+    background: rgba(0, 0, 0, 0.95);
+    border-color: #FFF700;
+    transform: translate(-50%, -50%) scale(1.02);
 }
 
 .game-subtitle {
@@ -314,6 +339,13 @@ body {
         white-space: nowrap;
     }
 
+    .game-title-top {
+        font-size: 20px;
+        font-weight: bold;
+        top: 10px;
+        letter-spacing: 1px;
+    }
+
     .score-container {
         top: 10px;
         left: 10px;
@@ -326,11 +358,11 @@ body {
     }
 
     .start-message {
-        font-size: 18px;
+        font-size: 16px;
         font-weight: bold;
-        padding: 20px;
-        max-width: 90vw;
-        min-width: 320px;
+        padding: 16px;
+        max-width: 80vw;
+        min-width: 280px;
     }
 
     .game-over {
@@ -368,8 +400,8 @@ body {
         padding: 15px;
         min-width: 260px;
         max-width: calc(100% - 40px);
-        max-height: calc(100vh - 120px);
-        top: 50%;
+        max-height: calc(100vh - 140px);
+        top: 45%;
         overflow-y: auto;
     }
 

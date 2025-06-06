@@ -838,6 +838,7 @@ const RocketMath: React.FC = () => {
   return (
     <div className="game-container">
       <div className="game-canvas" style={{ width: dimensions.width, height: dimensions.height }}>
+        {showDifficultySelect && <div className="game-title-top">ROCKET MATH</div>}
         <canvas
           ref={canvasRef}
           width={dimensions.width}
@@ -845,8 +846,6 @@ const RocketMath: React.FC = () => {
           style={{ display: 'block' }}
           onClick={showDifficultySelect ? undefined : (gameOver && canContinue ? resetGame : (!gameOver ? thrust : undefined))}
         />
-
-        {showDifficultySelect && <div className="game-title">ROCKET MATH</div>}
         {!showDifficultySelect && (
           <div className="score-container">
             <div className="score">Asteroids: {score}</div>
@@ -951,7 +950,11 @@ const RocketMath: React.FC = () => {
         )}
         
         {!gameStarted && !showDifficultySelect && (
-          <div className="start-message">
+          <div 
+            className="start-message"
+            onClick={startEnabled ? thrust : undefined}
+            onTouchStart={startEnabled ? thrust : undefined}
+          >
             <div className="game-subtitle">Space Math Adventure!</div>
             <div>
               {startEnabled 
