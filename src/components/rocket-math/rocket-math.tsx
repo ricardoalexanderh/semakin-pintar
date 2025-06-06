@@ -147,6 +147,74 @@ const playSound = (soundType: 'jump' | 'correct' | 'wrong' | 'gameOver' | 'toggl
   }
 }
 
+// Object pools for performance optimization
+class ObjectPool<T> {
+  private pool: T[] = []
+  private createFn: () => T
+  private resetFn: (obj: T) => void
+
+  constructor(createFn: () => T, resetFn: (obj: T) => void, initialSize: number = 10) {
+    this.createFn = createFn
+    this.resetFn = resetFn
+    
+    // Pre-populate pool
+    for (let i = 0; i < initialSize; i++) {
+      this.pool.push(createFn())
+    }
+  }
+
+  get(): T {
+    if (this.pool.length > 0) {
+      return this.pool.pop()!
+    }
+    return this.createFn()
+  }
+
+  release(obj: T): void {
+    this.resetFn(obj)
+    this.pool.push(obj)
+  }
+
+  clear(): void {
+    this.pool.length = 0
+  }
+}
+
+// Create pooled pipe objects
+const createPipe = (): Pipe => ({
+  x: 0,
+  topHeight: 0,
+  bottomHeight: 0,
+  passed: false,
+  mathProblem: {
+    num1: 0,
+    num2: 0,
+    correctAnswer: 0,
+    wrongAnswer: 0,
+    equation: '',
+    correctAnswerInTop: false
+  },
+  pathChosen: null
+})
+
+const resetPipe = (pipe: Pipe): void => {
+  pipe.x = 0
+  pipe.topHeight = 0
+  pipe.bottomHeight = 0
+  pipe.passed = false
+  pipe.mathProblem.num1 = 0
+  pipe.mathProblem.num2 = 0
+  pipe.mathProblem.correctAnswer = 0
+  pipe.mathProblem.wrongAnswer = 0
+  pipe.mathProblem.equation = ''
+  pipe.mathProblem.correctAnswerInTop = false
+  pipe.pathChosen = null
+}
+
+// Global pools - small initial size to avoid memory overhead
+const pipePool = new ObjectPool(createPipe, resetPipe, 3)
+const releasedPipes: Pipe[] = [] // Track pipes to release after frame
+
 const generateMathProblem = (questionType: 1 | 2 | 3) => {
   let num1: number, num2: number
   
@@ -780,7 +848,15 @@ const RocketMath: React.FC = () => {
     setDimensions(newDimensions)
     rocketYRef.current = newDimensions.height / 2
     rocketVelocityRef.current = 0
+    
+    // Release all current asteroids back to pool
+    asteroidsRef.current.forEach(asteroid => pipePool.release(asteroid))
     asteroidsRef.current = []
+    
+    // Clear any pending releases
+    releasedPipes.forEach(pipe => pipePool.release(pipe))
+    releasedPipes.length = 0
+    
     setScore(0)
     setMathScore(0)
     setGameStarted(false)
@@ -896,9 +972,15 @@ const RocketMath: React.FC = () => {
         asteroidsRef.current.forEach(asteroid => {
           asteroid.x -= difficultySettings.pipeSpeed
         })
+        
+        // Release removed asteroids back to pool and filter array
+        const removedAsteroids = asteroidsRef.current.filter(asteroid => asteroid.x <= -dimensions.asteroidWidth)
+        removedAsteroids.forEach(asteroid => releasedPipes.push(asteroid))
         asteroidsRef.current = asteroidsRef.current.filter(asteroid => asteroid.x > -dimensions.asteroidWidth)
 
         if (asteroidsRef.current.length === 0 || asteroidsRef.current[asteroidsRef.current.length - 1].x < dimensions.width - difficultySettings.pipeDistance) {
+          // Get pipe from pool instead of creating new object
+          const pipe = pipePool.get()
           const mathProblem = generateMathProblem(questionType)
           const gapSize = difficultySettings.gapSize
           const separatorHeight = 40
@@ -906,20 +988,23 @@ const RocketMath: React.FC = () => {
           const topGapStart = Math.random() * (dimensions.height - totalGapHeight - 120) + 60
           
           const correctAnswerInTop = Math.random() > 0.5
-          const pipeWithAnswers = {
-            ...mathProblem,
-            correctAnswerInTop
-          }
           
-          const startingX = asteroidsRef.current.length === 0 ? dimensions.width + 100 : dimensions.width
-          asteroidsRef.current.push({
-            x: startingX,
-            topHeight: topGapStart,
-            bottomHeight: dimensions.height - (topGapStart + totalGapHeight),
-            passed: false,
-            mathProblem: pipeWithAnswers,
-            pathChosen: null
-          })
+          // Reuse pipe object instead of creating new one
+          pipe.x = asteroidsRef.current.length === 0 ? dimensions.width + 100 : dimensions.width
+          pipe.topHeight = topGapStart
+          pipe.bottomHeight = dimensions.height - (topGapStart + totalGapHeight)
+          pipe.passed = false
+          pipe.pathChosen = null
+          
+          // Copy math problem data to avoid object creation
+          pipe.mathProblem.num1 = mathProblem.num1
+          pipe.mathProblem.num2 = mathProblem.num2
+          pipe.mathProblem.correctAnswer = mathProblem.correctAnswer
+          pipe.mathProblem.wrongAnswer = mathProblem.wrongAnswer
+          pipe.mathProblem.equation = mathProblem.equation
+          pipe.mathProblem.correctAnswerInTop = correctAnswerInTop
+          
+          asteroidsRef.current.push(pipe)
         }
 
         asteroidsRef.current.forEach(asteroid => {
@@ -1004,6 +1089,10 @@ const RocketMath: React.FC = () => {
 
         // Draw the game with current time for animations
         drawGame(currentTime)
+        
+        // Release pipes back to pool after frame rendering
+        releasedPipes.forEach(pipe => pipePool.release(pipe))
+        releasedPipes.length = 0 // Clear array without creating new one
         
         lastTimeRef.current = currentTime
       }
