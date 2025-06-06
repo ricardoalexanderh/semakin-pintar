@@ -281,14 +281,15 @@ const RocketMath: React.FC = () => {
   const savedSettings = loadSavedSettings()
   
   const [dimensions, setDimensions] = useState(getGameDimensions())
-  const [score, setScore] = useState(0)
+  const [correctAnswers, setCorrectAnswers] = useState(0)
+  const [wrongAnswers, setWrongAnswers] = useState(0)
+  const [gatesPassed, setGatesPassed] = useState(0)
   const [gameStarted, setGameStarted] = useState(false)
   const [gameOver, setGameOver] = useState(false)
   const [lastAnswerCorrect, setLastAnswerCorrect] = useState<boolean | null>(null)
   const [showDifficultySelect, setShowDifficultySelect] = useState(true)
   const [difficulty, setDifficulty] = useState<1 | 2 | 3>(savedSettings.difficulty as 1 | 2 | 3)
   const [questionType, setQuestionType] = useState<1 | 2 | 3>(savedSettings.questionType as 1 | 2 | 3)
-  const [mathScore, setMathScore] = useState(0)
   const [soundEnabled, setSoundEnabled] = useState(savedSettings.soundEnabled)
   const [backgroundEnabled, setBackgroundEnabled] = useState(savedSettings.backgroundEnabled)
   const [canContinue, setCanContinue] = useState(true)
@@ -696,7 +697,7 @@ const RocketMath: React.FC = () => {
     }
     
     const eqX = x - questionDistance - (dimensions.isMobile ? 120 : 100)
-    const eqY = 120 // Position well below score to avoid overlap (score is at 15px with ~40px height)
+    const eqY = 125 // Position well below score to avoid overlap (score is at 15px with ~40px height)
     // Adjust padding based on question type - more padding for 1-digit questions
     const paddingMultiplier = currentQuestionType === 1 ? 1.5 : 1
     const eqWidth = boxSize.width + (12 * paddingMultiplier) // More padding for 1-digit (9px each side)
@@ -857,8 +858,9 @@ const RocketMath: React.FC = () => {
     releasedPipes.forEach(pipe => pipePool.release(pipe))
     releasedPipes.length = 0
     
-    setScore(0)
-    setMathScore(0)
+    setCorrectAnswers(0)
+    setWrongAnswers(0)
+    setGatesPassed(0)
     setGameStarted(false)
     setGameOver(false)
     setCanContinue(true)
@@ -1013,7 +1015,7 @@ const RocketMath: React.FC = () => {
           
           if (!asteroid.passed && asteroid.x + dimensions.asteroidWidth < rocketCenterX) {
             asteroid.passed = true
-            setScore(prev => prev + 1)
+            setGatesPassed(prev => prev + 1)
             
             const currentGapSize = difficultySettings.gapSize
             
@@ -1022,13 +1024,21 @@ const RocketMath: React.FC = () => {
               const isCorrect = asteroid.mathProblem.correctAnswerInTop
               setLastAnswerCorrect(isCorrect)
               playSound(isCorrect ? 'correct' : 'wrong', soundEnabled)
-              if (isCorrect) setMathScore(prev => prev + 1)
+              if (isCorrect) {
+                setCorrectAnswers(prev => prev + 1)
+              } else {
+                setWrongAnswers(prev => prev + 1)
+              }
             } else {
               asteroid.pathChosen = 'bottom'
               const isCorrect = !asteroid.mathProblem.correctAnswerInTop
               setLastAnswerCorrect(isCorrect)
               playSound(isCorrect ? 'correct' : 'wrong', soundEnabled)
-              if (isCorrect) setMathScore(prev => prev + 1)
+              if (isCorrect) {
+                setCorrectAnswers(prev => prev + 1)
+              } else {
+                setWrongAnswers(prev => prev + 1)
+              }
             }
             
             setTimeout(() => setLastAnswerCorrect(null), 1000)
@@ -1044,8 +1054,9 @@ const RocketMath: React.FC = () => {
           setTimeout(() => setCanContinue(true), 1500)
           
           trackGameEvent('rocket-math', 'complete', {
-            score,
-            mathScore,
+            correctAnswers,
+            wrongAnswers,
+            gatesPassed,
             difficulty,
             questionType,
             backgroundEnabled
@@ -1076,8 +1087,9 @@ const RocketMath: React.FC = () => {
                 setTimeout(() => setCanContinue(true), 1500)
                 
                 trackGameEvent('rocket-math', 'complete', {
-                  score,
-                  mathScore,
+                  correctAnswers,
+                  wrongAnswers,
+                  gatesPassed,
                   difficulty,
                   questionType,
                   backgroundEnabled
@@ -1125,8 +1137,9 @@ const RocketMath: React.FC = () => {
         />
         {!showDifficultySelect && (
           <div className="score-container">
-            <div className="score">Asteroids: {score}</div>
-            <div className="math-score">Problems: {mathScore}</div>
+            <div className="score">Gates: {gatesPassed}</div>
+            <div className="math-score">Correct: {correctAnswers}</div>
+            <div className="math-score">Wrong: {wrongAnswers}</div>
           </div>
         )}
         
@@ -1270,8 +1283,9 @@ const RocketMath: React.FC = () => {
             <div>Game Over!</div>
             {canContinue ? (
               <>
-                <div>Asteroids Passed: {score}</div>
-                <div>Problems Solved: {mathScore}</div>
+                <div>Gates Passed: {gatesPassed}</div>
+                <div>Correct Answers: {correctAnswers}</div>
+                <div>Wrong Answers: {wrongAnswers}</div>
                 <div>{dimensions.isMobile ? 'Tap to restart' : 'Click or press SPACE to restart'}</div>
               </>
             ) : (
