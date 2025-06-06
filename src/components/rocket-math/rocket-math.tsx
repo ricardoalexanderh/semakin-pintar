@@ -276,18 +276,18 @@ const RocketMath: React.FC = () => {
         rocketYRef.current += rocketVelocityRef.current
         rocketVelocityRef.current += difficultySettings.gravity
 
-        // Update rocket DOM element directly
+        // Update rocket DOM element directly using transform
         if (rocketElementRef.current) {
-          rocketElementRef.current.style.top = `${rocketYRef.current}px`
+          rocketElementRef.current.style.transform = `translateY(${rocketYRef.current}px)`
         }
 
-        // Update asteroids
-        const newAsteroids = asteroidsRef.current.map(asteroid => ({
-          ...asteroid,
-          x: asteroid.x - difficultySettings.pipeSpeed
-        })).filter(asteroid => asteroid.x > -dimensions.asteroidWidth)
+        // Update asteroids directly without creating new objects
+        asteroidsRef.current.forEach(asteroid => {
+          asteroid.x -= difficultySettings.pipeSpeed
+        })
+        asteroidsRef.current = asteroidsRef.current.filter(asteroid => asteroid.x > -dimensions.asteroidWidth)
 
-        if (newAsteroids.length === 0 || newAsteroids[newAsteroids.length - 1].x < dimensions.width - 300) {
+        if (asteroidsRef.current.length === 0 || asteroidsRef.current[asteroidsRef.current.length - 1].x < dimensions.width - 300) {
           const mathProblem = generateMathProblem(questionType)
           const gapSize = difficultySettings.gapSize
           const separatorHeight = 40
@@ -300,7 +300,7 @@ const RocketMath: React.FC = () => {
             correctAnswerInTop
           }
           
-          newAsteroids.push({
+          asteroidsRef.current.push({
             x: dimensions.width,
             topHeight: topGapStart,
             bottomHeight: dimensions.height - (topGapStart + totalGapHeight),
@@ -310,7 +310,7 @@ const RocketMath: React.FC = () => {
           })
         }
 
-        newAsteroids.forEach(asteroid => {
+        asteroidsRef.current.forEach(asteroid => {
           const rocketCenterX = dimensions.width / 2
           const rocketCenterY = rocketYRef.current + dimensions.rocketSize / 2
           
@@ -338,10 +338,8 @@ const RocketMath: React.FC = () => {
           }
         })
 
-        asteroidsRef.current = newAsteroids
-        
-        // Force re-render of asteroids every few frames
-        if (Math.floor(currentTime / 16) % 2 === 0) {
+        // Force re-render of asteroids every few frames to update positions
+        if (Math.floor(currentTime / 16) % 3 === 0) {
           forceRender({})
         }
         
@@ -430,10 +428,12 @@ const RocketMath: React.FC = () => {
           ref={rocketElementRef}
           className="bird" 
           style={{
-            top: rocketYRef.current,
+            top: 0,
             left: dimensions.width / 2 - dimensions.rocketSize / 2,
             width: dimensions.rocketSize,
-            height: dimensions.rocketHeight || dimensions.rocketSize
+            height: dimensions.rocketHeight || dimensions.rocketSize,
+            transform: `translateY(${rocketYRef.current}px)`,
+            willChange: 'transform'
           }}
         />
         
@@ -441,12 +441,19 @@ const RocketMath: React.FC = () => {
           const correctAnswerInTop = asteroid.mathProblem.correctAnswerInTop
           const currentGapSize = difficultySettings.gapSize
           return (
-            <div key={`asteroid-${index}-${asteroid.x}`}>
+            <div 
+              key={`asteroid-${index}-${Math.floor(asteroid.x / 50)}`}
+              style={{
+                position: 'absolute',
+                transform: `translateX(${asteroid.x}px)`,
+                willChange: 'transform'
+              }}
+            >
               {/* Math equation above pipe */}
               <div 
                 className="math-equation-display"
                 style={{
-                  left: asteroid.x - 30,
+                  left: -30,
                   top: Math.max(10, asteroid.topHeight - 60),
                   width: dimensions.asteroidWidth + 60
                 }}
@@ -458,7 +465,7 @@ const RocketMath: React.FC = () => {
               <div 
                 className="pipe pipe-top"
                 style={{
-                  left: asteroid.x,
+                  left: 0,
                   height: asteroid.topHeight,
                   width: dimensions.asteroidWidth
                 }}
@@ -468,7 +475,7 @@ const RocketMath: React.FC = () => {
               <div 
                 className={`answer-gap top-gap ${asteroid.pathChosen === 'top' ? (correctAnswerInTop ? 'correct' : 'wrong') : ''}`}
                 style={{
-                  left: asteroid.x,
+                  left: 0,
                   top: asteroid.topHeight,
                   width: dimensions.asteroidWidth,
                   height: currentGapSize
@@ -481,7 +488,7 @@ const RocketMath: React.FC = () => {
               <div 
                 className="pipe pipe-middle"
                 style={{
-                  left: asteroid.x,
+                  left: 0,
                   top: asteroid.topHeight + currentGapSize,
                   width: dimensions.asteroidWidth,
                   height: 40
@@ -492,7 +499,7 @@ const RocketMath: React.FC = () => {
               <div 
                 className={`answer-gap bottom-gap ${asteroid.pathChosen === 'bottom' ? (!correctAnswerInTop ? 'correct' : 'wrong') : ''}`}
                 style={{
-                  left: asteroid.x,
+                  left: 0,
                   top: asteroid.topHeight + currentGapSize + 40,
                   width: dimensions.asteroidWidth,
                   height: currentGapSize
@@ -505,7 +512,7 @@ const RocketMath: React.FC = () => {
               <div 
                 className="pipe pipe-bottom"
                 style={{
-                  left: asteroid.x,
+                  left: 0,
                   top: dimensions.height - asteroid.bottomHeight,
                   height: asteroid.bottomHeight,
                   width: dimensions.asteroidWidth
