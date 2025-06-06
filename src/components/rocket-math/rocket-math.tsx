@@ -40,9 +40,9 @@ const getGameDimensions = () => {
 
 const getDifficultySettings = (difficulty: 1 | 2 | 3) => {
   switch (difficulty) {
-    case 1: return { pipeSpeed: 1.5, gravity: 0.4, gapSize: 180, jumpStrength: -6, pipeDistance: 450 }
-    case 2: return { pipeSpeed: 2.0, gravity: 0.5, gapSize: 150, jumpStrength: -7, pipeDistance: 320 }
-    case 3: return { pipeSpeed: 2.5, gravity: 0.6, gapSize: 140, jumpStrength: -8, pipeDistance: 290 } 
+    case 1: return { pipeSpeed: 1.5, gravity: 0.4, gapSize: 180, jumpStrength: -6, pipeDistance: 430 }
+    case 2: return { pipeSpeed: 1.8, gravity: 0.45, gapSize: 150, jumpStrength: -6.5, pipeDistance: 320 }
+    case 3: return { pipeSpeed: 2.1, gravity: 0.5, gapSize: 140, jumpStrength: -7, pipeDistance: 290 } 
   }
 }
 
@@ -575,15 +575,16 @@ const RocketMath: React.FC = () => {
     ctx.fillStyle = 'rgba(0, 15, 35, 0.95)'
     // Position question box closer to the pipe for faster appearance
     let questionDistance = 0
+    const mobileMultiplier = dimensions.isMobile ? 0 : 1 // Make questions appear instantly on mobile
     if (difficulty === 1) {
-      questionDistance = difficultySettings.pipeDistance * 0.3 // Closer to pipe
+      questionDistance = difficultySettings.pipeDistance * 0.1 * mobileMultiplier // Much closer to pipe
     } else if (difficulty === 2) {
-      questionDistance = difficultySettings.pipeDistance * 0.25 // Even closer
+      questionDistance = difficultySettings.pipeDistance * 0.08 * mobileMultiplier // Much closer
     } else {
-      questionDistance = difficultySettings.pipeDistance * 0.2 // Very close
+      questionDistance = difficultySettings.pipeDistance * 0.06 * mobileMultiplier // Very close
     }
     
-    const eqX = x - questionDistance - 50
+    const eqX = x - questionDistance - (dimensions.isMobile ? 120 : 100)
     const eqY = 120 // Position well below score to avoid overlap (score is at 15px with ~40px height)
     // Adjust padding based on question type - more padding for 1-digit questions
     const paddingMultiplier = currentQuestionType === 1 ? 1.5 : 1
@@ -599,29 +600,23 @@ const RocketMath: React.FC = () => {
       ctx.lineWidth = 3
       ctx.stroke()
       
-      // Draw equation text with subtle glow (only if visual effects enabled)
-      ctx.fillStyle = '#00D2FF'
+      // Draw equation text with clear visibility
+      ctx.fillStyle = '#FFFFFF'
       ctx.font = `bold ${equationFontSize}px Arial`
       ctx.textAlign = 'center'
       ctx.textBaseline = 'middle'
-      if (backgroundEnabled) {
-        ctx.shadowColor = '#00D2FF'
-        ctx.shadowBlur = 5
-      }
+      ctx.shadowBlur = 0
       ctx.fillText(mathProblem.equation, eqX, eqY)
     }
     ctx.restore()
     
-    // Top answer with subtle styling (only glow if visual effects enabled)
+    // Top answer with clear styling
     ctx.save()
-    ctx.fillStyle = '#00D2FF'
+    ctx.fillStyle = '#FFFFFF'
     ctx.font = `bold ${answerFontSize}px Arial`
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
-    if (backgroundEnabled) {
-      ctx.shadowColor = '#00D2FF'
-      ctx.shadowBlur = 4
-    }
+    ctx.shadowBlur = 0
     ctx.fillText(
       (correctAnswerInTop ? mathProblem.correctAnswer : mathProblem.wrongAnswer).toString(),
       x + dimensions.asteroidWidth / 2,
@@ -629,16 +624,13 @@ const RocketMath: React.FC = () => {
     )
     ctx.restore()
     
-    // Bottom answer with subtle styling (only glow if visual effects enabled)
+    // Bottom answer with clear styling
     ctx.save()
-    ctx.fillStyle = '#00D2FF'
+    ctx.fillStyle = '#FFFFFF'
     ctx.font = `bold ${answerFontSize}px Arial`
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
-    if (backgroundEnabled) {
-      ctx.shadowColor = '#00D2FF'
-      ctx.shadowBlur = 4
-    }
+    ctx.shadowBlur = 0
     ctx.fillText(
       (!correctAnswerInTop ? mathProblem.correctAnswer : mathProblem.wrongAnswer).toString(),
       x + dimensions.asteroidWidth / 2,
@@ -878,7 +870,7 @@ const RocketMath: React.FC = () => {
             correctAnswerInTop
           }
           
-          const startingX = asteroidsRef.current.length === 0 ? dimensions.width + 200 : dimensions.width
+          const startingX = asteroidsRef.current.length === 0 ? dimensions.width + 100 : dimensions.width
           asteroidsRef.current.push({
             x: startingX,
             topHeight: topGapStart,
