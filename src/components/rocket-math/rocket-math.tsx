@@ -42,7 +42,7 @@ const getDifficultySettings = (difficulty: 1 | 2 | 3) => {
   switch (difficulty) {
     case 1: return { pipeSpeed: 1.5, gravity: 0.4, gapSize: 180, jumpStrength: -6, pipeDistance: 430 }
     case 2: return { pipeSpeed: 1.8, gravity: 0.45, gapSize: 150, jumpStrength: -6.5, pipeDistance: 320 }
-    case 3: return { pipeSpeed: 2.1, gravity: 0.5, gapSize: 140, jumpStrength: -7, pipeDistance: 290 } 
+    case 3: return { pipeSpeed: 2.2, gravity: 0.5, gapSize: 130, jumpStrength: -7, pipeDistance: 290 } 
   }
 }
 
