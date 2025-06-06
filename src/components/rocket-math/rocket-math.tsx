@@ -30,8 +30,8 @@ const getGameDimensions = () => {
   return {
     width: Math.max(300, isMobile ? maxWidth : Math.min(600, window.innerWidth - widthMargin)),
     height: Math.max(400, isMobile ? maxHeight : Math.min(700, window.innerHeight - heightMargin)),
-    rocketSize: isMobile ? 24 : 30,
-    rocketHeight: isMobile ? 30 : 38,
+    rocketSize: isMobile ? 32 : 40,
+    rocketHeight: isMobile ? 40 : 50,
     asteroidWidth: isMobile ? 50 : 60,
     asteroidGap: isMobile ? 140 : 170,
     isMobile
@@ -255,6 +255,59 @@ const RocketMath: React.FC = () => {
     
     // Enhanced flicker effects for glow animation
     const slowFlicker = 0.8 + 0.2 * Math.sin(currentTime * 0.02) // Slow glow for rocket
+    const jetFlicker = 0.7 + 0.3 * Math.sin(currentTime * 0.1) // Faster flicker for jet
+    
+    // Draw jet burning effect first (behind rocket)
+    const jetHeight = height * 0.6
+    const jetWidth = width * 0.3
+    const jetX = x + width / 2 - jetWidth / 2
+    const jetY = y + height
+    
+    ctx.save()
+    
+    // Multiple flame layers for more realistic effect
+    for (let i = 0; i < 3; i++) {
+      const flameIntensity = jetFlicker * (1 - i * 0.2)
+      const currentJetHeight = jetHeight * flameIntensity
+      const currentJetWidth = jetWidth * (0.8 + i * 0.1)
+      const currentJetX = jetX - (currentJetWidth - jetWidth) / 2
+      
+      const flameGradient = ctx.createLinearGradient(currentJetX, jetY, currentJetX, jetY + currentJetHeight)
+      
+      if (i === 0) { // Inner flame - hottest
+        flameGradient.addColorStop(0, '#FFE135')
+        flameGradient.addColorStop(0.3, '#FF6B35')
+        flameGradient.addColorStop(0.7, '#FF3838')
+        flameGradient.addColorStop(1, 'rgba(255, 56, 56, 0)')
+      } else if (i === 1) { // Middle flame
+        flameGradient.addColorStop(0, '#FF8C42')
+        flameGradient.addColorStop(0.5, '#FF6B35')
+        flameGradient.addColorStop(1, 'rgba(255, 107, 53, 0)')
+      } else { // Outer flame - cooler
+        flameGradient.addColorStop(0, '#FF6B35')
+        flameGradient.addColorStop(0.8, '#FF3838')
+        flameGradient.addColorStop(1, 'rgba(255, 56, 56, 0)')
+      }
+      
+      ctx.fillStyle = flameGradient
+      ctx.beginPath()
+      // Create irregular flame shape
+      ctx.moveTo(currentJetX, jetY)
+      ctx.bezierCurveTo(
+        currentJetX - currentJetWidth * 0.2, jetY + currentJetHeight * 0.3,
+        currentJetX + currentJetWidth * 0.2, jetY + currentJetHeight * 0.6,
+        currentJetX + currentJetWidth / 2, jetY + currentJetHeight
+      )
+      ctx.bezierCurveTo(
+        currentJetX + currentJetWidth * 0.8, jetY + currentJetHeight * 0.6,
+        currentJetX + currentJetWidth * 1.2, jetY + currentJetHeight * 0.3,
+        currentJetX + currentJetWidth, jetY
+      )
+      ctx.closePath()
+      ctx.fill()
+    }
+    
+    ctx.restore()
     
     ctx.save()
     
@@ -269,39 +322,89 @@ const RocketMath: React.FC = () => {
     if (rocketImageRef.current) {
       ctx.drawImage(rocketImageRef.current, x, y, width, height)
     } else {
-      // Fallback: Draw simple rocket shape
+      // Fallback: Draw cartoonish rocket shape
+      
+      // Main body - more rounded and cartoonish
       const bodyGradient = ctx.createLinearGradient(x, y, x, y + height)
       bodyGradient.addColorStop(0, '#FF6B6B')
-      bodyGradient.addColorStop(0.3, '#FF4757')
-      bodyGradient.addColorStop(0.3, '#E8E8E8')
-      bodyGradient.addColorStop(0.7, '#DCDDE1')
-      bodyGradient.addColorStop(0.7, '#4ECDC4')
+      bodyGradient.addColorStop(0.2, '#FF4757')
+      bodyGradient.addColorStop(0.2, '#E8E8E8')
+      bodyGradient.addColorStop(0.8, '#DCDDE1')
+      bodyGradient.addColorStop(0.8, '#4ECDC4')
       bodyGradient.addColorStop(1, '#3DC1D3')
       
       ctx.fillStyle = bodyGradient
       ctx.beginPath()
-      ctx.roundRect(x + width * 0.1, y, width * 0.8, height, [width * 0.4, width * 0.4, width * 0.1, width * 0.1])
+      // More rounded rocket body
+      ctx.roundRect(x + width * 0.15, y + height * 0.1, width * 0.7, height * 0.8, [width * 0.35, width * 0.35, width * 0.1, width * 0.1])
       ctx.fill()
       
+      // Cartoon-style outline
+      ctx.strokeStyle = '#2C3E50'
+      ctx.lineWidth = 3
+      ctx.stroke()
+      
+      // Cartoon nose cone
+      ctx.fillStyle = '#FF6B6B'
+      ctx.beginPath()
+      ctx.moveTo(x + width / 2, y)
+      ctx.bezierCurveTo(x + width * 0.2, y + height * 0.15, x + width * 0.8, y + height * 0.15, x + width / 2, y)
+      ctx.closePath()
+      ctx.fill()
+      ctx.stroke()
+      
+      // Cartoon fins
+      const finWidth = width * 0.15
+      const finHeight = height * 0.3
+      
+      // Left fin
+      ctx.fillStyle = '#4ECDC4'
+      ctx.beginPath()
+      ctx.moveTo(x + width * 0.15, y + height * 0.7)
+      ctx.lineTo(x, y + height * 0.8)
+      ctx.lineTo(x + width * 0.1, y + height)
+      ctx.lineTo(x + width * 0.25, y + height)
+      ctx.closePath()
+      ctx.fill()
+      ctx.stroke()
+      
+      // Right fin
+      ctx.beginPath()
+      ctx.moveTo(x + width * 0.85, y + height * 0.7)
+      ctx.lineTo(x + width, y + height * 0.8)
+      ctx.lineTo(x + width * 0.9, y + height)
+      ctx.lineTo(x + width * 0.75, y + height)
+      ctx.closePath()
+      ctx.fill()
+      ctx.stroke()
+      
+      // Cartoon window/porthole
+      const windowSize = width * 0.35
+      const windowX = x + width / 2 - windowSize / 2
+      const windowY = y + height * 0.25
+      
+      const windowGradient = ctx.createRadialGradient(
+        windowX + windowSize / 2, windowY + windowSize / 2, 0,
+        windowX + windowSize / 2, windowY + windowSize / 2, windowSize / 2
+      )
+      windowGradient.addColorStop(0, '#87CEEB')
+      windowGradient.addColorStop(0.7, '#4682B4')
+      windowGradient.addColorStop(1, '#2F4F4F')
+      
+      ctx.fillStyle = windowGradient
+      ctx.beginPath()
+      ctx.arc(windowX + windowSize / 2, windowY + windowSize / 2, windowSize / 2, 0, Math.PI * 2)
+      ctx.fill()
+      
+      // Window frame
       ctx.strokeStyle = '#2C3E50'
       ctx.lineWidth = 2
       ctx.stroke()
       
-      // Engine/window
-      const engineSize = width * 0.4
-      const engineX = x + width / 2 - engineSize / 2
-      const engineY = y + height * 0.3
-      
-      const engineGradient = ctx.createRadialGradient(
-        engineX + engineSize / 2, engineY + engineSize / 2, 0,
-        engineX + engineSize / 2, engineY + engineSize / 2, engineSize / 2
-      )
-      engineGradient.addColorStop(0, '#00D2FF')
-      engineGradient.addColorStop(1, '#0078FF')
-      
-      ctx.fillStyle = engineGradient
+      // Window reflection
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.6)'
       ctx.beginPath()
-      ctx.arc(engineX + engineSize / 2, engineY + engineSize / 2, engineSize / 2, 0, Math.PI * 2)
+      ctx.arc(windowX + windowSize * 0.3, windowY + windowSize * 0.3, windowSize * 0.15, 0, Math.PI * 2)
       ctx.fill()
     }
     
