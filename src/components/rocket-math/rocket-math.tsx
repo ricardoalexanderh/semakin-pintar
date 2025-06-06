@@ -319,12 +319,14 @@ const RocketMath: React.FC = () => {
     pipeGradient.addColorStop(0.5, '#474787')
     pipeGradient.addColorStop(1, '#5352ed')
     
-    // Add subtle glow effect to pipes
+    // Add subtle glow effect to pipes (only if visual effects enabled)
     ctx.save()
-    ctx.shadowColor = '#5352ed'
-    ctx.shadowBlur = 8
-    ctx.shadowOffsetX = 0
-    ctx.shadowOffsetY = 0
+    if (backgroundEnabled) {
+      ctx.shadowColor = '#5352ed'
+      ctx.shadowBlur = 8
+      ctx.shadowOffsetX = 0
+      ctx.shadowOffsetY = 0
+    }
     
     // Top pipe with space theme
     ctx.fillStyle = pipeGradient
@@ -334,12 +336,14 @@ const RocketMath: React.FC = () => {
     ctx.strokeRect(x, 0, dimensions.asteroidWidth, topHeight)
     ctx.restore()
     
-    // Bottom pipe with subtle glow
+    // Bottom pipe with subtle glow (only if visual effects enabled)
     ctx.save()
-    ctx.shadowColor = '#5352ed'
-    ctx.shadowBlur = 8
-    ctx.shadowOffsetX = 0
-    ctx.shadowOffsetY = 0
+    if (backgroundEnabled) {
+      ctx.shadowColor = '#5352ed'
+      ctx.shadowBlur = 8
+      ctx.shadowOffsetX = 0
+      ctx.shadowOffsetY = 0
+    }
     
     ctx.fillStyle = pipeGradient
     ctx.fillRect(x, dimensions.height - bottomHeight, dimensions.asteroidWidth, bottomHeight)
@@ -355,10 +359,12 @@ const RocketMath: React.FC = () => {
     separatorGradient.addColorStop(1, '#ff3838')
     
     ctx.save()
-    ctx.shadowColor = '#ff3838'
-    ctx.shadowBlur = 10
-    ctx.shadowOffsetX = 0
-    ctx.shadowOffsetY = 0
+    if (backgroundEnabled) {
+      ctx.shadowColor = '#ff3838'
+      ctx.shadowBlur = 10
+      ctx.shadowOffsetX = 0
+      ctx.shadowOffsetY = 0
+    }
     
     ctx.fillStyle = separatorGradient
     ctx.fillRect(x, topHeight + currentGapSize, dimensions.asteroidWidth, 40)
@@ -375,12 +381,14 @@ const RocketMath: React.FC = () => {
       ? (!correctAnswerInTop ? '#4CAF50' : '#F44336') 
       : 'rgba(0, 210, 255, 0.3)'
     
-    // Top gap with subtle glow effect
+    // Top gap with subtle glow effect (only if visual effects enabled)
     ctx.save()
-    ctx.shadowColor = '#00D2FF'
-    ctx.shadowBlur = 6
-    ctx.shadowOffsetX = 0
-    ctx.shadowOffsetY = 0
+    if (backgroundEnabled) {
+      ctx.shadowColor = '#00D2FF'
+      ctx.shadowBlur = 6
+      ctx.shadowOffsetX = 0
+      ctx.shadowOffsetY = 0
+    }
     
     ctx.fillStyle = topGapColor
     ctx.fillRect(x, topHeight, dimensions.asteroidWidth, currentGapSize)
@@ -389,12 +397,14 @@ const RocketMath: React.FC = () => {
     ctx.strokeRect(x, topHeight, dimensions.asteroidWidth, currentGapSize)
     ctx.restore()
     
-    // Bottom gap with subtle glow effect
+    // Bottom gap with subtle glow effect (only if visual effects enabled)
     ctx.save()
-    ctx.shadowColor = '#00D2FF'
-    ctx.shadowBlur = 6
-    ctx.shadowOffsetX = 0
-    ctx.shadowOffsetY = 0
+    if (backgroundEnabled) {
+      ctx.shadowColor = '#00D2FF'
+      ctx.shadowBlur = 6
+      ctx.shadowOffsetX = 0
+      ctx.shadowOffsetY = 0
+    }
     
     ctx.fillStyle = bottomGapColor
     ctx.fillRect(x, topHeight + currentGapSize + 40, dimensions.asteroidWidth, currentGapSize)
@@ -426,11 +436,13 @@ const RocketMath: React.FC = () => {
     // Math equation above with background and subtle glow
     ctx.save()
     
-    // Enhanced background with subtle border glow
-    ctx.shadowColor = '#00D2FF'
-    ctx.shadowBlur = 8
-    ctx.shadowOffsetX = 0
-    ctx.shadowOffsetY = 0
+    // Enhanced background with subtle border glow (only if visual effects enabled)
+    if (backgroundEnabled) {
+      ctx.shadowColor = '#00D2FF'
+      ctx.shadowBlur = 8
+      ctx.shadowOffsetX = 0
+      ctx.shadowOffsetY = 0
+    }
     
     ctx.fillStyle = 'rgba(0, 15, 35, 0.95)'
     const eqX = x + dimensions.asteroidWidth / 2
@@ -444,24 +456,28 @@ const RocketMath: React.FC = () => {
     ctx.lineWidth = 3
     ctx.strokeRect(eqX - eqWidth/2, eqY - eqHeight/2, eqWidth, eqHeight)
     
-    // Draw equation text with subtle glow
+    // Draw equation text with subtle glow (only if visual effects enabled)
     ctx.fillStyle = '#00D2FF'
     ctx.font = `bold ${equationFontSize}px Arial`
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
-    ctx.shadowColor = '#00D2FF'
-    ctx.shadowBlur = 5
+    if (backgroundEnabled) {
+      ctx.shadowColor = '#00D2FF'
+      ctx.shadowBlur = 5
+    }
     ctx.fillText(mathProblem.equation, eqX, eqY)
     ctx.restore()
     
-    // Top answer with subtle styling
+    // Top answer with subtle styling (only glow if visual effects enabled)
     ctx.save()
     ctx.fillStyle = '#FFFFFF'
     ctx.font = `bold ${answerFontSize}px Arial`
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
-    ctx.shadowColor = '#FFFFFF'
-    ctx.shadowBlur = 4
+    if (backgroundEnabled) {
+      ctx.shadowColor = '#FFFFFF'
+      ctx.shadowBlur = 4
+    }
     ctx.fillText(
       (correctAnswerInTop ? mathProblem.correctAnswer : mathProblem.wrongAnswer).toString(),
       x + dimensions.asteroidWidth / 2,
@@ -469,21 +485,23 @@ const RocketMath: React.FC = () => {
     )
     ctx.restore()
     
-    // Bottom answer with subtle styling
+    // Bottom answer with subtle styling (only glow if visual effects enabled)
     ctx.save()
     ctx.fillStyle = '#FFFFFF'
     ctx.font = `bold ${answerFontSize}px Arial`
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
-    ctx.shadowColor = '#FFFFFF'
-    ctx.shadowBlur = 4
+    if (backgroundEnabled) {
+      ctx.shadowColor = '#FFFFFF'
+      ctx.shadowBlur = 4
+    }
     ctx.fillText(
       (!correctAnswerInTop ? mathProblem.correctAnswer : mathProblem.wrongAnswer).toString(),
       x + dimensions.asteroidWidth / 2,
       topHeight + currentGapSize + 40 + currentGapSize / 2
     )
     ctx.restore()
-  }, [dimensions, difficultySettings])
+  }, [dimensions, difficultySettings, backgroundEnabled])
 
   const drawGame = useCallback((currentTime: number) => {
     if (!ctxRef.current) return
@@ -931,7 +949,7 @@ const RocketMath: React.FC = () => {
             </div>
             
             <div className="selection-group">
-              <div className="selection-label">Background Effects:</div>
+              <div className="selection-label">Visual Effects:</div>
               <div className="button-group">
                 <button
                   className={`sound-btn ${backgroundEnabled ? 'selected' : ''}`}
@@ -940,7 +958,7 @@ const RocketMath: React.FC = () => {
                     const newBackgroundState = !backgroundEnabled
                     setBackgroundEnabled(newBackgroundState)
                     saveSettings(difficulty, questionType, soundEnabled, newBackgroundState)
-                    trackButtonClick(`background-${newBackgroundState ? 'on' : 'off'}`, 'rocket-math-settings')
+                    trackButtonClick(`visual-effects-${newBackgroundState ? 'on' : 'off'}`, 'rocket-math-settings')
                   }}
                 >
                   {backgroundEnabled ? '✨ ON' : '⚫ OFF'}
