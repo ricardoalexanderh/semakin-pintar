@@ -86,20 +86,28 @@ const getAudioContext = () => {
 const createSound = (frequency: number, duration: number, type: 'sine' | 'square' | 'triangle' = 'sine') => {
   try {
     const ctx = getAudioContext()
-    const oscillator = ctx.createOscillator()
-    const gainNode = ctx.createGain()
     
-    oscillator.connect(gainNode)
-    gainNode.connect(ctx.destination)
-    
-    oscillator.frequency.setValueAtTime(frequency, ctx.currentTime)
-    oscillator.type = type
-    
-    gainNode.gain.setValueAtTime(0.1, ctx.currentTime)
-    gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + duration)
-    
-    oscillator.start(ctx.currentTime)
-    oscillator.stop(ctx.currentTime + duration)
+    // Use requestAnimationFrame to make audio creation non-blocking
+    requestAnimationFrame(() => {
+      try {
+        const oscillator = ctx.createOscillator()
+        const gainNode = ctx.createGain()
+        
+        oscillator.connect(gainNode)
+        gainNode.connect(ctx.destination)
+        
+        oscillator.frequency.setValueAtTime(frequency, ctx.currentTime)
+        oscillator.type = type
+        
+        gainNode.gain.setValueAtTime(0.1, ctx.currentTime)
+        gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + duration)
+        
+        oscillator.start(ctx.currentTime)
+        oscillator.stop(ctx.currentTime + duration)
+      } catch (error) {
+        console.warn('Audio creation failed:', error)
+      }
+    })
   } catch (error) {
     console.warn('Audio creation failed:', error)
   }
