@@ -41,8 +41,8 @@ const getGameDimensions = () => {
 const getDifficultySettings = (difficulty: 1 | 2 | 3) => {
   switch (difficulty) {
     case 1: return { pipeSpeed: 1.5, gravity: 0.4, gapSize: 180, jumpStrength: -6, pipeDistance: 450 }
-    case 2: return { pipeSpeed: 2.0, gravity: 0.5, gapSize: 150, jumpStrength: -7, pipeDistance: 300 }
-    case 3: return { pipeSpeed: 2.5, gravity: 0.6, gapSize: 120, jumpStrength: -8, pipeDistance: 300 }
+    case 2: return { pipeSpeed: 2.0, gravity: 0.5, gapSize: 150, jumpStrength: -7, pipeDistance: 250 } // Reduced for faster appearance
+    case 3: return { pipeSpeed: 2.5, gravity: 0.6, gapSize: 120, jumpStrength: -8, pipeDistance: 250 } // Reduced for faster appearance
   }
 }
 
@@ -520,7 +520,7 @@ const RocketMath: React.FC = () => {
     ctx.restore()
     
     // Enhanced text rendering with better mobile support and question type scaling
-    const equationFontSize = dimensions.isMobile ? 16 : 18
+    const equationFontSize = dimensions.isMobile ? 20 : 24 // Increased for bigger question box
     const answerFontSize = dimensions.isMobile ? 22 : 24
     
     // Determine equation box size based on question type (more digits = bigger box)
@@ -539,7 +539,7 @@ const RocketMath: React.FC = () => {
     
     const boxSize = getQuestionBoxSize()
     
-    // Math equation above with background and subtle glow
+    // Math equation positioned ahead of the pipe for better readability
     ctx.save()
     
     // Enhanced background with subtle border glow (only if visual effects enabled)
@@ -551,29 +551,47 @@ const RocketMath: React.FC = () => {
     }
     
     ctx.fillStyle = 'rgba(0, 15, 35, 0.95)'
-    const eqX = x + dimensions.asteroidWidth / 2
-    const eqY = Math.max(25, topHeight - 15)
-    const eqWidth = boxSize.width
-    const eqHeight = boxSize.height
+    // Position the question box based on difficulty level
+    const baseMinDistance = 30 // Base minimum gap between question box and pipe
+    const eqY = 60 // Position at the top
+    const eqWidth = boxSize.width * 1.3 + 24 // Make it bigger with extra padding space
+    const eqHeight = boxSize.height * 1.2 + 16 // Make it taller with extra padding space
     
-    // Draw equation background with rounded corners
-    ctx.beginPath()
-    ctx.roundRect(eqX - eqWidth/2, eqY - eqHeight/2, eqWidth, eqHeight, 12)
-    ctx.fill()
-    ctx.strokeStyle = '#00D2FF'
-    ctx.lineWidth = 3
-    ctx.stroke()
-    
-    // Draw equation text with subtle glow (only if visual effects enabled)
-    ctx.fillStyle = '#00D2FF'
-    ctx.font = `bold ${equationFontSize}px Arial`
-    ctx.textAlign = 'center'
-    ctx.textBaseline = 'middle'
-    if (backgroundEnabled) {
-      ctx.shadowColor = '#00D2FF'
-      ctx.shadowBlur = 5
+    // Adjust distance based on difficulty level
+    let extraDistance = 0
+    if (difficulty === 1) {
+      // Easy level: move question box more to the left for extra reading time
+      extraDistance = 100
+    } else {
+      // Medium and Hard: keep current position but make questions appear faster
+      // (This is handled by the pipe distance settings in getDifficultySettings)
+      extraDistance = 0
     }
-    ctx.fillText(mathProblem.equation, eqX, eqY)
+    
+    // Always position question box to the left of pipe with safe distance
+    const eqX = x - baseMinDistance - extraDistance - eqWidth/2
+    
+    // Only draw if the question box is visible on screen
+    if (eqX - eqWidth/2 < dimensions.width && eqX + eqWidth/2 > 0) {
+      // Draw equation background with rounded corners
+      ctx.beginPath()
+      ctx.roundRect(eqX - eqWidth/2, eqY - eqHeight/2, eqWidth, eqHeight, 12)
+      ctx.fill()
+      ctx.strokeStyle = '#00D2FF'
+      ctx.lineWidth = 3
+      ctx.stroke()
+      
+      // Draw equation text with subtle glow (only if visual effects enabled)
+      ctx.fillStyle = '#00D2FF'
+      ctx.font = `bold ${equationFontSize}px Arial`
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      if (backgroundEnabled) {
+        ctx.shadowColor = '#00D2FF'
+        ctx.shadowBlur = 5
+      }
+      ctx.fillText(mathProblem.equation, eqX, eqY)
+    }
     ctx.restore()
     
     // Top answer with subtle styling (only glow if visual effects enabled)
@@ -609,7 +627,7 @@ const RocketMath: React.FC = () => {
       topHeight + currentGapSize + 40 + currentGapSize / 2
     )
     ctx.restore()
-  }, [dimensions, difficultySettings, backgroundEnabled])
+  }, [dimensions, difficultySettings, backgroundEnabled, difficulty])
 
   const drawGame = useCallback((currentTime: number) => {
     if (!ctxRef.current) return
