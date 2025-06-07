@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Calculator, Grid3X3, X, Divide, Shapes, Play, Home, Search, Rocket } from 'lucide-react';
+import { Calculator, Grid3X3, X, Divide, Shapes, Play, Home, Search, Rocket, Filter } from 'lucide-react';
 import { trackButtonClick } from '../utils/analytics';
 import FloatingButtons from './floating-buttons';
 import Breadcrumb from './breadcrumb';
@@ -19,9 +19,12 @@ interface Game {
   path: string;
   difficulty: string;
   duration: string;
+  category: string;
 }
 
 const GamesIndex: React.FC = () => {
+  const [selectedCategory, setSelectedCategory] = useState<string>('All');
+
   const games: Game[] = [
     {
       id: 'mental-arithmetic',
@@ -33,7 +36,8 @@ const GamesIndex: React.FC = () => {
       gradient: 'from-purple-500 to-indigo-500',
       path: '/games/mental-arithmetic',
       difficulty: 'Beginner to Expert',
-      duration: '5-15 minutes'
+      duration: '5-15 minutes',
+      category: 'Mental Math Games'
     },
     {
       id: 'multiplication-table',
@@ -45,7 +49,8 @@ const GamesIndex: React.FC = () => {
       gradient: 'from-teal-500 to-cyan-500',
       path: '/games/multiplication-table',
       difficulty: 'Elementary',
-      duration: '10-20 minutes'
+      duration: '10-20 minutes',
+      category: 'Math Foundation'
     },
     {
       id: 'mental-multiplication',
@@ -57,7 +62,8 @@ const GamesIndex: React.FC = () => {
       gradient: 'from-yellow-500 to-orange-400',
       path: '/games/mental-multiplication',
       difficulty: 'Beginner to Expert',
-      duration: '5-15 minutes'
+      duration: '5-15 minutes',
+      category: 'Mental Math Games'
     },
     {
       id: 'mental-division',
@@ -69,7 +75,8 @@ const GamesIndex: React.FC = () => {
       gradient: 'from-emerald-500 to-teal-500',
       path: '/games/mental-division',
       difficulty: 'Beginner to Expert',
-      duration: '5-15 minutes'
+      duration: '5-15 minutes',
+      category: 'Mental Math Games'
     },
     /*{
       id: 'patterns',
@@ -93,7 +100,8 @@ const GamesIndex: React.FC = () => {
       gradient: 'from-purple-500 to-blue-500',
       path: '/games/patterns-detective',
       difficulty: 'Beginner to Expert',
-      duration: '5-15 minutes'
+      duration: '5-15 minutes',
+      category: 'Cognitive Skills'
     },
     {
       id: 'rocket-math',
@@ -105,9 +113,27 @@ const GamesIndex: React.FC = () => {
       gradient: 'from-blue-600 to-purple-600',
       path: '/games/rocket-math',
       difficulty: 'Elementary to Advanced',
-      duration: '5-20 minutes'
+      duration: '5-20 minutes',
+      category: 'Fun Math Games'
     }
   ];
+
+  // Group games by category
+  const gamesByCategory = games.reduce((acc, game) => {
+    if (!acc[game.category]) {
+      acc[game.category] = [];
+    }
+    acc[game.category].push(game);
+    return acc;
+  }, {} as Record<string, Game[]>);
+
+  const categoryOrder = ['Mental Math Games', 'Fun Math Games', 'Math Foundation', 'Cognitive Skills'];
+  const allCategories = ['All', ...categoryOrder];
+
+  // Filter games based on selected category
+  const filteredGamesByCategory = selectedCategory === 'All' 
+    ? gamesByCategory 
+    : { [selectedCategory]: gamesByCategory[selectedCategory] || [] };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-100 via-purple-50 to-pink-100 p-4">
@@ -165,76 +191,128 @@ const GamesIndex: React.FC = () => {
           hashtags={['education', 'kids', 'math', 'learning', 'games', 'free', 'collection']}
         />
 
-        {/* Games Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {games.map((game) => (
-            <div
-              key={game.id}
-              className={`bg-white rounded-3xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 overflow-hidden border-2 flex flex-col h-full ${game.available ? 'border-gray-200 hover:border-purple-300' : 'border-gray-200 opacity-75'
-                }`}
-            >
-              {/* Game Header - Fixed height */}
-              <div className={`bg-gradient-to-r ${game.gradient} p-6 text-white relative`}>
-                {!game.available && (
-                  <div className="absolute top-3 right-3 bg-orange-400 text-white text-xs font-bold px-2 py-1 rounded-md border border-orange-500 transform rotate-12">
-                    Coming Soon
-                  </div>
-                )}
-                <div className="flex items-center gap-4">
-                  {game.icon}
-                  <div>
-                    <h2 className="text-xl font-bold">{game.name}</h2>
-                    <p className="text-sm opacity-90">{game.description}</p>
-                  </div>
-                </div>
+        {/* Category Filter */}
+        <div className="mb-8">
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-purple-200/50 shadow-lg">
+            <div className="flex items-center gap-3 mb-4">
+              <Filter className="w-5 h-5 text-purple-600" />
+              <h3 className="text-lg font-semibold text-purple-800">Filter by Category</h3>
+            </div>
+            
+            <div className="flex flex-wrap gap-3">
+              {allCategories.map((category) => (
+                <button
+                  key={category}
+                  onClick={() => {
+                    setSelectedCategory(category);
+                    trackButtonClick(`filter-${category.toLowerCase().replace(/\s+/g, '-')}`, 'category-filter');
+                  }}
+                  className={`px-4 py-2 rounded-xl font-medium transition-all duration-200 ${
+                    selectedCategory === category
+                      ? 'bg-gradient-to-r from-purple-500 to-indigo-500 text-white shadow-md transform scale-105'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200 hover:text-purple-700'
+                  }`}
+                >
+                  {category}
+                </button>
+              ))}
+            </div>
+
+            {selectedCategory !== 'All' && (
+              <div className="mt-4 text-sm text-purple-600">
+                Showing {gamesByCategory[selectedCategory]?.length || 0} game(s) in "{selectedCategory}"
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Games by Category */}
+        {(selectedCategory === 'All' ? categoryOrder : [selectedCategory]).map((category) => {
+          const categoryGames = filteredGamesByCategory[category];
+          if (!categoryGames || categoryGames.length === 0) return null;
+
+          return (
+            <div key={category} className="mb-12">
+              {/* Category Header */}
+              <div className="mb-6">
+                <h2 className="text-2xl md:text-3xl font-bold text-purple-800 mb-2">
+                  {category}
+                </h2>
               </div>
 
-              {/* Game Content - Flexible area */}
-              <div className="p-6 flex flex-col flex-1">
-                {/* Description - Flexible content */}
-                <div className="flex-1">
-                  <p className="text-gray-600 mb-4 leading-relaxed">
-                    {game.longDescription}
-                  </p>
-                </div>
+              {/* Games Grid for this category */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {categoryGames.map((game) => (
+                  <div
+                    key={game.id}
+                    className={`bg-white rounded-3xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 overflow-hidden border-2 flex flex-col h-full ${game.available ? 'border-gray-200 hover:border-purple-300' : 'border-gray-200 opacity-75'
+                      }`}
+                  >
+                    {/* Game Header - Fixed height */}
+                    <div className={`bg-gradient-to-r ${game.gradient} p-6 text-white relative`}>
+                      {!game.available && (
+                        <div className="absolute top-3 right-3 bg-orange-400 text-white text-xs font-bold px-2 py-1 rounded-md border border-orange-500 transform rotate-12">
+                          Coming Soon
+                        </div>
+                      )}
+                      <div className="flex items-center gap-4">
+                        {game.icon}
+                        <div>
+                          <h3 className="text-xl font-bold">{game.name}</h3>
+                          <p className="text-sm opacity-90">{game.description}</p>
+                        </div>
+                      </div>
+                    </div>
 
-                {/* Game Details - Fixed position above button */}
-                <div className="space-y-2 mb-4">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-500">Difficulty:</span>
-                    <span className="font-medium text-gray-700">{game.difficulty}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-500">Duration:</span>
-                    <span className="font-medium text-gray-700">{game.duration}</span>
-                  </div>
-                </div>
+                    {/* Game Content - Flexible area */}
+                    <div className="p-6 flex flex-col flex-1">
+                      {/* Description - Flexible content */}
+                      <div className="flex-1">
+                        <p className="text-gray-600 mb-4 leading-relaxed">
+                          {game.longDescription}
+                        </p>
+                      </div>
 
-                {/* Action Button - Always at bottom */}
-                <div className="mt-auto">
-                  {game.available ? (
-                    <Link
-                      to={game.path}
-                      onClick={() => trackButtonClick(`play-${game.id}`, 'games-index')}
-                      className={`w-full bg-gradient-to-r ${game.gradient} text-white font-bold py-3 px-6 rounded-xl hover:shadow-lg transition-all flex items-center justify-center gap-2 group`}
-                    >
-                      <Play className="w-5 h-5 group-hover:scale-110 transition-transform" />
-                      Play Now
-                    </Link>
-                  ) : (
-                    <button
-                      disabled
-                      className="w-full bg-gray-300 text-gray-500 font-bold py-3 px-6 rounded-xl cursor-not-allowed flex items-center justify-center gap-2"
-                    >
-                      <Shapes className="w-5 h-5" />
-                      Coming Soon
-                    </button>
-                  )}
-                </div>
+                      {/* Game Details - Fixed position above button */}
+                      <div className="space-y-2 mb-4">
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-500">Difficulty:</span>
+                          <span className="font-medium text-gray-700">{game.difficulty}</span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-500">Duration:</span>
+                          <span className="font-medium text-gray-700">{game.duration}</span>
+                        </div>
+                      </div>
+
+                      {/* Action Button - Always at bottom */}
+                      <div className="mt-auto">
+                        {game.available ? (
+                          <Link
+                            to={game.path}
+                            onClick={() => trackButtonClick(`play-${game.id}`, 'games-index')}
+                            className={`w-full bg-gradient-to-r ${game.gradient} text-white font-bold py-3 px-6 rounded-xl hover:shadow-lg transition-all flex items-center justify-center gap-2 group`}
+                          >
+                            <Play className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                            Play Now
+                          </Link>
+                        ) : (
+                          <button
+                            disabled
+                            className="w-full bg-gray-300 text-gray-500 font-bold py-3 px-6 rounded-xl cursor-not-allowed flex items-center justify-center gap-2"
+                          >
+                            <Shapes className="w-5 h-5" />
+                            Coming Soon
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
-          ))}
-        </div>
+          );
+        })}
       </div>
     </div>
   );
