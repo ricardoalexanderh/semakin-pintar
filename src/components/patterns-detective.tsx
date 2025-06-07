@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Search, RefreshCw } from 'lucide-react';
 import { trackGameEvent, trackSettingsChange, trackButtonClick } from '../utils/analytics';
+import { getRandomSequencesByLevel, type PatternSequence } from '../utils/supabase';
 import * as Tone from 'tone';
 
-// Type definitions
 interface GameSettings {
-    level: 1 | 2 | 3 | 4 | 5;
+    level: 1 | 2 | 3 | 4 | 5 | 6;
     theme: 'default' | 'ocean' | 'forest' | 'sunset' | 'lavender';
     soundEnabled: boolean;
 }
@@ -17,11 +17,12 @@ interface PatternElement {
 }
 
 interface Question {
+    id: string;
     pattern: PatternElement[];
     missingIndex: number;
     options: PatternElement[];
     correctAnswer: PatternElement;
-    patternType: string;
+    patternName: string;
     difficulty: number;
 }
 
@@ -36,18 +37,13 @@ interface Theme {
 type GameState = 'playing' | 'results' | 'gameOver';
 type SoundType = 'correct' | 'incorrect' | 'levelUp' | 'gameComplete' | 'buttonClick' | 'hint' | 'gameOver';
 
-interface PatternsDetectiveGameProps {}
-
-const PatternsDetectiveGame: React.FC<PatternsDetectiveGameProps> = () => {
-
-    // In-memory settings store   
+const PatternsDetectiveGame: React.FC = () => {
     const settingsRef = useRef<GameSettings>({
         level: 1,
         theme: 'default',
         soundEnabled: true
     });
 
-    // Load settings from memory on component mount
     const [settings, setSettingsState] = useState<GameSettings>(() => {
         try {
             const stored = localStorage.getItem('patterns-detective-settings');
@@ -62,7 +58,6 @@ const PatternsDetectiveGame: React.FC<PatternsDetectiveGameProps> = () => {
         return settingsRef.current;
     });
 
-    // State declarations
     const [gameState, setGameState] = useState<GameState>('playing');
     const [currentQuestion, setCurrentQuestion] = useState<number>(0);
     const [score, setScore] = useState<number>(0);
@@ -71,13 +66,12 @@ const PatternsDetectiveGame: React.FC<PatternsDetectiveGameProps> = () => {
     const [allQuestions, setAllQuestions] = useState<Question[]>([]);
     const [selectedAnswer, setSelectedAnswer] = useState<PatternElement | null>(null);
     const [feedback, setFeedback] = useState<string>('');
-    const [questionsPerLevel] = useState<number>(5);
-    const [usedPatternTypes, setUsedPatternTypes] = useState<Set<string>>(new Set());
+    const [questionsPerLevel] = useState<number>(3);
     const [gameStartTime, setGameStartTime] = useState<number>(0);
     const [showLevelUpPopup, setShowLevelUpPopup] = useState<boolean>(false);
     const [showRestartConfirm, setShowRestartConfirm] = useState<boolean>(false);
+    const [loading, setLoading] = useState<boolean>(false);
 
-    // Update settings function with memory persistence and analytics
     const updateSettings = (newSettings: GameSettings | ((prev: GameSettings) => GameSettings)): void => {
         const updatedSettings = typeof newSettings === 'function' ? newSettings(settings) : newSettings;
 
@@ -99,7 +93,6 @@ const PatternsDetectiveGame: React.FC<PatternsDetectiveGameProps> = () => {
         settingsRef.current = updatedSettings;
         setSettingsState(updatedSettings);
 
-        // Save to localStorage with error handling
         try {
             localStorage.setItem('patterns-detective-settings', JSON.stringify(updatedSettings));
         } catch (error) {
@@ -107,7 +100,6 @@ const PatternsDetectiveGame: React.FC<PatternsDetectiveGameProps> = () => {
         }
     };
 
-    // Theme configurations
     const themes: Record<string, Theme> = {
         default: {
             name: 'Rainbow',
@@ -148,332 +140,17 @@ const PatternsDetectiveGame: React.FC<PatternsDetectiveGameProps> = () => {
 
     const currentTheme: Theme = themes[settings.theme] || themes.default;
 
-    const generateNumberPattern = (level: number, forcePatternType?: string): PatternElement[] => {
-        const patternLength = 7; // All levels: 7 numbers
-        
-        const createSimpleArithmeticPattern = (): PatternElement[] => {
-            // Level 1 ONLY: Very simple addition patterns (+1, +2)
-            const start = Math.floor(Math.random() * 5) + 1; // 1-5
-            const diff = Math.floor(Math.random() * 2) + 1; // +1 or +2 only
-            return Array.from({length: patternLength}, (_, i) => ({
-                type: 'number' as const,
-                value: start + i * diff,
-                display: (start + i * diff).toString()
-            }));
-        };
-
-        const createSkipCountingPattern = (): PatternElement[] => {
-            // Level 1 ONLY: Skip counting by 2, 5, or 10
-            const steps = [2, 5, 10];
-            const step = steps[Math.floor(Math.random() * steps.length)];
-            const start = Math.floor(Math.random() * 5) + 1;
-            return Array.from({length: patternLength}, (_, i) => ({
-                type: 'number' as const,
-                value: start + i * step,
-                display: (start + i * step).toString()
-            }));
-        };
-
-        const createDoublePattern = (): PatternElement[] => {
-            // Level 1 ONLY: Simple doubling pattern (×2)
-            const start = Math.floor(Math.random() * 3) + 1; // 1, 2, or 3
-            const sequence = [start];
-            for (let i = 1; i < Math.min(patternLength, 6); i++) { // Limit to prevent huge numbers
-                sequence.push(sequence[i-1] * 2);
-            }
-            // If sequence too short, pad with addition
-            while (sequence.length < patternLength) {
-                sequence.push(sequence[sequence.length-1] + sequence[sequence.length-1]);
-            }
-            return sequence.map(value => ({
-                type: 'number' as const,
-                value,
-                display: value.toString()
-            }));
-        };
-
-        const createArithmeticJumpPattern = (): PatternElement[] => {
-            // Level 2 ONLY: Arithmetic with bigger jumps (+3, +4, +5, +6)
-            const start = Math.floor(Math.random() * 8) + 1;
-            const diff = Math.floor(Math.random() * 4) + 3; // +3, +4, +5, or +6
-            return Array.from({length: patternLength}, (_, i) => ({
-                type: 'number' as const,
-                value: start + i * diff,
-                display: (start + i * diff).toString()
-            }));
-        };
-
-        const createTriplePattern = (): PatternElement[] => {
-            // Level 2 ONLY: Triple pattern (×3)
-            const start = Math.floor(Math.random() * 2) + 1; // 1 or 2
-            const sequence = [start];
-            for (let i = 1; i < Math.min(patternLength, 5); i++) { // Limit to prevent huge numbers
-                sequence.push(sequence[i-1] * 3);
-            }
-            // If sequence too short, pad with last * 3
-            while (sequence.length < patternLength) {
-                sequence.push(sequence[sequence.length-1] * 3);
-            }
-            return sequence.slice(0, patternLength).map(value => ({
-                type: 'number' as const,
-                value,
-                display: value.toString()
-            }));
-        };
-
-        const createSquarePattern = (): PatternElement[] => {
-            // Level 2 ONLY: Square numbers (1², 2², 3², 4²...)
-            const start = Math.floor(Math.random() * 2) + 1; // Start at 1 or 2
-            return Array.from({length: patternLength}, (_, i) => ({
-                type: 'number' as const,
-                value: Math.pow(start + i, 2),
-                display: Math.pow(start + i, 2).toString()
-            }));
-        };
-
-        const createFibonacciPattern = (): PatternElement[] => {
-            // Level 3 ONLY: Fibonacci sequences
-            const start1 = Math.floor(Math.random() * 3) + 1;
-            const start2 = Math.floor(Math.random() * 3) + 1;
-            const sequence = [start1, start2];
-            
-            while (sequence.length < patternLength) {
-                const next = sequence[sequence.length - 1] + sequence[sequence.length - 2];
-                if (next > 200) break;
-                sequence.push(next);
-            }
-            
-            if (sequence.length < patternLength) {
-                return createArithmeticJumpPattern(); // fallback
-            }
-            
-            return sequence.map(value => ({
-                type: 'number' as const,
-                value,
-                display: value.toString()
-            }));
-        };
-
-        const createTriangularPattern = (): PatternElement[] => {
-            // Level 3 ONLY: Triangular numbers (1, 3, 6, 10, 15...)
-            const length = Math.min(patternLength, 10);
-            return Array.from({length}, (_, i) => ({
-                type: 'number' as const,
-                value: ((i + 1) * (i + 2)) / 2,
-                display: (((i + 1) * (i + 2)) / 2).toString()
-            }));
-        };
-
-        const createArithmeticSequenceLevel3 = (): PatternElement[] => {
-            // Level 3 ONLY: Arithmetic with larger differences (+10 to +15)
-            const start = Math.floor(Math.random() * 20) + 5;
-            const diff = Math.floor(Math.random() * 6) + 10; // +10 to +15
-            return Array.from({length: patternLength}, (_, i) => ({
-                type: 'number' as const,
-                value: start + i * diff,
-                display: (start + i * diff).toString()
-            }));
-        };
-
-        const createPerfectSquarePattern = (): PatternElement[] => {
-            // Level 4 ONLY: Perfect squares for advanced level
-            const start = Math.floor(Math.random() * 2) + 1;
-            const length = Math.min(patternLength, 8);
-            return Array.from({length}, (_, i) => ({
-                type: 'number' as const,
-                value: Math.pow(start + i, 2),
-                display: Math.pow(start + i, 2).toString()
-            }));
-        };
-
-        const createCubePattern = (): PatternElement[] => {
-            // Level 4 ONLY: Perfect cubes
-            const start = Math.floor(Math.random() * 2) + 1;
-            const length = Math.min(patternLength, 6);
-            return Array.from({length}, (_, i) => ({
-                type: 'number' as const,
-                value: Math.pow(start + i, 3),
-                display: Math.pow(start + i, 3).toString()
-            }));
-        };
-
-        const createPrimePattern = (): PatternElement[] => {
-            // Level 4 ONLY: Prime number sequences
-            const primes = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53];
-            const length = Math.min(patternLength, primes.length);
-            return Array.from({length}, (_, i) => ({
-                type: 'number' as const,
-                value: primes[i],
-                display: primes[i].toString()
-            }));
-        };
-
-        const createComplexGeometricPattern = (): PatternElement[] => {
-            // Level 4 ONLY: More complex geometric (multiply by 4, 5, or 6)
-            const start = Math.floor(Math.random() * 2) + 1;
-            const ratio = Math.floor(Math.random() * 3) + 4; // 4, 5, or 6
-            const length = Math.min(patternLength, 5); // Keep numbers manageable
-            return Array.from({length}, (_, i) => ({
-                type: 'number' as const,
-                value: start * Math.pow(ratio, i),
-                display: (start * Math.pow(ratio, i)).toString()
-            }));
-        };
-
-        const createFactorialPattern = (): PatternElement[] => {
-            // Level 5 ONLY: Factorial sequences
-            const factorials = [1, 1, 2, 6, 24, 120, 720, 5040];
-            const length = Math.min(patternLength, factorials.length);
-            return Array.from({length}, (_, i) => ({
-                type: 'number' as const,
-                value: factorials[i],
-                display: factorials[i].toString()
-            }));
-        };
-
-        const createPentagonalPattern = (): PatternElement[] => {
-            // Level 5 ONLY: Pentagonal numbers
-            const length = Math.min(patternLength, 8);
-            return Array.from({length}, (_, i) => ({
-                type: 'number' as const,
-                value: ((i + 1) * (3 * (i + 1) - 1)) / 2,
-                display: (((i + 1) * (3 * (i + 1) - 1)) / 2).toString()
-            }));
-        };
-
-        const createComplexFibonacciPattern = (): PatternElement[] => {
-            // Level 5 ONLY: Tribonacci (sum of previous 3 numbers)
-            const start1 = 1;
-            const start2 = 1;
-            const start3 = 2;
-            const sequence = [start1, start2, start3];
-            
-            while (sequence.length < patternLength) {
-                const next = sequence[sequence.length - 1] + sequence[sequence.length - 2] + sequence[sequence.length - 3];
-                if (next > 1000) break;
-                sequence.push(next);
-            }
-            
-            if (sequence.length < patternLength) {
-                return createFactorialPattern(); // fallback
-            }
-            
-            return sequence.map(value => ({
-                type: 'number' as const,
-                value,
-                display: value.toString()
-            }));
-        };
-
-        const createLucasPattern = (): PatternElement[] => {
-            // Level 5 ONLY: Lucas numbers (2, 1, 3, 4, 7, 11, 18...)
-            const sequence = [2, 1];
-            
-            while (sequence.length < patternLength) {
-                const next = sequence[sequence.length - 1] + sequence[sequence.length - 2];
-                if (next > 500) break;
-                sequence.push(next);
-            }
-            
-            if (sequence.length < patternLength) {
-                return createPentagonalPattern(); // fallback
-            }
-            
-            return sequence.map(value => ({
-                type: 'number' as const,
-                value,
-                display: value.toString()
-            }));
-        };
-        
-        // EXCLUSIVE patterns per level - NO OVERLAP with duplicate prevention
-        let availablePatterns: {name: string, fn: () => PatternElement[]}[];
-        if (level === 1) {
-            // Level 1: Very basic patterns - simple addition, skip counting, doubling
-            availablePatterns = [
-                {name: 'simple-arithmetic', fn: createSimpleArithmeticPattern},
-                {name: 'skip-counting', fn: createSkipCountingPattern},
-                {name: 'doubling', fn: createDoublePattern}
-            ];
-        } else if (level === 2) {
-            // Level 2: Intermediate patterns - bigger jumps, tripling, squares
-            availablePatterns = [
-                {name: 'arithmetic-jump', fn: createArithmeticJumpPattern},
-                {name: 'tripling', fn: createTriplePattern},
-                {name: 'squares', fn: createSquarePattern}
-            ];
-        } else if (level === 3) {
-            // Level 3: Advanced sequences (3 patterns)
-            availablePatterns = [
-                {name: 'fibonacci', fn: createFibonacciPattern},
-                {name: 'triangular', fn: createTriangularPattern},
-                {name: 'arithmetic-level3', fn: createArithmeticSequenceLevel3}
-            ];
-        } else if (level === 4) {
-            // Level 4: Expert mathematical sequences (4 patterns)
-            availablePatterns = [
-                {name: 'perfect-square', fn: createPerfectSquarePattern},
-                {name: 'cube', fn: createCubePattern},
-                {name: 'prime', fn: createPrimePattern},
-                {name: 'complex-geometric', fn: createComplexGeometricPattern}
-            ];
-        } else {
-            // Level 5: Master level sequences (4 patterns)
-            availablePatterns = [
-                {name: 'factorial', fn: createFactorialPattern},
-                {name: 'pentagonal', fn: createPentagonalPattern},
-                {name: 'tribonacci', fn: createComplexFibonacciPattern},
-                {name: 'lucas', fn: createLucasPattern}
-            ];
-        }
-        
-        // If forcing a specific pattern type, use it
-        if (forcePatternType) {
-            const forcedPattern = availablePatterns.find(p => p.name === forcePatternType);
-            if (forcedPattern) {
-                return forcedPattern.fn();
-            }
-        }
-        
-        // Filter out already used patterns for this level
-        const unusedPatterns = availablePatterns.filter(p => !usedPatternTypes.has(`${level}-${p.name}`));
-        
-        // If all patterns used, reset for this level
-        if (unusedPatterns.length === 0) {
-            // Clear used patterns for this level only
-            const newUsedPatterns = new Set([...usedPatternTypes].filter(pattern => !pattern.startsWith(`${level}-`)));
-            setUsedPatternTypes(newUsedPatterns);
-            const selectedPattern = availablePatterns[Math.floor(Math.random() * availablePatterns.length)];
-            setUsedPatternTypes(prev => new Set([...prev, `${level}-${selectedPattern.name}`]));
-            return selectedPattern.fn();
-        }
-        
-        const selectedPattern = unusedPatterns[Math.floor(Math.random() * unusedPatterns.length)];
-        setUsedPatternTypes(prev => new Set([...prev, `${level}-${selectedPattern.name}`]));
-        return selectedPattern.fn();
-    };
-
-
-    // Sound functions
     const playSound = async (type: SoundType): Promise<void> => {
         if (!settings.soundEnabled) return;
 
         try {
             if (Tone.getContext().state !== 'running') {
-                console.log('Audio context not running, starting...');
                 await Tone.start();
             }
 
             const synth = new Tone.Synth({
-                oscillator: {
-                    type: "sine"
-                },
-                envelope: {
-                    attack: 0.01,
-                    decay: 0.1,
-                    sustain: 0.3,
-                    release: 0.5
-                }
+                oscillator: { type: "sine" },
+                envelope: { attack: 0.01, decay: 0.1, sustain: 0.3, release: 0.5 }
             }).toDestination();
 
             switch (type) {
@@ -501,105 +178,125 @@ const PatternsDetectiveGame: React.FC<PatternsDetectiveGameProps> = () => {
                 case 'buttonClick':
                     synth.triggerAttackRelease('C4', '0.1');
                     break;
-                case 'hint':
-                    synth.triggerAttackRelease('A4', '0.2');
-                    setTimeout(() => synth.triggerAttackRelease('C5', '0.2'), 150);
-                    break;
                 case 'gameOver':
                     synth.triggerAttackRelease('C3', '0.6');
                     setTimeout(() => synth.triggerAttackRelease('G2', '0.8'), 400);
                     break;
+                default:
+                    break;
             }
 
-            setTimeout(() => {
-                synth.dispose();
-            }, 1000);
-
+            setTimeout(() => synth.dispose(), 1000);
         } catch (error) {
             console.log('Audio not available:', error);
         }
     };
 
-    // Game functions
-    const generateUniqueQuestions = (level: number): Question[] => {
-        // Clear used patterns for this level when starting new game
-        setUsedPatternTypes(prev => new Set([...prev].filter(pattern => !pattern.startsWith(`${level}-`))));
-        
-        const questions: Question[] = [];
-        const availablePatternNames = level === 1 ? ['simple-arithmetic', 'skip-counting', 'doubling'] :
-                                   level === 2 ? ['arithmetic-jump', 'tripling', 'squares'] :
-                                   level === 3 ? ['fibonacci', 'triangular', 'arithmetic-level3'] :
-                                   level === 4 ? ['perfect-square', 'cube', 'prime', 'complex-geometric'] :
-                                   ['factorial', 'pentagonal', 'tribonacci', 'lucas'];
-        
-        // Shuffle pattern names to randomize order
-        const shuffledPatterns = [...availablePatternNames].sort(() => Math.random() - 0.5);
-        
-        for (let i = 0; i < questionsPerLevel; i++) {
-            const patternIndex = i % shuffledPatterns.length;
-            const selectedPatternType = shuffledPatterns[patternIndex];
-            
-            const pattern = generateNumberPattern(level, selectedPatternType);
-            const missingIndex = pattern.length - 1;
-            const correctAnswer = pattern[missingIndex];
-
-            // Generate wrong options
-            const options = [correctAnswer];
-            
-            while (options.length < 4) {
-                const offset = Math.floor(Math.random() * 20) - 10;
-                const wrongValue = (correctAnswer.value as number) + offset;
-                if (wrongValue > 0 && wrongValue !== correctAnswer.value) {
-                    const wrongOption = {
-                        type: 'number' as const,
-                        value: wrongValue,
-                        display: wrongValue.toString()
-                    };
-                    
-                    if (!options.some(opt => opt.value === wrongOption.value)) {
-                        options.push(wrongOption);
-                    }
-                }
-            }
-
-            // Shuffle options
-            options.sort(() => Math.random() - 0.5);
-
-            questions.push({
-                pattern,
-                missingIndex,
-                options,
-                correctAnswer,
-                patternType: 'number',
-                difficulty: level
-            });
-        }
-        
-        return questions;
+    const generateRandomMissingIndex = (length: number): number => {
+        return Math.floor(Math.random() * length);
     };
 
-    const startGame = (): void => {
+    const generateWrongOptions = (correctValue: number): number[] => {
+        const options = new Set<number>();
+        const ranges = [
+            () => correctValue + Math.floor(Math.random() * 10) + 1,
+            () => correctValue - Math.floor(Math.random() * 10) - 1,
+            () => correctValue + Math.floor(Math.random() * 20) + 10,
+            () => correctValue - Math.floor(Math.random() * 20) - 10,
+            () => Math.floor(correctValue * 1.5),
+            () => Math.floor(correctValue * 0.7),
+        ];
+
+        while (options.size < 3) {
+            const randomRange = ranges[Math.floor(Math.random() * ranges.length)];
+            const wrongValue = randomRange();
+            if (wrongValue > 0 && wrongValue !== correctValue) {
+                options.add(wrongValue);
+            }
+        }
+
+        return Array.from(options);
+    };
+
+    const createQuestionFromSequence = (sequence: PatternSequence): Question => {
+        const missingIndex = generateRandomMissingIndex(sequence.sequence_numbers.length);
+        const correctValue = sequence.sequence_numbers[missingIndex];
+        
+        const pattern: PatternElement[] = sequence.sequence_numbers.map(num => ({
+            type: 'number' as const,
+            value: num,
+            display: num.toString()
+        }));
+
+        const correctAnswer: PatternElement = {
+            type: 'number',
+            value: correctValue,
+            display: correctValue.toString()
+        };
+
+        const wrongValues = generateWrongOptions(correctValue);
+        const allOptions = [correctAnswer, ...wrongValues.map(val => ({
+            type: 'number' as const,
+            value: val,
+            display: val.toString()
+        }))];
+
+        allOptions.sort(() => Math.random() - 0.5);
+
+        return {
+            id: sequence.id,
+            pattern,
+            missingIndex,
+            options: allOptions,
+            correctAnswer,
+            patternName: sequence.pattern_name,
+            difficulty: sequence.level_order
+        };
+    };
+
+    const loadQuestionsFromSupabase = async (level: number): Promise<Question[]> => {
+        setLoading(true);
+        try {
+            const sequences = await getRandomSequencesByLevel(level, questionsPerLevel);
+            
+            if (sequences.length === 0) {
+                console.warn(`No sequences found for level ${level}`);
+                return [];
+            }
+
+            const questions = sequences.map(sequence => createQuestionFromSequence(sequence));
+            return questions;
+        } catch (error) {
+            console.error('Error loading questions from Supabase:', error);
+            return [];
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const startGame = async (): Promise<void> => {
         playSound('buttonClick');
         
-        const questions = generateUniqueQuestions(settings.level);
+        const questions = await loadQuestionsFromSupabase(settings.level);
         
+        if (questions.length === 0) {
+            setFeedback('Unable to load questions. Please try again.');
+            return;
+        }
+
         setAllQuestions(questions);
         setCurrentQuestion(0);
-        // DON'T reset score when advancing levels - only on fresh game start
+        
         if (gameState !== 'playing') {
             setScore(0);
-        }
-        // Don't reset lives when advancing levels - only reset on fresh restart
-        if (gameState !== 'playing') {
             setLives(3);
         }
+        
         setStreak(0);
         setSelectedAnswer(null);
         setFeedback('');
         setGameState('playing');
-
-        const startTime = Date.now();
-        setGameStartTime(startTime);
+        setGameStartTime(Date.now());
         
         setTimeout(() => {
             trackGameEvent('patterns-detective', 'start', {
@@ -610,7 +307,7 @@ const PatternsDetectiveGame: React.FC<PatternsDetectiveGameProps> = () => {
     };
 
     const selectAnswer = (answer: PatternElement): void => {
-        if (selectedAnswer) return; // Prevent multiple selections
+        if (selectedAnswer) return;
 
         setSelectedAnswer(answer);
         
@@ -624,20 +321,21 @@ const PatternsDetectiveGame: React.FC<PatternsDetectiveGameProps> = () => {
             setScore(prev => prev + points);
             setStreak(prev => prev + 1);
 
-            setTimeout(() => {
+            setTimeout(async () => {
                 if (currentQuestion < allQuestions.length - 1) {
                     setCurrentQuestion(prev => prev + 1);
                     setSelectedAnswer(null);
                     setFeedback('');
                 } else {
-                    // Level completed
-                    if (settings.level < 5) {
+                    if (settings.level < 6) {
                         playSound('levelUp');
                         setShowLevelUpPopup(true);
-                        updateSettings(prev => ({ ...prev, level: (prev.level + 1) as GameSettings['level'] }));
-                        setTimeout(() => {
+                        const nextLevel = settings.level + 1 as GameSettings['level'];
+                        updateSettings(prev => ({ ...prev, level: nextLevel }));
+                        
+                        setTimeout(async () => {
                             setShowLevelUpPopup(false);
-                            startGame();
+                            await startGame();
                         }, 3000);
                     } else {
                         playSound('gameComplete');
@@ -652,9 +350,7 @@ const PatternsDetectiveGame: React.FC<PatternsDetectiveGameProps> = () => {
             setLives(prev => {
                 const newLives = prev - 1;
                 if (newLives <= 0) {
-                    setTimeout(() => {
-                        setGameState('gameOver');
-                    }, 1000);
+                    setTimeout(() => setGameState('gameOver'), 1000);
                 }
                 return newLives;
             });
@@ -666,12 +362,11 @@ const PatternsDetectiveGame: React.FC<PatternsDetectiveGameProps> = () => {
         }
     };
 
-
     const restartGame = (): void => {
         setShowRestartConfirm(true);
     };
 
-    const confirmRestart = (): void => {
+    const confirmRestart = async (): Promise<void> => {
         setTimeout(() => {
             trackGameEvent('patterns-detective', 'restart', {
                 currentQuestion: currentQuestion + 1,
@@ -680,12 +375,9 @@ const PatternsDetectiveGame: React.FC<PatternsDetectiveGameProps> = () => {
             });
         }, 0);
 
-        // Reset level to 1 and score to 0
         updateSettings(prev => ({ ...prev, level: 1 }));
         setShowRestartConfirm(false);
         setGameState('playing');
-        
-        // Reset all game states
         setCurrentQuestion(0);
         setScore(0);
         setLives(3);
@@ -693,13 +385,8 @@ const PatternsDetectiveGame: React.FC<PatternsDetectiveGameProps> = () => {
         setSelectedAnswer(null);
         setFeedback('');
         setShowLevelUpPopup(false);
-        setUsedPatternTypes(new Set()); // Clear pattern tracking
         
-        // Start new game immediately with level 1 - don't wait for settings update
-        const questions = generateUniqueQuestions(1); // Force level 1 with unique patterns
-        
-        setAllQuestions(questions);
-        setGameStartTime(Date.now());
+        await startGame();
     };
 
     const cancelRestart = (): void => {
@@ -721,19 +408,39 @@ const PatternsDetectiveGame: React.FC<PatternsDetectiveGameProps> = () => {
         setGameState('results');
     };
 
-    // Initialize game on mount
+    const getLevelDisplayName = (level: number): string => {
+        const levelNames = {
+            1: 'Level 1: Basic Arithmetic',
+            2: 'Level 2: Intermediate Patterns', 
+            3: 'Level 3: Advanced Patterns',
+            4: 'Level 4: Expert Patterns',
+            5: 'Level 5: Master Patterns',
+            6: 'Olympic Level: Competition Patterns'
+        };
+        return levelNames[level as keyof typeof levelNames] || `Level ${level}`;
+    };
+
     useEffect(() => {
         startGame();
-    }, []);
+    }, []);  // eslint-disable-line react-hooks/exhaustive-deps
 
-    // Play game over sound when entering game over state
     useEffect(() => {
         if (gameState === 'gameOver') {
             playSound('gameOver');
         }
-    }, [gameState]);
+    }, [gameState]);  // eslint-disable-line react-hooks/exhaustive-deps
 
-    // Game Screen
+    if (loading) {
+        return (
+            <div className={`min-h-screen bg-gradient-to-br ${currentTheme.playingBg} p-4 flex items-center justify-center`}>
+                <div className={`${currentTheme.cardBg} rounded-3xl shadow-2xl p-8 text-center`}>
+                    <div className="animate-spin w-16 h-16 border-4 border-purple-500 border-t-transparent rounded-full mx-auto mb-4"></div>
+                    <p className={`text-lg ${currentTheme.primary}`}>Loading patterns...</p>
+                </div>
+            </div>
+        );
+    }
+
     if (gameState === 'playing') {
         const currentQ = allQuestions[currentQuestion];
         if (!currentQ) return null;
@@ -746,7 +453,6 @@ const PatternsDetectiveGame: React.FC<PatternsDetectiveGameProps> = () => {
             <div className={`min-h-screen bg-gradient-to-br ${currentTheme.playingBg} p-4`}>
                 <div className="max-w-4xl mx-auto">
                     <div className={`${currentTheme.cardBg} rounded-3xl shadow-2xl p-6 sm:p-8`}>
-                        {/* Header */}
                         <div className="text-center mb-6">
                             <div className="flex items-center justify-center gap-3 mb-4">
                                 <Search className={`w-8 h-8 ${currentTheme.primary}`} />
@@ -754,12 +460,13 @@ const PatternsDetectiveGame: React.FC<PatternsDetectiveGameProps> = () => {
                                     Patterns Detective
                                 </h1>
                             </div>
+                            <p className={`text-sm sm:text-base ${currentTheme.secondary} mb-2`}>
+                                {getLevelDisplayName(settings.level)}
+                            </p>
                             <p className={`text-sm sm:text-base ${currentTheme.secondary} mb-4`}>
-                                🧠 Train your computational thinking by recognizing number patterns! 
-                                Find the missing number in each mathematical sequence.
+                                🧠 Find the missing number in each mathematical sequence!
                             </p>
                             
-                            {/* Game Stats */}
                             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-6">
                                 <div className="bg-blue-100 rounded-xl p-3">
                                     <div className="text-blue-800 font-bold text-lg">{score}</div>
@@ -780,14 +487,13 @@ const PatternsDetectiveGame: React.FC<PatternsDetectiveGameProps> = () => {
                             </div>
                         </div>
 
-                        {/* Progress Bar */}
                         <div className="mb-6">
                             <div className="flex justify-between text-sm mb-2">
                                 <span className={currentTheme.secondary}>
                                     Question {currentQuestion + 1} of {questionsPerLevel}
                                 </span>
                                 <span className={currentTheme.secondary}>
-                                    Level {settings.level} Progress
+                                    {getLevelDisplayName(settings.level)}
                                 </span>
                             </div>
                             <div className="w-full bg-gray-200 rounded-full h-3">
@@ -800,10 +506,9 @@ const PatternsDetectiveGame: React.FC<PatternsDetectiveGameProps> = () => {
                             </div>
                         </div>
 
-                        {/* Pattern Display */}
                         <div className="mb-8">
                             <h3 className={`text-lg font-bold ${currentTheme.primary} mb-4 text-center`}>
-                                Find the missing number in this mathematical sequence:
+                                Find the missing number in this sequence:
                             </h3>
                             <div className="flex justify-center items-center gap-2 sm:gap-3 mb-6 flex-wrap">
                                 {patternWithMissing.map((item, index) => (
@@ -821,7 +526,6 @@ const PatternsDetectiveGame: React.FC<PatternsDetectiveGameProps> = () => {
                             </div>
                         </div>
 
-                        {/* Options */}
                         <div className="mb-6">
                             <h4 className={`text-base font-bold ${currentTheme.primary} mb-4 text-center`}>
                                 Choose the correct answer:
@@ -848,7 +552,6 @@ const PatternsDetectiveGame: React.FC<PatternsDetectiveGameProps> = () => {
                             </div>
                         </div>
 
-                        {/* Feedback */}
                         {feedback && (
                             <div className="text-center mb-6">
                                 <div className={`text-lg font-bold ${
@@ -861,7 +564,6 @@ const PatternsDetectiveGame: React.FC<PatternsDetectiveGameProps> = () => {
                             </div>
                         )}
 
-                        {/* Controls */}
                         <div className="flex justify-center gap-4">
                             <button
                                 onClick={restartGame}
@@ -872,14 +574,18 @@ const PatternsDetectiveGame: React.FC<PatternsDetectiveGameProps> = () => {
                             </button>
                         </div>
 
-                        {/* Level Up Popup */}
                         {showLevelUpPopup && (
                             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
                                 <div className="bg-white rounded-3xl p-8 text-center max-w-md mx-4 shadow-2xl">
                                     <div className="text-6xl mb-4">🎉</div>
-                                    <h2 className="text-3xl font-bold text-purple-800 mb-2">Level Up!</h2>
+                                    <h2 className="text-3xl font-bold text-purple-800 mb-2">
+                                        {settings.level === 6 ? 'Olympic Level!' : 'Level Up!'}
+                                    </h2>
                                     <p className="text-xl text-purple-600 mb-4">
-                                        Congratulations! You've advanced to Level {settings.level}!
+                                        {settings.level === 6 
+                                            ? "Welcome to the Olympic Level! Prepare for competition-level patterns!" 
+                                            : `Congratulations! You've advanced to ${getLevelDisplayName(settings.level)}!`
+                                        }
                                     </p>
                                     <div className="text-lg text-gray-600">
                                         Get ready for more challenging patterns...
@@ -888,7 +594,6 @@ const PatternsDetectiveGame: React.FC<PatternsDetectiveGameProps> = () => {
                             </div>
                         )}
 
-                        {/* Restart Confirmation Popup */}
                         {showRestartConfirm && (
                             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
                                 <div className="bg-white rounded-3xl p-8 text-center max-w-md mx-4 shadow-2xl">
@@ -920,7 +625,6 @@ const PatternsDetectiveGame: React.FC<PatternsDetectiveGameProps> = () => {
         );
     }
 
-    // Results Screen
     if (gameState === 'results') {
         return (
             <div className={`min-h-screen bg-gradient-to-br ${currentTheme.playingBg} p-4`}>
@@ -931,7 +635,7 @@ const PatternsDetectiveGame: React.FC<PatternsDetectiveGameProps> = () => {
                                 🎉 Game Complete! 🎉
                             </h1>
                             <p className="text-lg text-green-600 mb-6">
-                                Great job, Pattern Detective! You've sharpened your mathematical thinking skills!
+                                Congratulations! You've completed all levels including the Olympic Level!
                             </p>
                         </div>
 
@@ -942,19 +646,19 @@ const PatternsDetectiveGame: React.FC<PatternsDetectiveGameProps> = () => {
                             </div>
                             <div className="bg-purple-100 rounded-2xl p-6">
                                 <div className="text-purple-800 font-bold text-3xl mb-2">{settings.level}</div>
-                                <div className="text-purple-600 text-lg">Level Reached</div>
+                                <div className="text-purple-600 text-lg">Level Completed</div>
                             </div>
                         </div>
 
                         <div className="bg-green-50 rounded-2xl p-6 mb-8">
                             <h3 className="text-lg font-bold text-green-800 mb-3">
-                                🧠 Mathematical Thinking Skills Developed
+                                🧠 Mathematical Thinking Skills Mastered
                             </h3>
                             <div className="text-green-700 space-y-2">
-                                <div>✓ <strong>Number Pattern Recognition:</strong> Identifying mathematical sequences and relationships</div>
-                                <div>✓ <strong>Logical Reasoning:</strong> Understanding mathematical rules and applying them</div>
-                                <div>✓ <strong>Problem Solving:</strong> Breaking down complex numerical patterns</div>
-                                <div>✓ <strong>Abstract Thinking:</strong> Working with mathematical concepts and sequences</div>
+                                <div>✓ <strong>Pattern Recognition:</strong> Expert level sequence identification</div>
+                                <div>✓ <strong>Mathematical Reasoning:</strong> Competition-level problem solving</div>
+                                <div>✓ <strong>Abstract Thinking:</strong> Advanced mathematical concepts</div>
+                                <div>✓ <strong>Olympic Skills:</strong> Competition-ready pattern analysis</div>
                             </div>
                         </div>
 
@@ -975,7 +679,6 @@ const PatternsDetectiveGame: React.FC<PatternsDetectiveGameProps> = () => {
         );
     }
 
-    // Game Over Screen
     if (gameState === 'gameOver') {
         return (
             <div className={`min-h-screen bg-gradient-to-br ${currentTheme.playingBg} p-4`}>
@@ -1006,9 +709,9 @@ const PatternsDetectiveGame: React.FC<PatternsDetectiveGameProps> = () => {
                                 💪 Keep Practicing!
                             </h3>
                             <div className="text-orange-700 space-y-2">
-                                <div>🎯 Number pattern recognition improves with practice</div>
+                                <div>🎯 Pattern recognition improves with practice</div>
                                 <div>🧠 Each attempt strengthens your mathematical thinking</div>
-                                <div>🌟 Try again to beat your high score!</div>
+                                <div>🌟 Try again to reach the Olympic Level!</div>
                             </div>
                         </div>
 
