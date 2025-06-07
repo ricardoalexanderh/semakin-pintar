@@ -83,7 +83,7 @@ const MentalMultiplicationGame: React.FC<MentalMultiplicationGameProps> = ({ onB
 
     // Speech synthesis references
     const speechUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
-    const speechTimeoutRef = useRef<number | null>(null);
+    const speechTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const preferredVoiceRef = useRef<SpeechSynthesisVoice | null>(null);
 
     // Update settings function with memory persistence and analytics
@@ -798,7 +798,7 @@ const MentalMultiplicationGame: React.FC<MentalMultiplicationGameProps> = ({ onB
                 Tone.getTransport().stop();
                 Tone.getTransport().cancel();
             }
-        } catch (error) {
+        } catch {
             // Ignore Tone.js errors
         }
 
