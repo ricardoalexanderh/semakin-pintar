@@ -66,7 +66,11 @@ const PatternsDetectiveGame: React.FC = () => {
     const [allQuestions, setAllQuestions] = useState<Question[]>([]);
     const [selectedAnswer, setSelectedAnswer] = useState<PatternElement | null>(null);
     const [feedback, setFeedback] = useState<string>('');
-    const [questionsPerLevel] = useState<number>(3);
+    const getQuestionsPerLevel = (level: number): number => {
+        if (level === 1 || level === 2) return 10;
+        if (level === 3) return 5;
+        return 3; // levels 4, 5, 6
+    };
     const [gameStartTime, setGameStartTime] = useState<number>(0);
     const [showLevelUpPopup, setShowLevelUpPopup] = useState<boolean>(false);
     const [showRestartConfirm, setShowRestartConfirm] = useState<boolean>(false);
@@ -257,7 +261,8 @@ const PatternsDetectiveGame: React.FC = () => {
     const loadQuestionsFromSupabase = async (level: number): Promise<Question[]> => {
         setLoading(true);
         try {
-            const sequences = await getRandomSequencesByLevel(level, questionsPerLevel);
+            const questionsCount = getQuestionsPerLevel(level);
+            const sequences = await getRandomSequencesByLevel(level, questionsCount);
             
             if (sequences.length === 0) {
                 console.warn(`No sequences found for level ${level}`);
@@ -463,8 +468,11 @@ const PatternsDetectiveGame: React.FC = () => {
                             <p className={`text-sm sm:text-base ${currentTheme.secondary} mb-2`}>
                                 {getLevelDisplayName(settings.level)}
                             </p>
-                            <p className={`text-sm sm:text-base ${currentTheme.secondary} mb-4`}>
+                            <p className={`text-sm sm:text-base ${currentTheme.secondary} mb-2`}>
                                 🧠 Find the missing number in each mathematical sequence!
+                            </p>
+                            <p className={`text-xs sm:text-sm ${currentTheme.secondary} mb-4`}>
+                                📊 Complete 6 challenging levels • Levels 1-2: 10 questions • Level 3: 5 questions • Levels 4-6: 3 questions • <strong>Olympic Level awaits!</strong>
                             </p>
                             
                             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-6">
@@ -490,7 +498,7 @@ const PatternsDetectiveGame: React.FC = () => {
                         <div className="mb-6">
                             <div className="flex justify-between text-sm mb-2">
                                 <span className={currentTheme.secondary}>
-                                    Question {currentQuestion + 1} of {questionsPerLevel}
+                                    Question {currentQuestion + 1} of {getQuestionsPerLevel(settings.level)}
                                 </span>
                                 <span className={currentTheme.secondary}>
                                     {getLevelDisplayName(settings.level)}
@@ -500,7 +508,7 @@ const PatternsDetectiveGame: React.FC = () => {
                                 <div
                                     className="bg-purple-600 h-3 rounded-full transition-all duration-300"
                                     style={{
-                                        width: `${(currentQuestion / questionsPerLevel) * 100}%`
+                                        width: `${(currentQuestion / getQuestionsPerLevel(settings.level)) * 100}%`
                                     }}
                                 ></div>
                             </div>
