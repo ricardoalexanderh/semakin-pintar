@@ -139,9 +139,9 @@ INSERT INTO patterns_detective.sequences (pattern_type_id, sequence_numbers, seq
 ((SELECT id FROM patterns_detective.pattern_types WHERE name = 'divide_by_2'), ARRAY[1024, 512, 256, 128, 64, 32, 16], '{"operation": "divide", "factor": 2}'),
 ((SELECT id FROM patterns_detective.pattern_types WHERE name = 'divide_by_2'), ARRAY[2048, 1024, 512, 256, 128, 64, 32], '{"operation": "divide", "factor": 2}'),
 ((SELECT id FROM patterns_detective.pattern_types WHERE name = 'divide_by_2'), ARRAY[4096, 2048, 1024, 512, 256, 128, 64], '{"operation": "divide", "factor": 2}'),
-((SELECT id FROM patterns_detective.pattern_types WHERE name = 'divide_by_2'), ARRAY[8192, 4096, 2048, 1024, 512, 256, 128], '{"operation": "divide", "factor": 2}'),
-((SELECT id FROM patterns_detective.pattern_types WHERE name = 'divide_by_2'), ARRAY[16384, 8192, 4096, 2048, 1024, 512, 256], '{"operation": "divide", "factor": 2}'),
-((SELECT id FROM patterns_detective.pattern_types WHERE name = 'divide_by_2'), ARRAY[32768, 16384, 8192, 4096, 2048, 1024, 512], '{"operation": "divide", "factor": 2}');
+((SELECT id FROM patterns_detective.pattern_types WHERE name = 'divide_by_2'), ARRAY[8192, 4096, 2048, 1024, 512, 256, 128], '{"operation": "divide", "factor": 2}');
+-- ((SELECT id FROM patterns_detective.pattern_types WHERE name = 'divide_by_2'), ARRAY[16384, 8192, 4096, 2048, 1024, 512, 256], '{"operation": "divide", "factor": 2}'),
+-- ((SELECT id FROM patterns_detective.pattern_types WHERE name = 'divide_by_2'), ARRAY[32768, 16384, 8192, 4096, 2048, 1024, 512], '{"operation": "divide", "factor": 2}');
 
 -- Tripling (5 sequences - limited by 50000 constraint)
 -- INSERT INTO patterns_detective.sequences (pattern_type_id, sequence_numbers, sequence_rule) VALUES

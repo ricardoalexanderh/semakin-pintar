@@ -75,6 +75,7 @@ const PatternsDetectiveGame: React.FC = () => {
     const [showLevelUpPopup, setShowLevelUpPopup] = useState<boolean>(false);
     const [showRestartConfirm, setShowRestartConfirm] = useState<boolean>(false);
     const [loading, setLoading] = useState<boolean>(false);
+    const [progressComplete, setProgressComplete] = useState<boolean>(false);
 
     const updateSettings = (newSettings: GameSettings | ((prev: GameSettings) => GameSettings)): void => {
         const updatedSettings = typeof newSettings === 'function' ? newSettings(settings) : newSettings;
@@ -279,10 +280,25 @@ const PatternsDetectiveGame: React.FC = () => {
         }
     };
 
-    const startGame = async (): Promise<void> => {
+    const startGame = async (forceLevel?: number): Promise<void> => {
         playSound('buttonClick');
         
-        const questions = await loadQuestionsFromSupabase(settings.level);
+        // Always reset game state when starting
+        setCurrentQuestion(0);
+        setScore(0);
+        setLives(3);
+        setStreak(0);
+        setSelectedAnswer(null);
+        setFeedback('');
+        setGameState('playing');
+        setGameStartTime(Date.now());
+        setProgressComplete(false);
+        
+        // Use forced level or current settings level
+        const levelToUse = forceLevel ?? settings.level;
+        
+        // Load questions for specified level
+        const questions = await loadQuestionsFromSupabase(levelToUse);
         
         if (questions.length === 0) {
             setFeedback('Unable to load questions. Please try again.');
@@ -290,22 +306,10 @@ const PatternsDetectiveGame: React.FC = () => {
         }
 
         setAllQuestions(questions);
-        setCurrentQuestion(0);
-        
-        if (gameState !== 'playing') {
-            setScore(0);
-            setLives(3);
-        }
-        
-        setStreak(0);
-        setSelectedAnswer(null);
-        setFeedback('');
-        setGameState('playing');
-        setGameStartTime(Date.now());
         
         setTimeout(() => {
             trackGameEvent('patterns-detective', 'start', {
-                level: settings.level,
+                level: levelToUse,
                 soundEnabled: settings.soundEnabled
             });
         }, 0);
@@ -332,20 +336,26 @@ const PatternsDetectiveGame: React.FC = () => {
                     setSelectedAnswer(null);
                     setFeedback('');
                 } else {
-                    if (settings.level < 6) {
-                        playSound('levelUp');
-                        setShowLevelUpPopup(true);
-                        const nextLevel = settings.level + 1 as GameSettings['level'];
-                        updateSettings(prev => ({ ...prev, level: nextLevel }));
-                        
-                        setTimeout(async () => {
-                            setShowLevelUpPopup(false);
-                            await startGame();
-                        }, 3000);
-                    } else {
-                        playSound('gameComplete');
-                        completeGame();
-                    }
+                    // Final question - animate progress to 100% first
+                    setProgressComplete(true);
+                    
+                    // Wait for progress animation, then show popup
+                    setTimeout(() => {
+                        if (settings.level < 6) {
+                            playSound('levelUp');
+                            setShowLevelUpPopup(true);
+                            const nextLevel = settings.level + 1 as GameSettings['level'];
+                            updateSettings(prev => ({ ...prev, level: nextLevel }));
+                            
+                            setTimeout(async () => {
+                                setShowLevelUpPopup(false);
+                                await startGame();
+                            }, 3000);
+                        } else {
+                            playSound('gameComplete');
+                            completeGame();
+                        }
+                    }, 800); // Wait for progress bar animation
                 }
             }, 1500);
         } else {
@@ -380,9 +390,8 @@ const PatternsDetectiveGame: React.FC = () => {
             });
         }, 0);
 
-        updateSettings(prev => ({ ...prev, level: 1 }));
+        // Reset all game state first
         setShowRestartConfirm(false);
-        setGameState('playing');
         setCurrentQuestion(0);
         setScore(0);
         setLives(3);
@@ -390,8 +399,14 @@ const PatternsDetectiveGame: React.FC = () => {
         setSelectedAnswer(null);
         setFeedback('');
         setShowLevelUpPopup(false);
+        setProgressComplete(false);
+        setAllQuestions([]);
         
-        await startGame();
+        // Then update settings to level 1 and start fresh
+        updateSettings(prev => ({ ...prev, level: 1 }));
+        
+        // Start game with level 1 explicitly
+        await startGame(1);
     };
 
     const cancelRestart = (): void => {
@@ -508,7 +523,9 @@ const PatternsDetectiveGame: React.FC = () => {
                                 <div
                                     className="bg-purple-600 h-3 rounded-full transition-all duration-300"
                                     style={{
-                                        width: `${(currentQuestion / getQuestionsPerLevel(settings.level)) * 100}%`
+                                        width: progressComplete 
+                                            ? '100%' 
+                                            : `${(currentQuestion / getQuestionsPerLevel(settings.level)) * 100}%`
                                     }}
                                 ></div>
                             </div>
