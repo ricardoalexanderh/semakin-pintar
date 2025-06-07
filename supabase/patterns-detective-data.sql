@@ -11,18 +11,18 @@ INSERT INTO patterns_detective.pattern_types (level_id, name, description, formu
 (1, 'plus_any_number', 'Add the same number each time', 'a(n) = a(1) + (n-1)×d', 1),
 (1, 'minus_any_number', 'Subtract the same number each time', 'a(n) = a(1) - (n-1)×d', 2),
 (1, 'doubling', 'Multiply by 2 each time', 'a(n) = a(1) × 2^(n-1)', 3),
-(1, 'alternating_add_subtract', 'Pattern switches between operations', 'Alternates +a, -b', 4),
 (1, 'skip_counting', 'Count by specific intervals', 'a(n) = a(1) + (n-1)×step', 5),
 
 -- Level 2: Intermediate Patterns
 (2, 'square_numbers', 'Perfect squares sequence', 'a(n) = n²', 1),
 (2, 'divide_by_2', 'Halve each term', 'a(n) = a(1) ÷ 2^(n-1)', 2),
-(2, 'tripling', 'Multiply by 3 each time', 'a(n) = a(1) × 3^(n-1)', 3),
+--(2, 'tripling', 'Multiply by 3 each time', 'a(n) = a(1) × 3^(n-1)', 3),
+(2, 'alternating_add_subtract', 'Pattern switches between operations', 'Alternates +a, -b', 3),
 (2, 'add_consecutive_numbers', 'Add 1, then 2, then 3, etc', 'a(n) = a(1) + triangular(n-1)', 4),
-(2, 'powers_of_numbers', 'Various exponential patterns', 'a(n) = base^f(n)', 5),
+(3, 'fibonacci_sequence', 'Each number is sum of previous two', 'a(n) = a(n-1) + a(n-2)', 5),
 
 -- Level 3: Advanced Patterns
-(3, 'fibonacci_sequence', 'Each number is sum of previous two', 'a(n) = a(n-1) + a(n-2)', 1),
+(3, 'powers_of_numbers', 'Various exponential patterns', 'a(n) = base^f(n)', 1),
 (3, 'triangular_numbers', 'n(n+1)/2 formula', 'a(n) = n(n+1)/2', 2),
 (3, 'increasing_patterns', 'Differences increase by 1 each time', 'Second differences = 1', 3),
 (3, 'quadratic_sequences', 'Second differences are constant', 'a(n) = an² + bn + c', 4),
@@ -96,18 +96,6 @@ INSERT INTO patterns_detective.sequences (pattern_type_id, sequence_numbers, seq
 ((SELECT id FROM patterns_detective.pattern_types WHERE name = 'doubling'), ARRAY[9, 18, 36, 72, 144, 288, 576], '{"operation": "multiply", "factor": 2}'),
 ((SELECT id FROM patterns_detective.pattern_types WHERE name = 'doubling'), ARRAY[25, 50, 100, 200, 400, 800, 1600], '{"operation": "multiply", "factor": 2}');
 
--- Alternating add/subtract (9 sequences max)
-INSERT INTO patterns_detective.sequences (pattern_type_id, sequence_numbers, sequence_rule) VALUES
-((SELECT id FROM patterns_detective.pattern_types WHERE name = 'alternating_add_subtract'), ARRAY[10, 15, 12, 17, 14, 19, 16], '{"operations": ["+5", "-3"]}'),
-((SELECT id FROM patterns_detective.pattern_types WHERE name = 'alternating_add_subtract'), ARRAY[20, 24, 21, 25, 22, 26, 23], '{"operations": ["+4", "-3"]}'),
-((SELECT id FROM patterns_detective.pattern_types WHERE name = 'alternating_add_subtract'), ARRAY[8, 12, 9, 13, 10, 14, 11], '{"operations": ["+4", "-3"]}'),
-((SELECT id FROM patterns_detective.pattern_types WHERE name = 'alternating_add_subtract'), ARRAY[5, 11, 7, 13, 9, 15, 11], '{"operations": ["+6", "-4"]}'),
-((SELECT id FROM patterns_detective.pattern_types WHERE name = 'alternating_add_subtract'), ARRAY[15, 18, 16, 19, 17, 20, 18], '{"operations": ["+3", "-2"]}'),
-((SELECT id FROM patterns_detective.pattern_types WHERE name = 'alternating_add_subtract'), ARRAY[30, 37, 32, 39, 34, 41, 36], '{"operations": ["+7", "-5"]}'),
-((SELECT id FROM patterns_detective.pattern_types WHERE name = 'alternating_add_subtract'), ARRAY[12, 20, 14, 22, 16, 24, 18], '{"operations": ["+8", "-6"]}'),
-((SELECT id FROM patterns_detective.pattern_types WHERE name = 'alternating_add_subtract'), ARRAY[25, 30, 27, 32, 29, 34, 31], '{"operations": ["+5", "-3"]}'),
-((SELECT id FROM patterns_detective.pattern_types WHERE name = 'alternating_add_subtract'), ARRAY[40, 46, 42, 48, 44, 50, 46], '{"operations": ["+6", "-4"]}');
-
 -- Skip counting (9 sequences max)
 INSERT INTO patterns_detective.sequences (pattern_type_id, sequence_numbers, sequence_rule) VALUES
 ((SELECT id FROM patterns_detective.pattern_types WHERE name = 'skip_counting'), ARRAY[6, 9, 12, 15, 18, 21, 24], '{"operation": "count_by", "step": 3}'),
@@ -121,6 +109,18 @@ INSERT INTO patterns_detective.sequences (pattern_type_id, sequence_numbers, seq
 ((SELECT id FROM patterns_detective.pattern_types WHERE name = 'skip_counting'), ARRAY[22, 33, 44, 55, 66, 77, 88], '{"operation": "count_by", "step": 11}');
 
 -- Insert sequence data for Level 2: Intermediate Patterns
+-- Alternating add/subtract (9 sequences max)
+INSERT INTO patterns_detective.sequences (pattern_type_id, sequence_numbers, sequence_rule) VALUES
+((SELECT id FROM patterns_detective.pattern_types WHERE name = 'alternating_add_subtract'), ARRAY[10, 15, 12, 17, 14, 19, 16], '{"operations": ["+5", "-3"]}'),
+((SELECT id FROM patterns_detective.pattern_types WHERE name = 'alternating_add_subtract'), ARRAY[20, 24, 21, 25, 22, 26, 23], '{"operations": ["+4", "-3"]}'),
+((SELECT id FROM patterns_detective.pattern_types WHERE name = 'alternating_add_subtract'), ARRAY[8, 12, 9, 13, 10, 14, 11], '{"operations": ["+4", "-3"]}'),
+((SELECT id FROM patterns_detective.pattern_types WHERE name = 'alternating_add_subtract'), ARRAY[5, 11, 7, 13, 9, 15, 11], '{"operations": ["+6", "-4"]}'),
+((SELECT id FROM patterns_detective.pattern_types WHERE name = 'alternating_add_subtract'), ARRAY[15, 18, 16, 19, 17, 20, 18], '{"operations": ["+3", "-2"]}'),
+((SELECT id FROM patterns_detective.pattern_types WHERE name = 'alternating_add_subtract'), ARRAY[30, 37, 32, 39, 34, 41, 36], '{"operations": ["+7", "-5"]}'),
+((SELECT id FROM patterns_detective.pattern_types WHERE name = 'alternating_add_subtract'), ARRAY[12, 20, 14, 22, 16, 24, 18], '{"operations": ["+8", "-6"]}'),
+((SELECT id FROM patterns_detective.pattern_types WHERE name = 'alternating_add_subtract'), ARRAY[25, 30, 27, 32, 29, 34, 31], '{"operations": ["+5", "-3"]}'),
+((SELECT id FROM patterns_detective.pattern_types WHERE name = 'alternating_add_subtract'), ARRAY[40, 46, 42, 48, 44, 50, 46], '{"operations": ["+6", "-4"]}');
+
 -- Square numbers (9 sequences max)
 INSERT INTO patterns_detective.sequences (pattern_type_id, sequence_numbers, sequence_rule) VALUES
 ((SELECT id FROM patterns_detective.pattern_types WHERE name = 'square_numbers'), ARRAY[1, 4, 9, 16, 25, 36, 49], '{"operation": "square", "formula": "n²"}'),
@@ -144,12 +144,12 @@ INSERT INTO patterns_detective.sequences (pattern_type_id, sequence_numbers, seq
 ((SELECT id FROM patterns_detective.pattern_types WHERE name = 'divide_by_2'), ARRAY[32768, 16384, 8192, 4096, 2048, 1024, 512], '{"operation": "divide", "factor": 2}');
 
 -- Tripling (5 sequences - limited by 50000 constraint)
-INSERT INTO patterns_detective.sequences (pattern_type_id, sequence_numbers, sequence_rule) VALUES
-((SELECT id FROM patterns_detective.pattern_types WHERE name = 'tripling'), ARRAY[2, 6, 18, 54, 162, 486, 1458], '{"operation": "multiply", "factor": 3}'),
-((SELECT id FROM patterns_detective.pattern_types WHERE name = 'tripling'), ARRAY[1, 3, 9, 27, 81, 243, 729], '{"operation": "multiply", "factor": 3}'),
-((SELECT id FROM patterns_detective.pattern_types WHERE name = 'tripling'), ARRAY[3, 9, 27, 81, 243, 729, 2187], '{"operation": "multiply", "factor": 3}'),
-((SELECT id FROM patterns_detective.pattern_types WHERE name = 'tripling'), ARRAY[4, 12, 36, 108, 324, 972, 2916], '{"operation": "multiply", "factor": 3}'),
-((SELECT id FROM patterns_detective.pattern_types WHERE name = 'tripling'), ARRAY[5, 15, 45, 135, 405, 1215, 3645], '{"operation": "multiply", "factor": 3}');
+-- INSERT INTO patterns_detective.sequences (pattern_type_id, sequence_numbers, sequence_rule) VALUES
+-- ((SELECT id FROM patterns_detective.pattern_types WHERE name = 'tripling'), ARRAY[2, 6, 18, 54, 162, 486, 1458], '{"operation": "multiply", "factor": 3}'),
+-- ((SELECT id FROM patterns_detective.pattern_types WHERE name = 'tripling'), ARRAY[1, 3, 9, 27, 81, 243, 729], '{"operation": "multiply", "factor": 3}'),
+-- ((SELECT id FROM patterns_detective.pattern_types WHERE name = 'tripling'), ARRAY[3, 9, 27, 81, 243, 729, 2187], '{"operation": "multiply", "factor": 3}'),
+-- ((SELECT id FROM patterns_detective.pattern_types WHERE name = 'tripling'), ARRAY[4, 12, 36, 108, 324, 972, 2916], '{"operation": "multiply", "factor": 3}'),
+-- ((SELECT id FROM patterns_detective.pattern_types WHERE name = 'tripling'), ARRAY[5, 15, 45, 135, 405, 1215, 3645], '{"operation": "multiply", "factor": 3}');
 
 -- Add consecutive numbers (9 sequences max)
 INSERT INTO patterns_detective.sequences (pattern_type_id, sequence_numbers, sequence_rule) VALUES
@@ -163,16 +163,6 @@ INSERT INTO patterns_detective.sequences (pattern_type_id, sequence_numbers, seq
 ((SELECT id FROM patterns_detective.pattern_types WHERE name = 'add_consecutive_numbers'), ARRAY[1, 2, 4, 7, 11, 16, 22], '{"operation": "add_consecutive", "pattern": "+1,+2,+3,+4,+5,+6"}'),
 ((SELECT id FROM patterns_detective.pattern_types WHERE name = 'add_consecutive_numbers'), ARRAY[25, 26, 28, 31, 35, 40, 46], '{"operation": "add_consecutive", "pattern": "+1,+2,+3,+4,+5,+6"}');
 
--- Powers of numbers (6 sequences - limited by 50000 constraint)
-INSERT INTO patterns_detective.sequences (pattern_type_id, sequence_numbers, sequence_rule) VALUES
-((SELECT id FROM patterns_detective.pattern_types WHERE name = 'powers_of_numbers'), ARRAY[3, 9, 27, 81, 243, 729, 2187], '{"operation": "power", "base": 3, "formula": "3^n"}'),
-((SELECT id FROM patterns_detective.pattern_types WHERE name = 'powers_of_numbers'), ARRAY[2, 8, 32, 128, 512, 2048, 8192], '{"operation": "power", "formula": "2^(2n-1)"}'),
-((SELECT id FROM patterns_detective.pattern_types WHERE name = 'powers_of_numbers'), ARRAY[1, 16, 81, 256, 625, 1296, 2401], '{"operation": "power", "formula": "n^4"}'),
-((SELECT id FROM patterns_detective.pattern_types WHERE name = 'powers_of_numbers'), ARRAY[4, 16, 64, 256, 1024, 4096, 16384], '{"operation": "power", "formula": "4^n"}'),
-((SELECT id FROM patterns_detective.pattern_types WHERE name = 'powers_of_numbers'), ARRAY[5, 25, 125, 625, 3125, 15625, 78125], '{"operation": "power", "formula": "5^n"}'),
-((SELECT id FROM patterns_detective.pattern_types WHERE name = 'powers_of_numbers'), ARRAY[2, 8, 32, 128, 512, 2048, 8192], '{"operation": "power", "formula": "2^(2n+1)"}');
-
--- Insert sequence data for Level 3: Advanced Patterns
 -- Fibonacci sequence (9 sequences max)
 INSERT INTO patterns_detective.sequences (pattern_type_id, sequence_numbers, sequence_rule) VALUES
 ((SELECT id FROM patterns_detective.pattern_types WHERE name = 'fibonacci_sequence'), ARRAY[1, 1, 2, 3, 5, 8, 13], '{"operation": "fibonacci", "formula": "F(n) = F(n-1) + F(n-2)"}'),
@@ -184,6 +174,16 @@ INSERT INTO patterns_detective.sequences (pattern_type_id, sequence_numbers, seq
 ((SELECT id FROM patterns_detective.pattern_types WHERE name = 'fibonacci_sequence'), ARRAY[8, 13, 21, 34, 55, 89, 144], '{"operation": "fibonacci", "formula": "F(n) = F(n-1) + F(n-2)"}'),
 ((SELECT id FROM patterns_detective.pattern_types WHERE name = 'fibonacci_sequence'), ARRAY[13, 21, 34, 55, 89, 144, 233], '{"operation": "fibonacci", "formula": "F(n) = F(n-1) + F(n-2)"}'),
 ((SELECT id FROM patterns_detective.pattern_types WHERE name = 'fibonacci_sequence'), ARRAY[4, 7, 11, 18, 29, 47, 76], '{"operation": "fibonacci", "start": [4,7]}');
+
+-- Insert sequence data for Level 3: Advanced Patterns
+-- Powers of numbers (6 sequences - limited by 50000 constraint)
+INSERT INTO patterns_detective.sequences (pattern_type_id, sequence_numbers, sequence_rule) VALUES
+((SELECT id FROM patterns_detective.pattern_types WHERE name = 'powers_of_numbers'), ARRAY[3, 9, 27, 81, 243, 729, 2187], '{"operation": "power", "base": 3, "formula": "3^n"}'),
+((SELECT id FROM patterns_detective.pattern_types WHERE name = 'powers_of_numbers'), ARRAY[2, 8, 32, 128, 512, 2048, 8192], '{"operation": "power", "formula": "2^(2n-1)"}'),
+((SELECT id FROM patterns_detective.pattern_types WHERE name = 'powers_of_numbers'), ARRAY[1, 16, 81, 256, 625, 1296, 2401], '{"operation": "power", "formula": "n^4"}'),
+-- ((SELECT id FROM patterns_detective.pattern_types WHERE name = 'powers_of_numbers'), ARRAY[4, 16, 64, 256, 1024, 4096, 16384], '{"operation": "power", "formula": "4^n"}'),
+-- ((SELECT id FROM patterns_detective.pattern_types WHERE name = 'powers_of_numbers'), ARRAY[5, 25, 125, 625, 3125, 15625, 78125], '{"operation": "power", "formula": "5^n"}'),
+((SELECT id FROM patterns_detective.pattern_types WHERE name = 'powers_of_numbers'), ARRAY[2, 8, 32, 128, 512, 2048, 8192], '{"operation": "power", "formula": "2^(2n+1)"}');
 
 -- Triangular numbers (9 sequences max)
 INSERT INTO patterns_detective.sequences (pattern_type_id, sequence_numbers, sequence_rule) VALUES
@@ -286,17 +286,17 @@ INSERT INTO patterns_detective.sequences (pattern_type_id, sequence_numbers, seq
 ((SELECT id FROM patterns_detective.pattern_types WHERE name = 'powers_of_2_operations'), ARRAY[15, 31, 63, 127, 255, 511, 1023], '{"operation": "2^n_minus_1", "start": 4}'),
 ((SELECT id FROM patterns_detective.pattern_types WHERE name = 'powers_of_2_operations'), ARRAY[31, 63, 127, 255, 511, 1023, 2047], '{"operation": "2^n_minus_1", "start": 5}'),
 ((SELECT id FROM patterns_detective.pattern_types WHERE name = 'powers_of_2_operations'), ARRAY[63, 127, 255, 511, 1023, 2047, 4095], '{"operation": "2^n_minus_1", "start": 6}'),
-((SELECT id FROM patterns_detective.pattern_types WHERE name = 'powers_of_2_operations'), ARRAY[127, 255, 511, 1023, 2047, 4095, 8191], '{"operation": "2^n_minus_1", "start": 7}'),
-((SELECT id FROM patterns_detective.pattern_types WHERE name = 'powers_of_2_operations'), ARRAY[255, 511, 1023, 2047, 4095, 8191, 16383], '{"operation": "2^n_minus_1", "start": 8}');
+((SELECT id FROM patterns_detective.pattern_types WHERE name = 'powers_of_2_operations'), ARRAY[127, 255, 511, 1023, 2047, 4095, 8191], '{"operation": "2^n_minus_1", "start": 7}');
+-- ((SELECT id FROM patterns_detective.pattern_types WHERE name = 'powers_of_2_operations'), ARRAY[255, 511, 1023, 2047, 4095, 8191, 16383], '{"operation": "2^n_minus_1", "start": 8}');
 
 -- Insert sequence data for Level 5: Master Patterns
 -- Factorial sequence (8 sequences - limited by 50000 constraint)
 INSERT INTO patterns_detective.sequences (pattern_type_id, sequence_numbers, sequence_rule) VALUES
 ((SELECT id FROM patterns_detective.pattern_types WHERE name = 'factorial_sequence'), ARRAY[1, 2, 6, 24, 120, 720, 5040], '{"operation": "factorial", "formula": "n!"}'),
-((SELECT id FROM patterns_detective.pattern_types WHERE name = 'factorial_sequence'), ARRAY[2, 6, 24, 120, 720, 5040, 40320], '{"operation": "factorial", "start": 2}'),
+-- ((SELECT id FROM patterns_detective.pattern_types WHERE name = 'factorial_sequence'), ARRAY[2, 6, 24, 120, 720, 5040, 40320], '{"operation": "factorial", "start": 2}'),
 ((SELECT id FROM patterns_detective.pattern_types WHERE name = 'factorial_sequence'), ARRAY[1, 1, 2, 6, 24, 120, 720], '{"operation": "factorial", "start": 0}'),
-((SELECT id FROM patterns_detective.pattern_types WHERE name = 'factorial_sequence'), ARRAY[2, 2, 4, 12, 48, 240, 1440], '{"operation": "factorial_mult", "multiplier": 2}'),
-((SELECT id FROM patterns_detective.pattern_types WHERE name = 'factorial_sequence'), ARRAY[3, 6, 18, 72, 360, 2160, 15120], '{"operation": "factorial_mult", "multiplier": 3}');
+((SELECT id FROM patterns_detective.pattern_types WHERE name = 'factorial_sequence'), ARRAY[2, 2, 4, 12, 48, 240, 1440], '{"operation": "factorial_mult", "multiplier": 2}');
+-- ((SELECT id FROM patterns_detective.pattern_types WHERE name = 'factorial_sequence'), ARRAY[3, 6, 18, 72, 360, 2160, 15120], '{"operation": "factorial_mult", "multiplier": 3}');
 
 -- Pentagonal numbers (9 sequences max)
 INSERT INTO patterns_detective.sequences (pattern_type_id, sequence_numbers, sequence_rule) VALUES
@@ -398,8 +398,8 @@ INSERT INTO patterns_detective.sequences (pattern_type_id, sequence_numbers, seq
 -- Stirling numbers (3 sequences)
 INSERT INTO patterns_detective.sequences (pattern_type_id, sequence_numbers, sequence_rule) VALUES
 ((SELECT id FROM patterns_detective.pattern_types WHERE name = 'stirling_numbers'), ARRAY[1, 1, 3, 7, 25, 90, 350], '{"operation": "stirling_second", "k": 2}'),
-((SELECT id FROM patterns_detective.pattern_types WHERE name = 'stirling_numbers'), ARRAY[1, 3, 7, 25, 90, 350, 1701], '{"operation": "stirling_second", "k": 3}'),
-((SELECT id FROM patterns_detective.pattern_types WHERE name = 'stirling_numbers'), ARRAY[1, 7, 25, 90, 350, 1701, 10206], '{"operation": "stirling_second", "k": 4}');
+((SELECT id FROM patterns_detective.pattern_types WHERE name = 'stirling_numbers'), ARRAY[1, 3, 7, 25, 90, 350, 1701], '{"operation": "stirling_second", "k": 3}');
+-- ((SELECT id FROM patterns_detective.pattern_types WHERE name = 'stirling_numbers'), ARRAY[1, 7, 25, 90, 350, 1701, 10206], '{"operation": "stirling_second", "k": 4}');
 
 -- Polynomial sequences (3 sequences)
 INSERT INTO patterns_detective.sequences (pattern_type_id, sequence_numbers, sequence_rule) VALUES
