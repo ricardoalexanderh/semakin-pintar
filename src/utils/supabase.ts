@@ -74,6 +74,44 @@ export const getRandomSequencesByLevel = async (levelOrder: number, limit: numbe
   }
 }
 
+// Smart shuffle to prevent consecutive questions with same pattern type
+const shuffleAvoidingConsecutivePatterns = (sequences: PatternSequence[]): PatternSequence[] => {
+  if (sequences.length <= 1) return sequences
+  
+  const result: PatternSequence[] = []
+  const remaining = [...sequences]
+  
+  // Start with a random sequence
+  const firstIndex = Math.floor(Math.random() * remaining.length)
+  result.push(remaining.splice(firstIndex, 1)[0])
+  
+  // For each subsequent position, try to pick a different pattern type
+  while (remaining.length > 0) {
+    const lastPattern = result[result.length - 1].pattern_name
+    
+    // Find sequences with different pattern types
+    const differentPatterns = remaining.filter(seq => seq.pattern_name !== lastPattern)
+    
+    let nextSequence: PatternSequence
+    if (differentPatterns.length > 0) {
+      // Pick randomly from different pattern types
+      const randomIndex = Math.floor(Math.random() * differentPatterns.length)
+      nextSequence = differentPatterns[randomIndex]
+      // Remove from remaining array
+      const originalIndex = remaining.findIndex(seq => seq.id === nextSequence.id)
+      remaining.splice(originalIndex, 1)
+    } else {
+      // If no different patterns available, pick any remaining sequence
+      const randomIndex = Math.floor(Math.random() * remaining.length)
+      nextSequence = remaining.splice(randomIndex, 1)[0]
+    }
+    
+    result.push(nextSequence)
+  }
+  
+  return result
+}
+
 // Stratified selection to ensure pattern type diversity for levels 1-3
 export const getStratifiedSequencesByLevel = async (levelOrder: number, limit: number): Promise<PatternSequence[]> => {
   try {
@@ -147,13 +185,10 @@ export const getStratifiedSequencesByLevel = async (levelOrder: number, limit: n
       }
     }
     
-    // Shuffle the final selection to randomize order
-    for (let i = selectedSequences.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [selectedSequences[i], selectedSequences[j]] = [selectedSequences[j], selectedSequences[i]]
-    }
+    // Smart shuffle to avoid consecutive questions with same pattern type
+    const shuffledSequences = shuffleAvoidingConsecutivePatterns(selectedSequences)
     
-    return selectedSequences
+    return shuffledSequences
     
   } catch (error) {
     console.error('Error in getStratifiedSequencesByLevel:', error)
