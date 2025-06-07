@@ -500,7 +500,7 @@ const PatternsDetectiveGame: React.FC = () => {
                                 <div
                                     className="bg-purple-600 h-3 rounded-full transition-all duration-300"
                                     style={{
-                                        width: `${((currentQuestion + 1) / questionsPerLevel) * 100}%`
+                                        width: `${(currentQuestion / questionsPerLevel) * 100}%`
                                     }}
                                 ></div>
                             </div>
