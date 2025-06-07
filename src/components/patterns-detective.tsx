@@ -510,10 +510,18 @@ const PatternsDetectiveGame: React.FC = () => {
                             </div>
                         </div>
 
+                        <div className="mb-4">
+                            <div className="text-center mb-2">
+                                <span className={`${currentTheme.primary} font-semibold`}>
+                                    Question {currentQuestion + 1} of {getQuestionsPerLevel(settings.level)}
+                                </span>
+                            </div>
+                        </div>
+
                         <div className="mb-6">
                             <div className="flex justify-between text-sm mb-2">
                                 <span className={currentTheme.secondary}>
-                                    Question {currentQuestion + 1} of {getQuestionsPerLevel(settings.level)}
+                                    Level Progress
                                 </span>
                                 <span className={currentTheme.secondary}>
                                     {getLevelDisplayName(settings.level)}
