@@ -472,7 +472,7 @@ const PatternsDetectiveGame: React.FC = () => {
                                 🧠 Find the missing number in each mathematical sequence!
                             </p>
                             <p className={`text-xs sm:text-sm ${currentTheme.secondary} mb-4`}>
-                                📊 Complete 6 challenging levels • Levels 1-2: 10 questions • Level 3: 5 questions • Levels 4-6: 3 questions • <strong>Olympic Level awaits!</strong>
+                                📊 Complete 6 challenging levels • Levels 1-2: 10 questions • Level 3: 5 questions • Levels 4-5: 3 questions • <strong>Final Olympic Level awaits!</strong>
                             </p>
                             
                             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-6">
