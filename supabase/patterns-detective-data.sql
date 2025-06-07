@@ -11,7 +11,7 @@ INSERT INTO patterns_detective.pattern_types (level_id, name, description, formu
 (1, 'plus_any_number', 'Add the same number each time', 'a(n) = a(1) + (n-1)×d', 1),
 (1, 'minus_any_number', 'Subtract the same number each time', 'a(n) = a(1) - (n-1)×d', 2),
 (1, 'doubling', 'Multiply by 2 each time', 'a(n) = a(1) × 2^(n-1)', 3),
-(1, 'skip_counting', 'Count by specific intervals', 'a(n) = a(1) + (n-1)×step', 5),
+(1, 'skip_counting', 'Count by specific intervals', 'a(n) = a(1) + (n-1)×step', 4),
 
 -- Level 2: Intermediate Patterns
 (2, 'square_numbers', 'Perfect squares sequence', 'a(n) = n²', 1),
@@ -19,7 +19,7 @@ INSERT INTO patterns_detective.pattern_types (level_id, name, description, formu
 --(2, 'tripling', 'Multiply by 3 each time', 'a(n) = a(1) × 3^(n-1)', 3),
 (2, 'alternating_add_subtract', 'Pattern switches between operations', 'Alternates +a, -b', 3),
 (2, 'add_consecutive_numbers', 'Add 1, then 2, then 3, etc', 'a(n) = a(1) + triangular(n-1)', 4),
-(3, 'fibonacci_sequence', 'Each number is sum of previous two', 'a(n) = a(n-1) + a(n-2)', 5),
+(2, 'fibonacci_sequence', 'Each number is sum of previous two', 'a(n) = a(n-1) + a(n-2)', 5),
 
 -- Level 3: Advanced Patterns
 (3, 'powers_of_numbers', 'Various exponential patterns', 'a(n) = base^f(n)', 1),
