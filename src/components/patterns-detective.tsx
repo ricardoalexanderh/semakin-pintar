@@ -294,6 +294,9 @@ const PatternsDetectiveGame: React.FC = () => {
         setGameStartTime(Date.now());
         setProgressComplete(false);
         
+        // Clear previous questions to prevent carryover
+        setAllQuestions([]);
+        
         // Use forced level or current settings level
         const levelToUse = forceLevel ?? settings.level;
         
@@ -349,7 +352,8 @@ const PatternsDetectiveGame: React.FC = () => {
                             
                             setTimeout(async () => {
                                 setShowLevelUpPopup(false);
-                                await startGame();
+                                // Explicitly start game with the next level to ensure fresh questions
+                                await startGame(nextLevel);
                             }, 3000);
                         } else {
                             playSound('gameComplete');
