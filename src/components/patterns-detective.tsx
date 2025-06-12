@@ -333,19 +333,23 @@ const PatternsDetectiveGame: React.FC = () => {
         }
     };
 
-    const startGame = async (forceLevel?: number): Promise<void> => {
+    const startGame = async (forceLevel?: number, preserveProgress?: boolean): Promise<void> => {
         playSound('buttonClick');
         
-        // Always reset game state when starting
+        // Reset basic game state
         setCurrentQuestion(0);
-        setScore(0);
-        setLives(3);
-        setStreak(0);
         setSelectedAnswer(null);
         setFeedback('');
         setGameState('playing');
-        setGameStartTime(Date.now());
         setProgressComplete(false);
+        
+        // Only reset score, streak, lives, and start time if NOT preserving progress
+        if (!preserveProgress) {
+            setScore(0);
+            setLives(3);
+            setStreak(0);
+            setGameStartTime(Date.now());
+        }
         
         // Clear previous questions to prevent carryover
         setAllQuestions([]);
@@ -405,8 +409,8 @@ const PatternsDetectiveGame: React.FC = () => {
                             
                             setTimeout(async () => {
                                 setShowLevelUpPopup(false);
-                                // Explicitly start game with the next level to ensure fresh questions
-                                await startGame(nextLevel);
+                                // Start next level while preserving score and streak
+                                await startGame(nextLevel, true);
                             }, 3000);
                         } else {
                             playSound('gameComplete');
