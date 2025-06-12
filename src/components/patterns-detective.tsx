@@ -34,6 +34,16 @@ interface Theme {
     secondary: string;
 }
 
+interface SavedGameState {
+    currentQuestion: number;
+    score: number;
+    lives: number;
+    streak: number;
+    level: number;
+    allQuestions: Question[];
+    gameStartTime: number;
+}
+
 type GameState = 'playing' | 'results' | 'gameOver';
 type SoundType = 'correct' | 'incorrect' | 'levelUp' | 'gameComplete' | 'buttonClick' | 'hint' | 'gameOver';
 
@@ -49,7 +59,13 @@ const PatternsDetectiveGame: React.FC = () => {
             const stored = localStorage.getItem('patterns-detective-settings');
             if (stored) {
                 const parsed = JSON.parse(stored);
-                settingsRef.current = { ...settingsRef.current, ...parsed };
+                // Only restore theme and sound settings, not level (level comes from game state)
+                const settingsToRestore = {
+                    level: settingsRef.current.level, // Keep default level
+                    theme: parsed.theme || settingsRef.current.theme,
+                    soundEnabled: parsed.soundEnabled !== undefined ? parsed.soundEnabled : settingsRef.current.soundEnabled
+                };
+                settingsRef.current = settingsToRestore;
                 return settingsRef.current;
             }
         } catch (error) {
@@ -102,6 +118,43 @@ const PatternsDetectiveGame: React.FC = () => {
             localStorage.setItem('patterns-detective-settings', JSON.stringify(updatedSettings));
         } catch (error) {
             console.log('Could not save settings to storage:', error);
+        }
+    };
+
+    const saveGameState = (): void => {
+        try {
+            const gameState: SavedGameState = {
+                currentQuestion,
+                score,
+                lives,
+                streak,
+                level: settings.level,
+                allQuestions,
+                gameStartTime
+            };
+            localStorage.setItem('patterns-detective-game-state', JSON.stringify(gameState));
+        } catch (error) {
+            console.log('Could not save game state to storage:', error);
+        }
+    };
+
+    const loadGameState = (): SavedGameState | null => {
+        try {
+            const stored = localStorage.getItem('patterns-detective-game-state');
+            if (stored) {
+                return JSON.parse(stored);
+            }
+        } catch (error) {
+            console.log('Could not load game state from storage:', error);
+        }
+        return null;
+    };
+
+    const clearGameState = (): void => {
+        try {
+            localStorage.removeItem('patterns-detective-game-state');
+        } catch (error) {
+            console.log('Could not clear game state from storage:', error);
         }
     };
 
@@ -394,6 +447,9 @@ const PatternsDetectiveGame: React.FC = () => {
             });
         }, 0);
 
+        // Clear saved game state on restart
+        clearGameState();
+
         // Reset all game state first
         setShowRestartConfirm(false);
         setCurrentQuestion(0);
@@ -429,6 +485,8 @@ const PatternsDetectiveGame: React.FC = () => {
             });
         }, 0);
 
+        // Clear saved state when game is completed
+        clearGameState();
         setGameState('results');
     };
 
@@ -445,14 +503,41 @@ const PatternsDetectiveGame: React.FC = () => {
     };
 
     useEffect(() => {
-        startGame();
+        // Try to restore saved game state first
+        const savedState = loadGameState();
+        if (savedState && savedState.lives > 0 && savedState.allQuestions.length > 0) {
+            // Restore the saved game state
+            setCurrentQuestion(savedState.currentQuestion);
+            setScore(savedState.score);
+            setLives(savedState.lives);
+            setStreak(savedState.streak);
+            setAllQuestions(savedState.allQuestions);
+            setGameStartTime(savedState.gameStartTime);
+            setGameState('playing');
+            
+            // Update settings level to match saved game level
+            if (savedState.level !== settings.level) {
+                updateSettings(prev => ({ ...prev, level: savedState.level as GameSettings['level'] }));
+            }
+        } else {
+            // No saved state or invalid state, start fresh
+            startGame();
+        }
     }, []);  // eslint-disable-line react-hooks/exhaustive-deps
 
     useEffect(() => {
         if (gameState === 'gameOver') {
             playSound('gameOver');
+            clearGameState(); // Clear saved state on game over
         }
     }, [gameState]);  // eslint-disable-line react-hooks/exhaustive-deps
+
+    // Save game state whenever key values change
+    useEffect(() => {
+        if (gameState === 'playing' && allQuestions.length > 0) {
+            saveGameState();
+        }
+    }, [currentQuestion, score, lives, streak, settings.level, allQuestions, gameStartTime, gameState]);  // eslint-disable-line react-hooks/exhaustive-deps
 
     if (loading) {
         return (
