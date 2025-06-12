@@ -573,15 +573,19 @@ const PatternsDetectiveGame: React.FC = () => {
                                         key={index}
                                         onClick={() => selectAnswer(option)}
                                         disabled={!!selectedAnswer}
-                                        className={`w-full h-16 border-3 rounded-xl flex items-center justify-center text-xl font-bold transition-all transform hover:scale-105 shadow-lg ${
+                                        className={`w-full h-16 border-3 rounded-xl flex items-center justify-center text-xl font-bold transition-all transform hover:scale-105 shadow-lg touch-manipulation select-none ${
                                             selectedAnswer
                                                 ? option.value === selectedAnswer.value
                                                     ? selectedAnswer.value === currentQ.correctAnswer.value
                                                         ? 'border-green-500 bg-green-100 text-green-800'
                                                         : 'border-red-500 bg-red-100 text-red-800'
                                                     : 'border-gray-300 bg-gray-100 text-gray-600 opacity-60'
-                                                : 'border-blue-500 bg-blue-50 hover:border-blue-600 hover:bg-blue-100 text-blue-800 hover:shadow-xl cursor-pointer'
+                                                : 'border-blue-500 bg-blue-50 hover:border-blue-600 hover:bg-blue-100 text-blue-800 hover:shadow-xl cursor-pointer active:scale-95 focus:outline-none focus:ring-2 focus:ring-blue-300 focus:ring-opacity-50'
                                         }`}
+                                        onTouchEnd={(e) => {
+                                            // Remove focus after touch to prevent persistent highlighting
+                                            e.currentTarget.blur();
+                                        }}
                                     >
                                         {option.display}
                                     </button>
