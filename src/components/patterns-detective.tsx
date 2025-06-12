@@ -543,6 +543,7 @@ const PatternsDetectiveGame: React.FC = () => {
         }
     }, [currentQuestion, score, lives, streak, settings.level, allQuestions, gameStartTime, gameState]);  // eslint-disable-line react-hooks/exhaustive-deps
 
+
     if (loading) {
         return (
             <div className={`min-h-screen bg-gradient-to-br ${currentTheme.playingBg} p-4 flex items-center justify-center`}>
@@ -656,24 +657,38 @@ const PatternsDetectiveGame: React.FC = () => {
                             <h4 className={`text-base font-bold ${currentTheme.primary} mb-4 text-center`}>
                                 Choose the correct answer:
                             </h4>
-                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-md mx-auto">
+                            <div key={`question-${currentQuestion}`} className="grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-md mx-auto">
                                 {currentQ.options.map((option, index) => (
                                     <button
-                                        key={index}
-                                        onClick={() => selectAnswer(option)}
+                                        key={`q${currentQuestion}-option${index}`}
+                                        onClick={(e) => {
+                                            selectAnswer(option);
+                                            // Force blur after a short delay to ensure it happens after any state updates
+                                            setTimeout(() => {
+                                                e.currentTarget.blur();
+                                                // Force DOM update
+                                                e.currentTarget.style.pointerEvents = 'none';
+                                                setTimeout(() => {
+                                                    e.currentTarget.style.pointerEvents = 'auto';
+                                                }, 10);
+                                            }, 50);
+                                        }}
                                         disabled={!!selectedAnswer}
-                                        className={`w-full h-16 border-3 rounded-xl flex items-center justify-center text-xl font-bold transition-all transform hover:scale-105 shadow-lg touch-manipulation select-none ${
+                                        className={`w-full h-16 border-3 rounded-xl flex items-center justify-center text-xl font-bold transition-all transform shadow-lg touch-manipulation ${
                                             selectedAnswer
                                                 ? option.value === selectedAnswer.value
                                                     ? selectedAnswer.value === currentQ.correctAnswer.value
                                                         ? 'border-green-500 bg-green-100 text-green-800'
                                                         : 'border-red-500 bg-red-100 text-red-800'
                                                     : 'border-gray-300 bg-gray-100 text-gray-600 opacity-60'
-                                                : 'border-blue-500 bg-blue-50 hover:border-blue-600 hover:bg-blue-100 text-blue-800 hover:shadow-xl cursor-pointer active:scale-95 focus:outline-none focus:ring-2 focus:ring-blue-300 focus:ring-opacity-50'
+                                                : 'border-blue-500 bg-blue-50 text-blue-800 cursor-pointer hover:border-blue-600 hover:bg-blue-100 hover:shadow-xl active:scale-95 focus:outline-none'
                                         }`}
-                                        onTouchEnd={(e) => {
-                                            // Remove focus after touch to prevent persistent highlighting
-                                            e.currentTarget.blur();
+                                        style={{
+                                            WebkitTapHighlightColor: 'transparent',
+                                            WebkitTouchCallout: 'none',
+                                            WebkitUserSelect: 'none',
+                                            userSelect: 'none',
+                                            outline: 'none'
                                         }}
                                     >
                                         {option.display}
