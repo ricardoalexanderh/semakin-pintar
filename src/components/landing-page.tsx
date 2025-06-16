@@ -295,7 +295,7 @@ const LandingPage: React.FC<LandingPageProps> = () => {
                                 </div>
                                 <div>
                                     <h3 className="text-lg md:text-xl font-bold text-green-700">Featured: Mathcha Cafe</h3>
-                                    <p className="text-sm md:text-base text-amber-700">Serve customers with math skills in this cozy cafe adventure!</p>
+                                    <p className="text-sm md:text-base text-amber-700">Serve customers with math skills in this cozy cafe management!</p>
                                 </div>
                             </div>
                             <Link

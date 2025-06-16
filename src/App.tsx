@@ -377,11 +377,11 @@ const MathchaCafePage = () => {
   return (
     <>
       <SEOHead
-        title="Mathcha Cafe Game - Math Cafe Adventure & Problem Solving | Semakin Pintar"
+        title="Mathcha Cafe Game - Math Cafe Management & Problem Solving | Semakin Pintar"
         description="Run a math cafe! Serve customers by solving addition, subtraction, budgeting, and discount problems. Fun educational game with progressive difficulty levels."
         keywords="mathcha cafe, math cafe game, cafe math, addition subtraction, budgeting math, discount problems, educational games, kids math, restaurant math"
         canonicalUrl="https://www.semakinpintar.com/games/mathcha-cafe"
-        ogTitle="Mathcha Cafe Game - Math Cafe Adventure & Problem Solving"
+        ogTitle="Mathcha Cafe Game - Math Cafe Management & Problem Solving"
         ogDescription="Run a math cafe! Serve customers by solving addition, subtraction, budgeting, and discount problems."
         ogImage="https://www.semakinpintar.com/logo.png"
         jsonLd={gameJsonLd}
