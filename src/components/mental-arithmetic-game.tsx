@@ -94,6 +94,7 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
   const [isPaused, setIsPaused] = useState<boolean>(false);
   const [, setSpeechInitialized] = useState<boolean>(false);
   const [gameStartTime, setGameStartTime] = useState<number>(0);
+  const [showRestartConfirm, setShowRestartConfirm] = useState<boolean>(false);
 
   // Speech synthesis references
   const speechUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
@@ -909,7 +910,11 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
     setGameState('playing');
   };
 
-  const restartGame = (): void => {
+  const initiateRestart = (): void => {
+    setShowRestartConfirm(true);
+  };
+
+  const confirmRestart = (): void => {
     // Analytics tracking (async, non-blocking)
     setTimeout(() => {
       trackGameEvent('mental-arithmetic', 'restart', {
@@ -943,7 +948,8 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
       // Ignore Tone.js errors
     }
 
-    // Set game state to setup first to stop useEffect loops
+    // Hide confirmation modal and set game state to setup first to stop useEffect loops
+    setShowRestartConfirm(false);
     setGameState('setup');
     setIsPaused(false);
 
@@ -960,6 +966,10 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
     setAnswer(0);
     setCurrentNumbers([]);
     setCurrentOperations([]);
+  };
+
+  const cancelRestart = (): void => {
+    setShowRestartConfirm(false);
   };
 
   const completeGame = (): void => {
@@ -1559,7 +1569,7 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
                   onClick={() => {
                     trackButtonClick('restart', 'mental-arithmetic-playing');
                     playSound('buttonClick');
-                    restartGame();
+                    initiateRestart();
                   }}
                   className="bg-red-500 text-white text-xl font-bold py-3 px-6 rounded-xl hover:bg-red-600 transition-all shadow-lg"
                 >
@@ -1569,6 +1579,33 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
             </>
           )}
         </div>
+        
+        {/* Restart Confirmation Modal */}
+        {showRestartConfirm && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-3xl p-8 text-center max-w-md mx-4 shadow-2xl">
+              <div className="text-5xl mb-4">⚠️</div>
+              <h2 className="text-2xl font-bold text-red-800 mb-2">Restart Game?</h2>
+              <p className="text-lg text-gray-600 mb-6">
+                This will restart from the beginning and reset your progress. Are you sure?
+              </p>
+              <div className="flex gap-4 justify-center">
+                <button
+                  onClick={confirmRestart}
+                  className="bg-red-500 text-white font-bold py-3 px-6 rounded-xl hover:bg-red-600 transition-all shadow-lg border-2 border-red-600"
+                >
+                  Yes, Restart
+                </button>
+                <button
+                  onClick={cancelRestart}
+                  className="bg-gray-500 text-white font-bold py-3 px-6 rounded-xl hover:bg-gray-600 transition-all shadow-lg border-2 border-gray-600"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -1599,7 +1636,7 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
               onClick={() => {
                 trackButtonClick('restart-from-pause', 'mental-arithmetic-paused');
                 playSound('buttonClick');
-                restartGame();
+                initiateRestart();
               }}
               className="bg-red-500 text-white text-2xl font-bold py-4 px-8 rounded-xl hover:bg-red-600 transition-all shadow-lg"
             >
@@ -1607,6 +1644,33 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
             </button>
           </div>
         </div>
+        
+        {/* Restart Confirmation Modal */}
+        {showRestartConfirm && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-3xl p-8 text-center max-w-md mx-4 shadow-2xl">
+              <div className="text-5xl mb-4">⚠️</div>
+              <h2 className="text-2xl font-bold text-red-800 mb-2">Restart Game?</h2>
+              <p className="text-lg text-gray-600 mb-6">
+                This will restart from the beginning and reset your progress. Are you sure?
+              </p>
+              <div className="flex gap-4 justify-center">
+                <button
+                  onClick={confirmRestart}
+                  className="bg-red-500 text-white font-bold py-3 px-6 rounded-xl hover:bg-red-600 transition-all shadow-lg border-2 border-red-600"
+                >
+                  Yes, Restart
+                </button>
+                <button
+                  onClick={cancelRestart}
+                  className="bg-gray-500 text-white font-bold py-3 px-6 rounded-xl hover:bg-gray-600 transition-all shadow-lg border-2 border-gray-600"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -1646,7 +1710,21 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
               onClick={() => {
                 trackButtonClick('new-game', 'mental-arithmetic-results');
                 playSound('buttonClick');
-                restartGame();
+                // Direct restart from results screen (no confirmation needed)
+                setGameState('setup');
+                setIsPaused(false);
+                setCurrentQuestion(0);
+                setNextQuestionNumber(1);
+                setCurrentNumberIndex(0);
+                setShowingAnswer(false);
+                setCalculatingAnswer(false);
+                setShowingGetReady(false);
+                setFlashingBetweenNumbers(false);
+                setAllQuestions([]);
+                setDisplayNumber('');
+                setAnswer(0);
+                setCurrentNumbers([]);
+                setCurrentOperations([]);
               }}
               className="w-full bg-gradient-to-r from-green-500 to-blue-500 text-white text-xl sm:text-2xl md:text-3xl font-bold py-4 sm:py-5 md:py-6 px-4 rounded-2xl hover:from-green-600 hover:to-blue-600 transition-all shadow-xl hover:shadow-2xl transform hover:scale-105 flex items-center justify-center gap-2 sm:gap-3 md:gap-4"
             >
