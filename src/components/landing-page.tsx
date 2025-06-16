@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Calculator, Shapes, Rocket, X, Divide, Grid3X3, Lightbulb, Puzzle, Mail, ExternalLink, Layers, Search, Target, Workflow } from 'lucide-react';
+import { Calculator, Shapes, Rocket, X, Divide, /*Grid3X3,*/ Lightbulb, Puzzle, Mail, ExternalLink, Layers, Search, Target, Workflow } from 'lucide-react';
 import { trackButtonClick, trackDonationClick } from '../utils/analytics';
 import FloatingButtons from './floating-buttons';
 
@@ -23,16 +23,7 @@ interface LandingPageProps {
 
 const LandingPage: React.FC<LandingPageProps> = () => {
     //TODO: Update new games
-    const games: Game[] = [
-        {
-            id: 'mental-arithmetic-game',
-            name: 'Mental Arithmetic',
-            description: 'Train your brain with fun calculations',
-            icon: <Calculator className="w-12 h-12" />,
-            available: true,
-            gradient: 'from-purple-500 to-indigo-500',
-            path: '/games/mental-arithmetic'
-        },
+    const games: Game[] = [        
         /*{
             id: 'multiplication-table',
             name: 'Multiplication Table',
@@ -52,33 +43,6 @@ const LandingPage: React.FC<LandingPageProps> = () => {
             path: '/games/mathcha-cafe'
         },
         {
-            id: 'mental-multiplication',
-            name: 'Mental Multiplication',
-            description: 'Master multiplication skills',
-            icon: <X className="w-12 h-12" />,
-            available: true,
-            gradient: 'from-yellow-500 to-orange-400',
-            path: '/games/mental-multiplication'
-        },
-        {
-            id: 'mental-division',
-            name: 'Mental Division',
-            description: 'Perfect your division abilities',
-            icon: <Divide className="w-12 h-12" />,
-            available: true,
-            gradient: 'from-emerald-500 to-teal-500',
-            path: '/games/mental-division'
-        },
-        /*{
-            id: 'patterns',
-            name: 'Patterns',
-            description: 'Discover and complete patterns',
-            icon: <Shapes className="w-12 h-12" />,
-            available: false,
-            gradient: 'from-purple-500 to-pink-400',
-            path: '/games/patterns'
-        },*/
-        {
             id: 'patterns-detective',
             name: 'Patterns Detective',
             description: 'Solve pattern puzzles',
@@ -95,7 +59,43 @@ const LandingPage: React.FC<LandingPageProps> = () => {
             available: true,
             gradient: 'from-blue-600 to-purple-600',
             path: '/games/rocket-math'
+        },
+        {
+            id: 'mental-arithmetic-game',
+            name: 'Mental Arithmetic',
+            description: 'Train your brain with fun calculations',
+            icon: <Calculator className="w-12 h-12" />,
+            available: true,
+            gradient: 'from-purple-500 to-indigo-500',
+            path: '/games/mental-arithmetic'
+        },
+        {
+            id: 'mental-multiplication',
+            name: 'Mental Multiplication',
+            description: 'Master multiplication skills',
+            icon: <X className="w-12 h-12" />,
+            available: true,
+            gradient: 'from-yellow-500 to-orange-400',
+            path: '/games/mental-multiplication'
+        },
+        {
+            id: 'mental-division',
+            name: 'Mental Division',
+            description: 'Perfect your division abilities',
+            icon: <Divide className="w-12 h-12" />,
+            available: true,
+            gradient: 'from-emerald-500 to-teal-500',
+            path: '/games/mental-division'
         }
+        /*{
+            id: 'patterns',
+            name: 'Patterns',
+            description: 'Discover and complete patterns',
+            icon: <Shapes className="w-12 h-12" />,
+            available: false,
+            gradient: 'from-purple-500 to-pink-400',
+            path: '/games/patterns'
+        },*/        
     ];
 
     return (
@@ -262,6 +262,7 @@ const LandingPage: React.FC<LandingPageProps> = () => {
                     </div>
 
                     {/* Featured Game Highlight - Mobile Responsive */}
+                    {/* Previous featured game - Mental Arithmetic
                     <div className="mt-8 p-4 md:p-6 bg-gradient-to-r from-purple-100 to-teal-100 rounded-2xl border-2 border-purple-200">
                         <div className="flex flex-col md:flex-row items-center md:justify-between gap-4">
                             <div className="flex flex-col sm:flex-row items-center gap-4 text-center sm:text-left">
@@ -279,6 +280,30 @@ const LandingPage: React.FC<LandingPageProps> = () => {
                                     trackButtonClick('featured-mental-arithmetic', 'featured-section');
                                 }}
                                 className="bg-gradient-to-r from-purple-500 to-teal-500 text-white px-6 py-3 rounded-xl font-bold hover:from-purple-600 hover:to-teal-600 transition-all shadow-lg hover:shadow-xl transform hover:scale-105 w-full sm:w-auto text-center block"
+                            >
+                                Play Now →
+                            </Link>
+                        </div>
+                    </div>
+                    */}
+                    
+                    <div className="mt-8 p-4 md:p-6 bg-gradient-to-r from-green-100 to-amber-100 rounded-2xl border-2 border-green-200">
+                        <div className="flex flex-col md:flex-row items-center md:justify-between gap-4">
+                            <div className="flex flex-col sm:flex-row items-center gap-4 text-center sm:text-left">
+                                <div className="bg-gradient-to-r from-green-500 to-amber-500 text-white w-12 h-12 md:w-16 md:h-16 rounded-2xl flex items-center justify-center shadow-lg flex-shrink-0">
+                                    <span className="text-2xl md:text-3xl">🍵</span>
+                                </div>
+                                <div>
+                                    <h3 className="text-lg md:text-xl font-bold text-green-700">Featured: Mathcha Cafe</h3>
+                                    <p className="text-sm md:text-base text-amber-700">Serve customers with math skills in this cozy cafe adventure!</p>
+                                </div>
+                            </div>
+                            <Link
+                                to="/games/mathcha-cafe"
+                                onClick={() => {
+                                    trackButtonClick('featured-mathcha-cafe', 'featured-section');
+                                }}
+                                className="bg-gradient-to-r from-green-500 to-amber-500 text-white px-6 py-3 rounded-xl font-bold hover:from-green-600 hover:to-amber-600 transition-all shadow-lg hover:shadow-xl transform hover:scale-105 w-full sm:w-auto text-center block"
                             >
                                 Play Now →
                             </Link>
