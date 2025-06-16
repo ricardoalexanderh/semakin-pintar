@@ -304,7 +304,7 @@ const GamesIndex: React.FC = () => {
                       <div className="mt-auto">
                         {game.available ? (
                           <Link
-                            to={game.id === 'mathcha-cafe' ? `${game.path}?autoplay=true` : game.path}
+                            to={game.path}
                             onClick={() => trackButtonClick(`play-${game.id}`, 'games-index')}
                             className={`w-full bg-gradient-to-r ${game.gradient} text-white font-bold py-3 px-6 rounded-xl hover:shadow-lg transition-all flex items-center justify-center gap-2 group`}
                           >

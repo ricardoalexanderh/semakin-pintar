@@ -145,6 +145,13 @@ interface GameScore {
   timeBonus: number;
 }
 
+// Helper function to detect iOS with small screen
+const isIOSSmallScreen = (): boolean => {
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+  const isSmallScreen = window.innerHeight <= 667; // iPhone 6s and smaller
+  return isIOS && isSmallScreen;
+};
+
 // Helper function to get consistent random emotion asset per customer
 const getRandomEmotionAsset = (emotion: 'happy' | 'angry', customerId: string): string => {
   // Use customer ID to generate consistent random number
@@ -425,6 +432,10 @@ export const MathchaCafe: React.FC = () => {
       splashMusicRef.current = audio;
     }
     
+    // Reset music playing state on page refresh
+    splashMusicPlayingRef.current = false;
+    musicPlayingRef.current = false;
+    
     return () => {
       if (splashMusicRef.current) {
         splashMusicRef.current.pause();
@@ -435,6 +446,8 @@ export const MathchaCafe: React.FC = () => {
 
   // Game State
   const [gameState, setGameState] = useState<GameState>('splash');
+  const [hasUserInteracted, setHasUserInteracted] = useState(false);
+  const [showContinueButton, setShowContinueButton] = useState(false);
   const { updateGameState } = useGameState();
   const [settings, setSettings] = useState<GameSettings>(() => {
     try {
@@ -475,11 +488,22 @@ export const MathchaCafe: React.FC = () => {
   }, []);
 
   // Splash music control functions
-  const playSplashMusic = useCallback(() => {
+  const playSplashMusic = useCallback(async () => {
     if (splashMusicRef.current && settings.soundEnabled) {
-      splashMusicRef.current.play().catch(() => {
+      try {
+        // Reset the audio to beginning
+        splashMusicRef.current.currentTime = 0;
+        // Ensure audio is loaded
+        if (splashMusicRef.current.readyState < 2) {
+          await new Promise((resolve) => {
+            splashMusicRef.current!.addEventListener('canplay', resolve, { once: true });
+            splashMusicRef.current!.load();
+          });
+        }
+        await splashMusicRef.current.play();
+      } catch (error) {
         // Silent fail for autoplay restrictions
-      });
+      }
     }
   }, [settings.soundEnabled]);
 
@@ -574,9 +598,9 @@ export const MathchaCafe: React.FC = () => {
   }, [pauseMusic]);
 
   // Safe splash music control functions
-  const safePlaySplashMusic = useCallback(() => {
-    if (settings.soundEnabled && gameState === 'splash') {
-      playSplashMusic();
+  const safePlaySplashMusic = useCallback(async () => {
+    if (settings.soundEnabled && gameState === 'splash' && !splashMusicPlayingRef.current) {
+      await playSplashMusic();
       splashMusicPlayingRef.current = true;
     }
   }, [playSplashMusic, settings.soundEnabled, gameState]);
@@ -588,69 +612,35 @@ export const MathchaCafe: React.FC = () => {
     }
   }, [pauseSplashMusic]);
 
-  // Handle window focus/blur to pause/resume music
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.hidden) {
-        // Window lost focus - pause music if playing
-        safePauseMusic();
-        safePauseSplashMusic();
-      } else {
-        // Window gained focus - resume music if game is playing
-        safePlayMusic();
-        safePlaySplashMusic();
-      }
-    };
-
-    const handleWindowBlur = () => {
-      safePauseMusic();
-      safePauseSplashMusic();
-    };
-
-    const handleWindowFocus = () => {
-      safePlayMusic();
-      safePlaySplashMusic();
-    };
-
-    // Add multiple event listeners for better coverage
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('blur', handleWindowBlur);
-    window.addEventListener('focus', handleWindowFocus);
-
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('blur', handleWindowBlur);
-      window.removeEventListener('focus', handleWindowFocus);
-    };
-  }, [safePlayMusic, safePauseMusic, safePlaySplashMusic, safePauseSplashMusic]);
 
   // Handle splash music based on game state
   useEffect(() => {
     if (gameState === 'splash') {
       // Entering splash state - stop background music
       safePauseMusic();
-      // Don't auto-play splash music - wait for user interaction
+      
+      // Reset splash music state when entering splash screen
+      if (!hasUserInteracted) {
+        splashMusicPlayingRef.current = false;
+        setShowContinueButton(false);
+      }
+      
+      // Only play splash music if user has interacted
+      if (hasUserInteracted) {
+        // Reset splash music state to allow fresh start
+        splashMusicPlayingRef.current = false;
+        safePlaySplashMusic();
+        // Show continue button after 3 seconds of music
+        const timer = setTimeout(() => {
+          setShowContinueButton(true);
+        }, 3000);
+        return () => clearTimeout(timer);
+      }
     } else {
       // Leaving splash state - stop splash music
       safePauseSplashMusic();
     }
-  }, [gameState, safePauseMusic, safePauseSplashMusic]);
-
-  // Check for autoplay parameter from games index
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const shouldAutoplay = urlParams.get('autoplay') === 'true';
-    
-    if (shouldAutoplay && gameState === 'splash') {
-      // Start music immediately since user just clicked "Play Now"
-      safePlaySplashMusic();
-      
-      // Clean up URL parameter
-      urlParams.delete('autoplay');
-      const newUrl = window.location.pathname + (urlParams.toString() ? '?' + urlParams.toString() : '');
-      window.history.replaceState({}, '', newUrl);
-    }
-  }, [gameState, safePlaySplashMusic]);
+  }, [gameState, safePauseMusic, safePauseSplashMusic, hasUserInteracted, safePlaySplashMusic]);
 
   // Broadcast game state changes to hide floating buttons during gameplay
   useEffect(() => {
@@ -955,13 +945,33 @@ export const MathchaCafe: React.FC = () => {
     }
   }, [gameState, gameScore, customers, waveTimer, correctAnswers, totalAnswers, stopMusic]);
   
-  // Start game loop - more stable
+  // Start game loop - more stable with iOS fix
   useEffect(() => {
     if (gameState === 'playing' || gameState === 'levelUp') {
       if (gameLoopRef.current) {
         cancelAnimationFrame(gameLoopRef.current);
       }
       gameLoopRef.current = requestAnimationFrame(gameLoop);
+      
+      // iOS fix: Add interval fallback for when requestAnimationFrame pauses
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+      let intervalFallback: NodeJS.Timeout | null = null;
+      
+      if (isIOS) {
+        intervalFallback = setInterval(() => {
+          // Only run if requestAnimationFrame seems to have stopped
+          if (gameLoopRef.current === null && (gameState === 'playing' || gameState === 'levelUp')) {
+            gameLoop();
+            gameLoopRef.current = requestAnimationFrame(gameLoop);
+          }
+        }, 100); // Check every 100ms
+      }
+      
+      return () => {
+        if (intervalFallback) {
+          clearInterval(intervalFallback);
+        }
+      };
     } else {
       if (gameLoopRef.current) {
         cancelAnimationFrame(gameLoopRef.current);
@@ -975,6 +985,57 @@ export const MathchaCafe: React.FC = () => {
       }
     };
   }, [gameState, gameLoop]);
+  
+  // Handle window focus/blur to pause/resume music with iOS fixes
+  useEffect(() => {
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        // Window lost focus - pause music if playing
+        safePauseMusic();
+        safePauseSplashMusic();
+      } else {
+        // Window gained focus - resume music if game is playing
+        safePlayMusic();
+        safePlaySplashMusic();
+        
+        // iOS fix: Restart game loop if it stopped
+        if (isIOS && (gameState === 'playing' || gameState === 'levelUp') && !gameLoopRef.current) {
+          gameLoopRef.current = requestAnimationFrame(gameLoop);
+        }
+      }
+    };
+
+    const handleWindowBlur = () => {
+      // On iOS, don't pause music when modal opens to avoid breaking game loop
+      if (!isIOS) {
+        safePauseMusic();
+        safePauseSplashMusic();
+      }
+    };
+
+    const handleWindowFocus = () => {
+      safePlayMusic();
+      safePlaySplashMusic();
+      
+      // iOS fix: Ensure game loop is running
+      if (isIOS && (gameState === 'playing' || gameState === 'levelUp') && !gameLoopRef.current) {
+        gameLoopRef.current = requestAnimationFrame(gameLoop);
+      }
+    };
+
+    // Add multiple event listeners for better coverage
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('blur', handleWindowBlur);
+    window.addEventListener('focus', handleWindowFocus);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('blur', handleWindowBlur);
+      window.removeEventListener('focus', handleWindowFocus);
+    };
+  }, [safePlayMusic, safePauseMusic, safePlaySplashMusic, safePauseSplashMusic, gameState, gameLoop]);
   
   // Game Actions
   // Function to spawn customers with staggered timing
@@ -1404,41 +1465,84 @@ export const MathchaCafe: React.FC = () => {
   };
   
   // Render functions
-  const renderSplashScreen = () => (
-    <div 
-      className="fixed inset-0 w-full h-full overflow-hidden cursor-pointer sm:bg-gradient-to-br sm:from-green-100 sm:via-amber-50 sm:to-green-200 sm:flex sm:items-center sm:justify-center sm:p-4"
-      onMouseEnter={() => safePlaySplashMusic()}
-      onTouchStart={() => safePlaySplashMusic()}
-      onClick={() => {
-        safePlaySplashMusic();
-        setGameState('setup');
-      }}
-    >
-      {/* Mobile: Full screen image with overlay text */}
-      <div className="sm:hidden relative w-full h-full flex items-center justify-center bg-gradient-to-br from-green-100 via-amber-50 to-green-200">
-        <img 
-          src="/mathcha-cafe-title.png" 
-          alt="Mathcha Cafe" 
-          className="max-w-full max-h-full w-auto h-auto object-contain"
-        />
-        <div className="absolute bottom-16 left-1/2 transform -translate-x-1/2 text-white text-lg font-bold animate-pulse bg-black/30 px-6 py-3 rounded-full">
-          Tap to continue
+  const renderSplashScreen = () => {
+    const iosSmallScreen = isIOSSmallScreen();
+    
+    return (
+      <div 
+        className="fixed inset-0 w-full h-full overflow-hidden cursor-pointer sm:bg-gradient-to-br sm:from-green-100 sm:via-amber-50 sm:to-green-200 sm:flex sm:items-center sm:justify-center sm:p-4"
+        style={iosSmallScreen ? {
+          height: '100dvh', // Dynamic viewport height for iOS
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0
+        } : {}}
+        onClick={() => {
+          if (!hasUserInteracted) {
+            setHasUserInteracted(true);
+          } else if (showContinueButton) {
+            setGameState('setup');
+          }
+        }}
+        onTouchStart={() => {
+          if (!hasUserInteracted) {
+            setHasUserInteracted(true);
+          }
+        }}
+      >
+        {/* Mobile: Full screen image with overlay text */}
+        <div 
+          className="sm:hidden relative w-full h-full flex items-center justify-center bg-gradient-to-br from-green-100 via-amber-50 to-green-200"
+          style={iosSmallScreen ? {
+            height: '100dvh',
+            padding: '10px',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            alignItems: 'center'
+          } : {}}
+        >
+          <img 
+            src="/mathcha-cafe-title.png" 
+            alt="Mathcha Cafe" 
+            className="max-w-full max-h-full w-auto h-auto object-contain"
+            style={iosSmallScreen ? {
+              maxWidth: '90%',
+              maxHeight: '70%',
+              objectFit: 'contain'
+            } : {}}
+          />
+          <div 
+            className="absolute bottom-16 left-1/2 transform -translate-x-1/2 text-white text-lg font-bold animate-pulse bg-black/30 px-6 py-3 rounded-full"
+            style={iosSmallScreen ? {
+              position: 'fixed',
+              bottom: '20px',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              fontSize: '16px',
+              padding: '12px 24px'
+            } : {}}
+          >
+            {!hasUserInteracted ? 'Tap to Start' : (showContinueButton ? 'Tap to Continue' : 'Loading...')}
+          </div>
+        </div>
+        
+        {/* Desktop: Centered with background */}
+        <div className="hidden sm:block relative text-center">
+          <img 
+            src="/mathcha-cafe-title.png" 
+            alt="Mathcha Cafe" 
+            className="max-w-full max-h-[70vh] w-auto h-auto object-contain mx-auto"
+          />
+          <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 text-white text-xl font-bold animate-pulse bg-black/30 px-6 py-3 rounded-full">
+            {!hasUserInteracted ? 'Tap to Start' : (showContinueButton ? 'Tap to Continue' : 'Loading...')}
+          </div>
         </div>
       </div>
-      
-      {/* Desktop: Centered with background */}
-      <div className="hidden sm:block relative text-center">
-        <img 
-          src="/mathcha-cafe-title.png" 
-          alt="Mathcha Cafe" 
-          className="max-w-full max-h-[70vh] w-auto h-auto object-contain mx-auto"
-        />
-        <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 text-white text-xl font-bold animate-pulse bg-black/30 px-6 py-3 rounded-full">
-          Tap to continue
-        </div>
-      </div>
-    </div>
-  );
+    );
+  };
 
   const renderSetupScreen = () => (
     <div className={`min-h-[calc(100vh-4rem)] sm:min-h-[calc(100vh-5rem)] bg-gradient-to-br ${theme.playingBg} p-4`}>
