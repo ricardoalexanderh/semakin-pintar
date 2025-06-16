@@ -22,6 +22,7 @@ interface LandingPageProps {
 }
 
 const LandingPage: React.FC<LandingPageProps> = () => {
+    //TODO: Update new games
     const games: Game[] = [
         {
             id: 'mental-arithmetic-game',

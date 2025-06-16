@@ -36,6 +36,7 @@ const Breadcrumb: React.FC = () => {
           'mental-multiplication': 'Mental Multiplication',
           'patterns-detective': 'Patterns Detective',
           'rocket-math': 'Rocket Math',
+          'mathcha-cafe': 'Mathcha Cafe',
         };
         
         breadcrumbs.push({

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { trackGameEvent, trackButtonClick } from '../../utils/analytics'
+import { useGameState } from '../../hooks/useGameState'
 import './styles.css'
 
 interface Pipe {
@@ -278,6 +279,7 @@ const saveSettings = (difficulty: number, questionType: number, soundEnabled: bo
 }
 
 const RocketMath: React.FC = () => {
+  const { updateGameState } = useGameState()
   const savedSettings = loadSavedSettings()
   
   const [dimensions, setDimensions] = useState(getGameDimensions())
@@ -356,6 +358,12 @@ const RocketMath: React.FC = () => {
       return () => clearTimeout(timer)
     }
   }, [showDifficultySelect, gameStarted])
+
+  // Broadcast game state changes to hide floating buttons during gameplay
+  useEffect(() => {
+    const isPlaying = gameStarted && !gameOver
+    updateGameState('rocket-math', isPlaying)
+  }, [gameStarted, gameOver, updateGameState])
 
   // Load rocket SVG
   useEffect(() => {

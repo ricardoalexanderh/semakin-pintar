@@ -17,6 +17,7 @@ export default defineConfig({
         '/games/mental-multiplication',
         '/games/patterns-detective',
         '/games/rocket-math',
+        '/games/mathcha-cafe',
       ],
       lastmod: new Date(),
     }),
@@ -67,7 +68,7 @@ export default defineConfig({
               cacheName: 'audio',
               expiration: {
                 maxEntries: 20,
-                maxAgeSeconds: 60 * 60 * 24 * 30
+                maxAgeSeconds: 60 * 60 * 24 * 30  // 30 days for static audio files
               }
             }
           },

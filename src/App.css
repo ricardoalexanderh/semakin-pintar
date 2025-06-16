@@ -1,0 +1,37 @@
+/* Portrait protection overlay for Mathcha Cafe in landscape mode */
+@media screen and (orientation: landscape) and (max-width: 768px) {
+  .mathcha-cafe-container::before {
+    content: "Please rotate your device to portrait mode for the best experience";
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.95);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    font-size: 24px;
+    font-weight: bold;
+    z-index: 10000;
+    padding: 40px;
+    line-height: 1.4;
+  }
+}
+
+/* Ensure the overlay covers the entire viewport properly */
+@media screen and (orientation: landscape) and (max-width: 768px) {
+  .mathcha-cafe-container {
+    position: relative;
+  }
+  
+  .mathcha-cafe-container::before {
+    /* Add rotation icon for better visual communication */
+    content: "📱\A Please rotate your device to portrait mode\A for the best experience";
+    white-space: pre-line;
+    font-family: system-ui, -apple-system, sans-serif;
+    letter-spacing: 0.5px;
+  }
+}

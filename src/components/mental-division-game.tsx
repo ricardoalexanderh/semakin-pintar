@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Play, RefreshCw, ArrowLeft, Divide } from 'lucide-react';
 import { trackGameEvent, trackSettingsChange, trackButtonClick } from '../utils/analytics';
+import { useGameState } from '../hooks/useGameState';
 import * as Tone from 'tone';
 
 // Type definitions
@@ -40,6 +41,7 @@ interface MentalDivisionGameProps {
 
 const MentalDivisionGame: React.FC<MentalDivisionGameProps> = ({ onBackToHome }) => {
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    const { updateGameState } = useGameState();
 
     // In-memory settings store   
     const settingsRef = useRef<GameSettings>({
@@ -285,6 +287,12 @@ const MentalDivisionGame: React.FC<MentalDivisionGameProps> = ({ onBackToHome })
             window.removeEventListener('focus', handleFocus);
         };
     }, [settings.soundEnabled]);
+
+    // Broadcast game state changes to hide floating buttons during gameplay
+    useEffect(() => {
+        const isPlaying = gameState === 'playing';
+        updateGameState('mental-division', isPlaying);
+    }, [gameState, updateGameState]);
 
     // Enhanced speech function with better iOS/Safari support
     const speak = (text: string): Promise<void> => {

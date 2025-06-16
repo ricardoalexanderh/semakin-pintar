@@ -16,6 +16,7 @@ import UpdateNotification from './components/update-notification';
 import OfflineStatus from './components/offline-status';
 import PatternsDetectiveGame from './components/patterns-detective';
 import RocketMathGame from './components/rocket-math/rocket-math';
+import { MathchaCafe } from './components/mathcha-cafe';
 
 // Component to handle page tracking and SEO
 const PageTracker = () => {
@@ -349,6 +350,41 @@ const PatternsDetectivePage = () => {
   );
 };
 
+// Mathcha Cafe Game page with SEO
+const MathchaCafePage = () => {
+  const gameJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Game",
+    "name": "Mathcha Cafe Game",
+    "description": "Serve customers by solving math problems in this cafe-themed educational game. Practice addition, subtraction, budgeting, and discounts.",
+    "url": "https://www.semakinpintar.com/games/mathcha-cafe",
+    "genre": "Educational",
+    "gamePlatform": "Web Browser",
+    "applicationCategory": "EducationalApplication",
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD"
+    }
+  };
+  
+  return (
+    <>
+      <SEOHead
+        title="Mathcha Cafe Game - Math Cafe Adventure & Problem Solving | Semakin Pintar"
+        description="Run a math cafe! Serve customers by solving addition, subtraction, budgeting, and discount problems. Fun educational game with progressive difficulty levels."
+        keywords="mathcha cafe, math cafe game, cafe math, addition subtraction, budgeting math, discount problems, educational games, kids math, restaurant math"
+        canonicalUrl="https://www.semakinpintar.com/games/mathcha-cafe"
+        ogTitle="Mathcha Cafe Game - Math Cafe Adventure & Problem Solving"
+        ogDescription="Run a math cafe! Serve customers by solving addition, subtraction, budgeting, and discount problems."
+        ogImage="https://www.semakinpintar.com/logo.png"
+        jsonLd={gameJsonLd}
+      />
+      <MathchaCafe />
+    </>
+  );
+};
+
 function App() {
   useEffect(() => {
     // Initialize Google Analytics    
@@ -404,6 +440,11 @@ function App() {
           <Route path="/games/rocket-math" element={
             <GamesLayout>
               <RocketMathPage />
+            </GamesLayout>
+          } />
+          <Route path="/games/mathcha-cafe" element={
+            <GamesLayout>
+              <MathchaCafePage />
             </GamesLayout>
           } />     
           <Route path="*" element={

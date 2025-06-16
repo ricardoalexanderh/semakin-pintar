@@ -25,6 +25,7 @@ interface Game {
 const GamesIndex: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
 
+  //TODO: Update new games
   const games: Game[] = [
     {
       id: 'mental-arithmetic',
@@ -114,6 +115,19 @@ const GamesIndex: React.FC = () => {
       path: '/games/rocket-math',
       difficulty: 'Elementary to Advanced',
       duration: '5-20 minutes',
+      category: 'Fun Math Games'
+    },
+    {
+      id: 'mathcha-cafe',
+      name: 'Mathcha Cafe',
+      description: 'Serve customers with math skills',
+      longDescription: 'Run your own matcha cafe! Serve customers by solving math problems including addition, subtraction, budgets, and discounts. Master the art of tea service through mindful mathematics.',
+      icon: <span className="text-2xl">🍵</span>,
+      available: true,
+      gradient: 'from-green-500 to-amber-500',
+      path: '/games/mathcha-cafe',
+      difficulty: 'Beginner to Expert',
+      duration: '10-25 minutes',
       category: 'Fun Math Games'
     }
   ];
@@ -226,6 +240,7 @@ const GamesIndex: React.FC = () => {
           </div>
         </div>
 
+
         {/* Games by Category */}
         {(selectedCategory === 'All' ? categoryOrder : [selectedCategory]).map((category) => {
           const categoryGames = filteredGamesByCategory[category];
@@ -289,7 +304,7 @@ const GamesIndex: React.FC = () => {
                       <div className="mt-auto">
                         {game.available ? (
                           <Link
-                            to={game.path}
+                            to={game.id === 'mathcha-cafe' ? `${game.path}?autoplay=true` : game.path}
                             onClick={() => trackButtonClick(`play-${game.id}`, 'games-index')}
                             className={`w-full bg-gradient-to-r ${game.gradient} text-white font-bold py-3 px-6 rounded-xl hover:shadow-lg transition-all flex items-center justify-center gap-2 group`}
                           >

@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Coffee, Share2, ChevronDown, ChevronUp, Copy, Share } from 'lucide-react';
 import { trackDonationClick, trackButtonClick } from '../utils/analytics';
+import { useGameState } from '../hooks/useGameState';
 
 interface FloatingButtonsProps {
   pageTitle?: string;
   pageDescription?: string;
   pageUrl?: string;
   hashtags?: string[];
+  hidden?: boolean;
 }
 
 interface SocialShareCompactProps {
@@ -165,10 +167,12 @@ const FloatingButtons: React.FC<FloatingButtonsProps> = ({
   pageTitle = 'Semakin Pintar - Free Educational Games for Kids & Family Learning',
   pageDescription = 'Check out these amazing free educational games! Perfect for kids learning math and families practicing together.',
   pageUrl = 'https://www.semakinpintar.com',
-  hashtags = ['education', 'kids', 'math', 'learning', 'games', 'free']
+  hashtags = ['education', 'kids', 'math', 'learning', 'games', 'free'],
+  hidden = false
 }) => {
   const [coffeeButtonVisible, setCoffeeButtonVisible] = useState(false);
   const [shareButtonVisible, setShareButtonVisible] = useState(false);
+  const { isAnyGamePlaying } = useGameState();
   
   // Refs for the floating button containers
   const shareContainerRef = useRef<HTMLDivElement>(null);
@@ -219,6 +223,10 @@ const FloatingButtons: React.FC<FloatingButtonsProps> = ({
       setShareButtonVisible(false); // Close share popup when opening coffee
     }
   };
+
+  if (hidden || isAnyGamePlaying()) {
+    return null;
+  }
 
   return (
     <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-3">

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Play, RefreshCw, Calculator, ArrowLeft } from 'lucide-react';
 import { trackGameEvent, trackSettingsChange, trackButtonClick } from '../utils/analytics';
+import { useGameState } from '../hooks/useGameState';
 import * as Tone from 'tone';
 
 // Type definitions
@@ -47,6 +48,7 @@ interface MentalArithmeticGameProps {
 
 const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHome }) => {
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+  const { updateGameState } = useGameState();
 
   // In-memory settings store
   const settingsRef = useRef<GameSettings>({
@@ -171,6 +173,12 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
       window.removeEventListener('focus', handleFocus);
     };
   }, [settings.soundEnabled]);
+
+  // Broadcast game state changes to hide floating buttons during gameplay
+  useEffect(() => {
+    const isPlaying = gameState === 'playing';
+    updateGameState('mental-arithmetic', isPlaying);
+  }, [gameState, updateGameState]);
 
   // Enhanced speech function with better iOS/Safari support
   const speak = (text: string): Promise<void> => {
