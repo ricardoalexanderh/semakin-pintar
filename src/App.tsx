@@ -118,6 +118,12 @@ const GamesIndexPage = () => {
           "position": 6,
           "name": "Rocket Math Game",
           "url": "https://www.semakinpintar.com/games/rocket-math"
+        },
+        {
+          "@type": "Game",
+          "position": 7,
+          "name": "Mathca Cafe Game",
+          "url": "https://www.semakinpintar.com/games/mathcha-cafe"
         }
       ]
     }

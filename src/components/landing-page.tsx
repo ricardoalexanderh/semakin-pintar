@@ -33,7 +33,7 @@ const LandingPage: React.FC<LandingPageProps> = () => {
             gradient: 'from-purple-500 to-indigo-500',
             path: '/games/mental-arithmetic'
         },
-        {
+        /*{
             id: 'multiplication-table',
             name: 'Multiplication Table',
             description: 'Memorize multiplication tables',
@@ -41,6 +41,15 @@ const LandingPage: React.FC<LandingPageProps> = () => {
             available: true,
             gradient: 'from-teal-500 to-cyan-500',
             path: '/games/multiplication-table'
+        },*/
+        {
+            id: 'mathcha-cafe',
+            name: 'Mathcha Cafe',
+            description: 'Serve customers with math skills',
+            icon: <span className="text-3xl">🍵</span>,
+            available: true,
+            gradient: 'from-green-500 to-amber-500',
+            path: '/games/mathcha-cafe'
         },
         {
             id: 'mental-multiplication',
