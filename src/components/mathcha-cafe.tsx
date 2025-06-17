@@ -1166,10 +1166,8 @@ export const MathchaCafe: React.FC = () => {
     if (settings.soundEnabled) {
       stopMusic(); // Stop current music
       musicPlayingRef.current = false;
-      setTimeout(async () => {
-        // Call playMusic directly since we know game is starting
-        await playMusic();
-      }, 100); // Small delay to ensure stop completes
+      // Play music immediately to maintain user gesture for iOS
+      playMusic();
     }
   };
   
