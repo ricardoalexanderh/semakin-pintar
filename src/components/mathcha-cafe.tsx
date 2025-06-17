@@ -37,10 +37,10 @@ const randomizeMenuPrices = () => {
 };
 
 const LEVEL_CONFIG = [
-  { level: 1, guestTarget: 8, menuItems: 4, customers: 2, waitTime: 18, multiplier: 1 },
-  { level: 2, guestTarget: 10, menuItems: 6, customers: 4, waitTime: 16, multiplier: 2 },
-  { level: 3, guestTarget: 12, menuItems: 8, customers: 6, waitTime: 14, multiplier: 3 },
-  { level: 4, guestTarget: 14, menuItems: 10, customers: 8, waitTime: 12, multiplier: 4 },
+  { level: 1, guestTarget: 6, menuItems: 4, customers: 2, waitTime: 18, multiplier: 1 },
+  { level: 2, guestTarget: 8, menuItems: 6, customers: 4, waitTime: 16, multiplier: 1 },
+  { level: 3, guestTarget: 10, menuItems: 8, customers: 6, waitTime: 14, multiplier: 2 },
+  { level: 4, guestTarget: 12, menuItems: 10, customers: 8, waitTime: 12, multiplier: 2 },
 ];
 
 const CUSTOMER_TYPES = [
