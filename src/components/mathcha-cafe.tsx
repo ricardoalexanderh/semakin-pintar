@@ -37,10 +37,10 @@ const randomizeMenuPrices = () => {
 };
 
 const LEVEL_CONFIG = [
-  { level: 1, guestTarget: 6, menuItems: 4, customers: 2, waitTime: 24, multiplier: 1 },
-  { level: 2, guestTarget: 8, menuItems: 6, customers: 4, waitTime: 22, multiplier: 2 },
-  { level: 3, guestTarget: 10, menuItems: 8, customers: 6, waitTime: 22, multiplier: 3 },
-  { level: 4, guestTarget: 12, menuItems: 10, customers: 8, waitTime: 20, multiplier: 4 },
+  { level: 1, guestTarget: 6, menuItems: 4, customers: 2, waitTime: 20, multiplier: 1 },
+  { level: 2, guestTarget: 8, menuItems: 6, customers: 4, waitTime: 18, multiplier: 2 },
+  { level: 3, guestTarget: 10, menuItems: 8, customers: 6, waitTime: 16, multiplier: 3 },
+  { level: 4, guestTarget: 12, menuItems: 10, customers: 8, waitTime: 14, multiplier: 4 },
 ];
 
 const CUSTOMER_TYPES = [
@@ -347,9 +347,23 @@ const createCustomer = (
   
   // Determine question type based on level first
   let questionType: QuestionType = 'addition';
-  if (level >= 2 && Math.random() > 0.5) questionType = 'subtraction';
-  if (level >= 3 && Math.random() > 0.7) questionType = 'budget';
-  if (level >= 4 && Math.random() > 0.8) questionType = 'discount';
+  
+  if (level === 1) {
+    questionType = 'addition'; // Level 1: Only addition
+  } else if (level === 2) {
+    questionType = Math.random() > 0.5 ? 'subtraction' : 'addition'; // Level 2: 50% subtraction, 50% addition
+  } else if (level === 3) {
+    const rand = Math.random();
+    if (rand > 0.7) questionType = 'budget';        // 30% budget
+    else if (rand > 0.35) questionType = 'subtraction'; // 35% subtraction  
+    else questionType = 'addition';                // 35% addition
+  } else if (level >= 4) {
+    const rand = Math.random();
+    if (rand > 0.8) questionType = 'discount';      // 20% discount
+    else if (rand > 0.6) questionType = 'budget';  // 20% budget
+    else if (rand > 0.3) questionType = 'subtraction'; // 30% subtraction
+    else questionType = 'addition';                // 30% addition
+  }
   
   // Generate random order (addition, subtraction, budget scale with level)
   let orderSize: number;
@@ -538,6 +552,7 @@ export const MathchaCafe: React.FC = () => {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [gameTimer, setGameTimer] = useState(0);
+  const lastFrameTimeRef = useRef<number>(0);
   const [waveTimer, setWaveTimer] = useState(0);
   const [initialSpawnComplete, setInitialSpawnComplete] = useState(false);
   const [totalAnswers, setTotalAnswers] = useState(0);
@@ -725,8 +740,21 @@ export const MathchaCafe: React.FC = () => {
   const gameLoop = useCallback(() => {
     if (gameState !== 'playing') return;
     
-    setGameTimer(prev => prev + 1/60);
-    setWaveTimer(prev => prev + 1/60);
+    // Use performance-based timing for high refresh rate devices
+    const currentTime = performance.now();
+    if (lastFrameTimeRef.current === 0) {
+      lastFrameTimeRef.current = currentTime;
+    }
+    
+    const deltaTime = (currentTime - lastFrameTimeRef.current) / 1000; // Convert to seconds
+    lastFrameTimeRef.current = currentTime;
+    
+    // Cap delta time to prevent huge jumps and ensure consistent 60fps equivalent
+    const targetDelta = 1/60; // Target 60fps timing
+    const clampedDelta = Math.min(deltaTime, targetDelta * 2); // Max 2 frames worth
+    
+    setGameTimer(prev => prev + clampedDelta);
+    setWaveTimer(prev => prev + clampedDelta);
     
     // Update bubble message timers
     cashierTimerRef.current += 1/60;
@@ -767,7 +795,7 @@ export const MathchaCafe: React.FC = () => {
       setCustomers(prev => prev.map(customer => {
         if (customer.isAnswered) return customer;
         
-        const newPatience = customer.patience - 1/60;
+        const newPatience = customer.patience - clampedDelta;
       if (newPatience <= 0 && customer.emotion !== 'angry') {
         audioManagerRef.current?.playAngryCustomer();
         
@@ -1107,6 +1135,7 @@ export const MathchaCafe: React.FC = () => {
     setSelectedCustomer(null);
     setGameTimer(0);
     setWaveTimer(0);
+    lastFrameTimeRef.current = 0; // Reset timing reference
     setTotalAnswers(0);
     setCorrectAnswers(0);
     setInitialSpawnComplete(false);
