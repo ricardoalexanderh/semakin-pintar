@@ -488,6 +488,24 @@ export const MathchaCafe: React.FC = () => {
     }
   }, [settings.soundEnabled]);
 
+  // iOS-specific music play function with loading verification
+  const playMusicIOS = useCallback(async () => {
+    if (backgroundMusicRef.current && settings.soundEnabled) {
+      try {
+        // Ensure audio is loaded (same pattern as splash music)
+        if (backgroundMusicRef.current.readyState < 2) {
+          await new Promise((resolve) => {
+            backgroundMusicRef.current!.addEventListener('canplay', resolve, { once: true });
+            backgroundMusicRef.current!.load();
+          });
+        }
+        await backgroundMusicRef.current.play();
+      } catch (error) {
+        // Silent fail for autoplay restrictions
+      }
+    }
+  }, [settings.soundEnabled]);
+
   const pauseMusic = useCallback(() => {
     if (backgroundMusicRef.current) {
       backgroundMusicRef.current.pause();
@@ -600,10 +618,15 @@ export const MathchaCafe: React.FC = () => {
   // Safe music control functions to prevent double playing
   const safePlayMusic = useCallback(() => {
     if (settings.soundEnabled && (gameState === 'playing' || gameState === 'levelUp') && !musicPlayingRef.current) {
-      playMusic();
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+      if (isIOS) {
+        playMusicIOS();
+      } else {
+        playMusic();
+      }
       musicPlayingRef.current = true;
     }
-  }, [playMusic, settings.soundEnabled, gameState]);
+  }, [playMusic, playMusicIOS, settings.soundEnabled, gameState]);
 
   const safePauseMusic = useCallback(() => {
     if (musicPlayingRef.current) {
