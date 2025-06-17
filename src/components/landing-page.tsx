@@ -362,7 +362,7 @@ const LandingPage: React.FC<LandingPageProps> = () => {
 
                         {/* Visual Graphic */}
                         <div className="flex justify-center">
-                            <div className="relative w-48 h-48 md:w-64 md:h-64">
+                            <div className="relative w-48 h-48 md:w-64 md:h-64 mx-4">
                                 {/* Central Brain */}
                                 <div className="absolute inset-0 bg-gradient-to-br from-purple-400 to-pink-400 rounded-full flex items-center justify-center shadow-xl">
                                     <Shapes className="w-16 h-16 md:w-20 md:h-20 text-white" />
@@ -372,13 +372,13 @@ const LandingPage: React.FC<LandingPageProps> = () => {
                                 <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 w-12 h-12 bg-gradient-to-r from-purple-400 to-indigo-400 rounded-lg flex items-center justify-center shadow-lg animate-pulse">
                                     <Layers className="w-6 h-6 text-white" />
                                 </div>
-                                <div className="absolute top-1/2 -right-4 transform -translate-y-1/2 w-12 h-12 bg-gradient-to-r from-teal-400 to-cyan-400 rounded-lg flex items-center justify-center shadow-lg animate-pulse delay-150">
+                                <div className="absolute top-1/2 right-0 md:-right-4 transform -translate-y-1/2 md:translate-y-1/2 translate-x-2 md:translate-x-0 w-12 h-12 bg-gradient-to-r from-teal-400 to-cyan-400 rounded-lg flex items-center justify-center shadow-lg animate-pulse delay-150">
                                     <Search className="w-6 h-6 text-white" />
                                 </div>
                                 <div className="absolute -bottom-4 left-1/2 transform -translate-x-1/2 w-12 h-12 bg-gradient-to-r from-orange-400 to-red-400 rounded-lg flex items-center justify-center shadow-lg animate-pulse delay-300">
                                     <Target className="w-6 h-6 text-white" />
                                 </div>
-                                <div className="absolute top-1/2 -left-4 transform -translate-y-1/2 w-12 h-12 bg-gradient-to-r from-pink-400 to-rose-400 rounded-lg flex items-center justify-center shadow-lg animate-pulse delay-500">
+                                <div className="absolute top-1/2 left-0 md:-left-4 transform -translate-y-1/2 md:translate-y-1/2 -translate-x-2 md:translate-x-0 w-12 h-12 bg-gradient-to-r from-pink-400 to-rose-400 rounded-lg flex items-center justify-center shadow-lg animate-pulse delay-500">
                                     <Workflow className="w-6 h-6 text-white" />
                                 </div>
 
