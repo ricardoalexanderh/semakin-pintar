@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { Download, X } from 'lucide-react'
+import { useLocation } from 'react-router-dom'
 import { usePWA } from '../hooks/use-pwa'
 import { trackButtonClick } from '../utils/analytics'
 
@@ -7,8 +8,13 @@ const InstallBanner: React.FC = () => {
   const { isInstallable, isInstalled, installApp } = usePWA()
   const [isDismissed, setIsDismissed] = useState(false)
   const [isInstalling, setIsInstalling] = useState(false)
+  const location = useLocation()
 
-  if (isInstalled || !isInstallable || isDismissed) return null
+  // Only show on landing page and games index
+  const allowedRoutes = ['/', '/games']
+  const shouldShow = allowedRoutes.includes(location.pathname)
+
+  if (isInstalled || !isInstallable || isDismissed || !shouldShow) return null
 
   const handleInstall = async () => {
     setIsInstalling(true)
