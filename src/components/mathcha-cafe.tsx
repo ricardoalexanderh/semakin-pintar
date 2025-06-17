@@ -1119,10 +1119,10 @@ export const MathchaCafe: React.FC = () => {
   };
 
   const startGame = async () => {
-    // Initialize audio context for mobile
+    // Initialize audio context for mobile (don't await to preserve user gesture)
     try {
       if (Tone.getContext().state !== 'running') {
-        await Tone.start();
+        Tone.start(); // Remove await to preserve user gesture context
       }
     } catch (error) {
       // Silent fail
