@@ -37,10 +37,10 @@ const randomizeMenuPrices = () => {
 };
 
 const LEVEL_CONFIG = [
-  { level: 1, guestTarget: 6, menuItems: 4, customers: 2, waitTime: 18, multiplier: 1 },
-  { level: 2, guestTarget: 8, menuItems: 6, customers: 4, waitTime: 16, multiplier: 1 },
-  { level: 3, guestTarget: 10, menuItems: 8, customers: 6, waitTime: 14, multiplier: 2 },
-  { level: 4, guestTarget: 12, menuItems: 10, customers: 8, waitTime: 12, multiplier: 2 },
+  { level: 1, guestTarget: 6, menuItems: 4, customers: 2, waitTime: 18, scoreMultiplier: 1, penaltyMultiplier: 1 },
+  { level: 2, guestTarget: 8, menuItems: 6, customers: 4, waitTime: 16, scoreMultiplier: 2, penaltyMultiplier: 2 },
+  { level: 3, guestTarget: 10, menuItems: 8, customers: 6, waitTime: 14, scoreMultiplier: 3, penaltyMultiplier: 3 },
+  { level: 4, guestTarget: 12, menuItems: 10, customers: 8, waitTime: 12, scoreMultiplier: 4, penaltyMultiplier: 4 },
 ];
 
 const CUSTOMER_TYPES = [
@@ -545,7 +545,7 @@ export const MathchaCafe: React.FC = () => {
       splashMusicRef.current.currentTime = 0;
     }
   }, []);
-  
+
   // Game Data
   const [gameScore, setGameScore] = useState<GameScore>({
     score: 0,
@@ -837,11 +837,11 @@ export const MathchaCafe: React.FC = () => {
         setTimeout(() => setShowManagerBubble(false), 2000);
         managerTimerRef.current = 0;
         
-        // Reduce score for patience timeout (matches level base points)
+        // Reduce score for patience timeout
         const levelConfig = LEVEL_CONFIG[gameScore.level - 1];
         setGameScore(prev => ({
           ...prev,
-          score: prev.score - levelConfig.multiplier // Penalty matches base points
+          score: prev.score - levelConfig.penaltyMultiplier
         }));
         
         // If this customer is currently selected for a question, close the modal
@@ -1266,7 +1266,7 @@ export const MathchaCafe: React.FC = () => {
       
       // Update score
       const levelConfig = LEVEL_CONFIG[gameScore.level - 1];
-      const points = levelConfig.multiplier;
+      const points = levelConfig.scoreMultiplier;
       // Small time bonus for quick service - balanced to not overwhelm base scoring
       const patiencePercent = selectedCustomer.patience / selectedCustomer.maxPatience;
       const timeBonus = patiencePercent > 0.8 ? 1 : 0; // 1 bonus point if >80% patience remains
@@ -1306,7 +1306,7 @@ export const MathchaCafe: React.FC = () => {
       const levelConfig = LEVEL_CONFIG[gameScore.level - 1];
       setGameScore(prev => ({
         ...prev,
-        score: prev.score - levelConfig.multiplier // Penalty matches base points
+        score: prev.score - levelConfig.penaltyMultiplier // Penalty matches base points
       }));
       
       audioManagerRef.current?.playAngryCustomer();
@@ -1402,7 +1402,7 @@ export const MathchaCafe: React.FC = () => {
       
       // Update score
       const levelConfig = LEVEL_CONFIG[gameScore.level - 1];
-      const points = levelConfig.multiplier;
+      const points = levelConfig.scoreMultiplier;
       // Small time bonus for quick service - balanced to not overwhelm base scoring
       const patiencePercent = selectedCustomer.patience / selectedCustomer.maxPatience;
       const timeBonus = patiencePercent > 0.8 ? 1 : 0; // 1 bonus point if >80% patience remains
@@ -1438,11 +1438,11 @@ export const MathchaCafe: React.FC = () => {
           : c
       ));
       
-      // Reduce score for wrong answer (matches level base points)
+      // Reduce score for wrong answer
       const levelConfig = LEVEL_CONFIG[gameScore.level - 1];
       setGameScore(prev => ({
         ...prev,
-        score: prev.score - levelConfig.multiplier // Penalty matches base points
+        score: prev.score - levelConfig.penaltyMultiplier
       }));
       
       audioManagerRef.current?.playAngryCustomer();
@@ -1505,10 +1505,19 @@ export const MathchaCafe: React.FC = () => {
   // Render functions
   const renderSplashScreen = () => {
     const iosSmallScreen = isIOSSmallScreen();
+    const isAndroidChrome = /Android/i.test(navigator.userAgent) && /Chrome/i.test(navigator.userAgent);
+    
+    const handleSplashInteraction = () => {
+      if (!hasUserInteracted) {
+        setHasUserInteracted(true);
+      } else if (showContinueButton) {
+        setGameState('setup');
+      }
+    };
     
     return (
       <div 
-        className="fixed inset-0 w-full h-full overflow-hidden cursor-pointer sm:bg-gradient-to-br sm:from-green-100 sm:via-amber-50 sm:to-green-200 sm:flex sm:items-center sm:justify-center sm:p-4"
+        className="fixed inset-0 w-full h-full overflow-hidden sm:bg-gradient-to-br sm:from-green-100 sm:via-amber-50 sm:to-green-200 sm:flex sm:items-center sm:justify-center sm:p-4"
         style={iosSmallScreen ? {
           height: '100dvh', // Dynamic viewport height for iOS
           position: 'fixed',
@@ -1517,18 +1526,8 @@ export const MathchaCafe: React.FC = () => {
           right: 0,
           bottom: 0
         } : {}}
-        onClick={() => {
-          if (!hasUserInteracted) {
-            setHasUserInteracted(true);
-          } else if (showContinueButton) {
-            setGameState('setup');
-          }
-        }}
-        onTouchStart={() => {
-          if (!hasUserInteracted) {
-            setHasUserInteracted(true);
-          }
-        }}
+        onClick={!isAndroidChrome ? handleSplashInteraction : undefined}
+        onTouchStart={!isAndroidChrome ? handleSplashInteraction : undefined}
       >
         {/* Mobile: Full screen image with overlay text */}
         <div 
@@ -1552,19 +1551,36 @@ export const MathchaCafe: React.FC = () => {
               objectFit: 'contain'
             } : {}}
           />
-          <div 
-            className="absolute bottom-16 left-1/2 transform -translate-x-1/2 text-white text-lg font-bold animate-pulse bg-black/30 px-6 py-3 rounded-full"
-            style={iosSmallScreen ? {
-              position: 'fixed',
-              bottom: '20px',
-              left: '50%',
-              transform: 'translateX(-50%)',
-              fontSize: '16px',
-              padding: '12px 24px'
-            } : {}}
-          >
-            {!hasUserInteracted ? 'Tap to Start' : (showContinueButton ? 'Tap to Continue' : 'Loading...')}
-          </div>
+          {isAndroidChrome ? (
+            <button
+              onClick={handleSplashInteraction}
+              className="absolute bottom-16 left-1/2 transform -translate-x-1/2 text-white text-lg font-bold animate-pulse bg-black/30 px-6 py-3 rounded-full"
+              style={iosSmallScreen ? {
+                position: 'fixed',
+                bottom: '20px',
+                left: '50%',
+                transform: 'translateX(-50%)',
+                fontSize: '16px',
+                padding: '12px 24px'
+              } : {}}
+            >
+              {!hasUserInteracted ? 'Tap Here to Start' : (showContinueButton ? 'Tap Here to Continue' : 'Loading...')}
+            </button>
+          ) : (
+            <div 
+              className="absolute bottom-16 left-1/2 transform -translate-x-1/2 text-white text-lg font-bold animate-pulse bg-black/30 px-6 py-3 rounded-full"
+              style={iosSmallScreen ? {
+                position: 'fixed',
+                bottom: '20px',
+                left: '50%',
+                transform: 'translateX(-50%)',
+                fontSize: '16px',
+                padding: '12px 24px'
+              } : {}}
+            >
+              {!hasUserInteracted ? 'Tap to Start' : (showContinueButton ? 'Tap to Continue' : 'Loading...')}
+            </div>
+          )}
         </div>
         
         {/* Desktop: Centered with background */}
@@ -1574,9 +1590,18 @@ export const MathchaCafe: React.FC = () => {
             alt="Mathcha Cafe" 
             className="max-w-full max-h-[70vh] w-auto h-auto object-contain mx-auto"
           />
-          <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 text-white text-xl font-bold animate-pulse bg-black/30 px-6 py-3 rounded-full">
-            {!hasUserInteracted ? 'Tap to Start' : (showContinueButton ? 'Tap to Continue' : 'Loading...')}
-          </div>
+          {isAndroidChrome ? (
+            <button
+              onClick={handleSplashInteraction}
+              className="absolute bottom-8 left-1/2 transform -translate-x-1/2 text-white text-xl font-bold animate-pulse bg-black/30 px-6 py-3 rounded-full"
+            >
+              {!hasUserInteracted ? 'Tap Here to Start' : (showContinueButton ? 'Tap Here to Continue' : 'Loading...')}
+            </button>
+          ) : (
+            <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 text-white text-xl font-bold animate-pulse bg-black/30 px-6 py-3 rounded-full">
+              {!hasUserInteracted ? 'Tap to Start' : (showContinueButton ? 'Tap to Continue' : 'Loading...')}
+            </div>
+          )}
         </div>
       </div>
     );
