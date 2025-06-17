@@ -37,10 +37,10 @@ const randomizeMenuPrices = () => {
 };
 
 const LEVEL_CONFIG = [
-  { level: 1, guestTarget: 6, menuItems: 4, customers: 2, waitTime: 18, multiplier: 1 },
-  { level: 2, guestTarget: 8, menuItems: 6, customers: 4, waitTime: 16, multiplier: 2 },
-  { level: 3, guestTarget: 10, menuItems: 8, customers: 6, waitTime: 14, multiplier: 3 },
-  { level: 4, guestTarget: 12, menuItems: 10, customers: 8, waitTime: 12, multiplier: 4 },
+  { level: 1, guestTarget: 8, menuItems: 4, customers: 2, waitTime: 18, multiplier: 1 },
+  { level: 2, guestTarget: 10, menuItems: 6, customers: 4, waitTime: 16, multiplier: 2 },
+  { level: 3, guestTarget: 12, menuItems: 8, customers: 6, waitTime: 14, multiplier: 3 },
+  { level: 4, guestTarget: 14, menuItems: 10, customers: 8, waitTime: 12, multiplier: 4 },
 ];
 
 const CUSTOMER_TYPES = [
@@ -745,7 +745,7 @@ export const MathchaCafe: React.FC = () => {
     Object.entries(newSettings).forEach(([key, value]) => {
       trackSettingsChange(key, value, 'mathcha-cafe');
     });
-  }, [stopMusic]);
+  }, [stopMusic, stopSplashMusic]);
   
   // Game Loop
   const gameLoop = useCallback(() => {
@@ -1167,7 +1167,7 @@ export const MathchaCafe: React.FC = () => {
       stopMusic(); // Stop current music
       musicPlayingRef.current = false;
       // Play music immediately to maintain user gesture for iOS
-      playMusic();
+      await playMusic();
     }
   };
   
@@ -1177,12 +1177,12 @@ export const MathchaCafe: React.FC = () => {
     safePauseMusic();
   };
   
-  const resumeGame = () => {
+  const resumeGame = async () => {
     setGameState('playing');
     audioManagerRef.current?.playButtonClick();
     if (settings.soundEnabled && !musicPlayingRef.current) {
       // Call playMusic directly since we know game is resuming
-      playMusic();
+      await playMusic();
     }
   };
   
