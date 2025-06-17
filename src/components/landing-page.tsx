@@ -99,7 +99,7 @@ const LandingPage: React.FC<LandingPageProps> = () => {
     ];
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-orange-100 via-yellow-50 to-purple-100 p-4">
+        <div className="min-h-screen bg-gradient-to-br from-orange-100 via-yellow-50 to-purple-100 p-4 overflow-x-hidden">
             <div className="max-w-4xl mx-auto">
                 {/* Header with Logo */}
                 <header className="text-center mb-8 pt-4 md:pt-8">
@@ -107,7 +107,7 @@ const LandingPage: React.FC<LandingPageProps> = () => {
                     <div className="mb-6 md:mb-8 flex justify-center">
                         <div className="relative">
                             {/* Logo Background Circle - Responsive sizes */}
-                            <div className="w-[280px] h-[280px] sm:w-[350px] sm:h-[350px] md:w-[420px] md:h-[420px] lg:w-[500px] lg:h-[500px] bg-gradient-to-br from-orange-50 to-purple-50 rounded-full shadow-2xl flex items-center justify-center relative overflow-hidden border-4 border-white">
+                            <div className="w-[260px] h-[260px] sm:w-[350px] sm:h-[350px] md:w-[420px] md:h-[420px] lg:w-[500px] lg:h-[500px] bg-gradient-to-br from-orange-50 to-purple-50 rounded-full shadow-2xl flex items-center justify-center relative overflow-hidden border-4 border-white max-w-[calc(100vw-2rem)]">
                                 {/* Decorative Elements matching logo style - Responsive */}
                                 <div className="absolute inset-0 opacity-20">
                                     <div className="absolute top-8 left-8 md:top-16 md:left-16 w-8 h-8 md:w-16 md:h-16 bg-purple-400 rounded-lg rotate-12"></div>
@@ -120,7 +120,7 @@ const LandingPage: React.FC<LandingPageProps> = () => {
                                 {/* Main Logo Content */}
                                 <div className="text-center z-10">
                                     {/* Logo Image Placeholder - Responsive */}
-                                    <div className="w-48 h-48 sm:w-60 sm:h-60 md:w-72 md:h-72 lg:w-80 lg:h-80 mx-auto mb-4 md:mb-6 relative">                                        
+                                    <div className="w-44 h-44 sm:w-60 sm:h-60 md:w-72 md:h-72 lg:w-80 lg:h-80 mx-auto mb-4 md:mb-6 relative">                                        
                                         <img
                                             src={logo}
                                             alt="Semakin Pintar Logo - Free Educational Games Platform"
