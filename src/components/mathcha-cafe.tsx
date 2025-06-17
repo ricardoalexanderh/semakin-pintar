@@ -39,8 +39,8 @@ const randomizeMenuPrices = () => {
 const LEVEL_CONFIG = [
   { level: 1, guestTarget: 6, menuItems: 4, customers: 2, waitTime: 16, scoreMultiplier: 1, penaltyMultiplier: 1 },
   { level: 2, guestTarget: 8, menuItems: 6, customers: 4, waitTime: 14, scoreMultiplier: 1, penaltyMultiplier: 2 },
-  { level: 3, guestTarget: 10, menuItems: 8, customers: 6, waitTime: 12, scoreMultiplier: 2, penaltyMultiplier: 3 },
-  { level: 4, guestTarget: 12, menuItems: 10, customers: 8, waitTime: 10, scoreMultiplier: 2, penaltyMultiplier: 4 },
+  { level: 3, guestTarget: 10, menuItems: 8, customers: 6, waitTime: 14, scoreMultiplier: 2, penaltyMultiplier: 3 },
+  { level: 4, guestTarget: 12, menuItems: 10, customers: 8, waitTime: 12, scoreMultiplier: 2, penaltyMultiplier: 4 },
 ];
 
 const CUSTOMER_TYPES = [
@@ -1268,7 +1268,9 @@ export const MathchaCafe: React.FC = () => {
       const levelConfig = LEVEL_CONFIG[gameScore.level - 1];
       const points = levelConfig.scoreMultiplier;
       // Small time bonus for quick service - balanced to not overwhelm base scoring
-      const patiencePercent = selectedCustomer.patience / selectedCustomer.maxPatience;
+      // Get the current customer state from the customers array to ensure sync
+      const currentCustomer = customers.find(c => c.id === selectedCustomer.id) || selectedCustomer;
+      const patiencePercent = currentCustomer.patience / currentCustomer.maxPatience;
       const timeBonus = patiencePercent > 0.8 ? 1 : 0; // 1 bonus point if >80% patience remains
       
       setGameScore(prev => {
@@ -1404,7 +1406,9 @@ export const MathchaCafe: React.FC = () => {
       const levelConfig = LEVEL_CONFIG[gameScore.level - 1];
       const points = levelConfig.scoreMultiplier;
       // Small time bonus for quick service - balanced to not overwhelm base scoring
-      const patiencePercent = selectedCustomer.patience / selectedCustomer.maxPatience;
+      // Get the current customer state from the customers array to ensure sync
+      const currentCustomer = customers.find(c => c.id === selectedCustomer.id) || selectedCustomer;
+      const patiencePercent = currentCustomer.patience / currentCustomer.maxPatience;
       const timeBonus = patiencePercent > 0.8 ? 1 : 0; // 1 bonus point if >80% patience remains
       
       setGameScore(prev => {
