@@ -37,10 +37,10 @@ const randomizeMenuPrices = () => {
 };
 
 const LEVEL_CONFIG = [
-  { level: 1, guestTarget: 6, menuItems: 4, customers: 2, waitTime: 20, multiplier: 1 },
-  { level: 2, guestTarget: 8, menuItems: 6, customers: 4, waitTime: 18, multiplier: 2 },
-  { level: 3, guestTarget: 10, menuItems: 8, customers: 6, waitTime: 16, multiplier: 3 },
-  { level: 4, guestTarget: 12, menuItems: 10, customers: 8, waitTime: 14, multiplier: 4 },
+  { level: 1, guestTarget: 6, menuItems: 4, customers: 2, waitTime: 18, multiplier: 1 },
+  { level: 2, guestTarget: 8, menuItems: 6, customers: 4, waitTime: 16, multiplier: 2 },
+  { level: 3, guestTarget: 10, menuItems: 8, customers: 6, waitTime: 14, multiplier: 3 },
+  { level: 4, guestTarget: 12, menuItems: 10, customers: 8, waitTime: 12, multiplier: 4 },
 ];
 
 const CUSTOMER_TYPES = [
@@ -351,7 +351,7 @@ const createCustomer = (
   if (level === 1) {
     questionType = 'addition'; // Level 1: Only addition
   } else if (level === 2) {
-    questionType = Math.random() > 0.5 ? 'subtraction' : 'addition'; // Level 2: 50% subtraction, 50% addition
+    questionType = Math.random() > 0.6 ? 'subtraction' : 'addition'; // Level 2: 40% subtraction, 60% addition
   } else if (level === 3) {
     const rand = Math.random();
     if (rand > 0.7) questionType = 'budget';        // 30% budget
@@ -480,16 +480,7 @@ export const MathchaCafe: React.FC = () => {
   });
 
   // Music control functions
-  const playMusic = useCallback(() => {
-    if (backgroundMusicRef.current && settings.soundEnabled) {
-      backgroundMusicRef.current.play().catch(() => {
-        // Silent fail for autoplay restrictions
-      });
-    }
-  }, [settings.soundEnabled]);
-
-  // iOS-specific music play function with loading verification
-  const playMusicIOS = useCallback(async () => {
+  const playMusic = useCallback(async () => {
     if (backgroundMusicRef.current && settings.soundEnabled) {
       try {
         // Ensure audio is loaded (same pattern as splash music)
@@ -500,8 +491,10 @@ export const MathchaCafe: React.FC = () => {
           });
         }
         await backgroundMusicRef.current.play();
+        musicPlayingRef.current = true;
       } catch (error) {
         // Silent fail for autoplay restrictions
+        musicPlayingRef.current = false;
       }
     }
   }, [settings.soundEnabled]);
@@ -533,6 +526,7 @@ export const MathchaCafe: React.FC = () => {
           });
         }
         await splashMusicRef.current.play();
+        splashMusicPlayingRef.current = true;
       } catch (error) {
         // Silent fail for autoplay restrictions
       }
@@ -616,17 +610,11 @@ export const MathchaCafe: React.FC = () => {
   }, []);
 
   // Safe music control functions to prevent double playing
-  const safePlayMusic = useCallback(() => {
+  const safePlayMusic = useCallback(async () => {
     if (settings.soundEnabled && (gameState === 'playing' || gameState === 'levelUp') && !musicPlayingRef.current) {
-      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-      if (isIOS) {
-        playMusicIOS();
-      } else {
-        playMusic();
-      }
-      musicPlayingRef.current = true;
+      await playMusic();      
     }
-  }, [playMusic, playMusicIOS, settings.soundEnabled, gameState]);
+  }, [playMusic, settings.soundEnabled, gameState]);
 
   const safePauseMusic = useCallback(() => {
     if (musicPlayingRef.current) {
@@ -1178,9 +1166,9 @@ export const MathchaCafe: React.FC = () => {
     if (settings.soundEnabled) {
       stopMusic(); // Stop current music
       musicPlayingRef.current = false;
-      setTimeout(() => {
-        playMusic(); // Start fresh
-        musicPlayingRef.current = true;
+      setTimeout(async () => {
+        // Call playMusic directly since we know game is starting
+        await playMusic();
       }, 100); // Small delay to ensure stop completes
     }
   };
@@ -1195,8 +1183,8 @@ export const MathchaCafe: React.FC = () => {
     setGameState('playing');
     audioManagerRef.current?.playButtonClick();
     if (settings.soundEnabled && !musicPlayingRef.current) {
+      // Call playMusic directly since we know game is resuming
       playMusic();
-      musicPlayingRef.current = true;
     }
   };
   
