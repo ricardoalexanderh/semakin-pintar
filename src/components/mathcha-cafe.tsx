@@ -11,7 +11,7 @@ import { useGameState } from '../hooks/useGameState';
 const TEST_CONFIG = {
   START_LEVEL: 4,        // Change to start at specific level (1-4)
   START_SCORE: 100,       // Change to start with specific score (mastery)
-  ENABLE_TESTING: true  // Set to true to use test values, false for normal gameplay
+  ENABLE_TESTING: false  // Set to true to use test values, false for normal gameplay
 };
 
 // Game Constants
@@ -573,6 +573,7 @@ export const MathchaCafe: React.FC = () => {
   const [initialSpawnComplete, setInitialSpawnComplete] = useState(false);
   const [totalAnswers, setTotalAnswers] = useState(0);
   const [correctAnswers, setCorrectAnswers] = useState(0);
+  const [timeoutGuests, setTimeoutGuests] = useState(0);
   const [cashierMessage, setCashierMessage] = useState('');
   const [managerMessage, setManagerMessage] = useState('');
   const [managerMessageType, setManagerMessageType] = useState<'success' | 'failure' | 'timeout'>('success');
@@ -854,6 +855,9 @@ export const MathchaCafe: React.FC = () => {
             setSelectedCustomer(null);
           }
 
+          // Increment timeout guests counter
+          setTimeoutGuests(prev => prev + 1);
+          
           return { ...customer, patience: -0.1, emotion: 'angry' as const, hasWarned: true };
         }
 
@@ -2458,6 +2462,14 @@ export const MathchaCafe: React.FC = () => {
               <div className="font-bold text-blue-600 self-center text-center">{gameScore.level}</div>
             </div>
             <div className="bg-white rounded-lg p-3 flex flex-col justify-between">
+              <div className="text-gray-500 text-xs uppercase tracking-wide mb-1">Guests Served</div>
+              <div className="font-bold text-blue-600 self-center text-center">{sessionStats.totalGuestsServed}</div>
+            </div>
+            <div className="bg-white rounded-lg p-3 flex flex-col justify-between">
+              <div className="text-gray-500 text-xs uppercase tracking-wide mb-1">Guests Left</div>
+              <div className="font-bold text-red-600 self-center text-center">{timeoutGuests}</div>
+            </div>
+            <div className="bg-white rounded-lg p-3 flex flex-col justify-between">
               <div className="text-gray-500 text-xs uppercase tracking-wide mb-1">Highest Mastery</div>
               <div className="font-bold text-green-600 self-center text-center">{Math.max(0, sessionStats.highestMastery)}</div>
             </div>
@@ -2465,10 +2477,6 @@ export const MathchaCafe: React.FC = () => {
               <div className="text-gray-500 text-xs uppercase tracking-wide mb-1">Harmony</div>
               <div className="font-bold text-green-600 self-center text-center">{Math.round((correctAnswers / Math.max(1, totalAnswers)) * 100)}%</div>
             </div>
-          </div>
-          <div className="mt-4 bg-white rounded-lg p-3 flex flex-col justify-between">
-            <div className="text-gray-500 text-xs uppercase tracking-wide mb-1">Guests Served</div>
-            <div className="font-bold text-blue-600 self-center text-center">{sessionStats.totalGuestsServed}</div>
           </div>
         </div>
 
@@ -2529,17 +2537,21 @@ export const MathchaCafe: React.FC = () => {
               <div className="font-bold text-blue-600 self-center text-center">{formatGameTime(gameTimer)}</div>
             </div>
             <div className="bg-white rounded-lg p-3 flex flex-col justify-between">
+              <div className="text-gray-500 text-xs uppercase tracking-wide mb-1">Guests Left</div>
+              <div className="font-bold text-red-600 self-center text-center">{timeoutGuests}</div>
+            </div>
+            <div className="bg-white rounded-lg p-3 flex flex-col justify-between">
               <div className="text-gray-500 text-xs uppercase tracking-wide mb-1">Final Mastery</div>
-              <div className="font-bold text-green-600 text-lg self-center text-center">{gameScore.score}</div>
+              <div className="font-bold text-green-600 self-center text-center">{gameScore.score}</div>
             </div>
             <div className="bg-white rounded-lg p-3 flex flex-col justify-between">
               <div className="text-gray-500 text-xs uppercase tracking-wide mb-1">Highest Mastery</div>
               <div className="font-bold text-green-600 self-center text-center">{Math.max(0, sessionStats.highestMastery)}</div>
             </div>
-            <div className="bg-white rounded-lg p-3 flex flex-col justify-between">
-              <div className="text-gray-500 text-xs uppercase tracking-wide mb-1">Final Harmony</div>
-              <div className="font-bold text-green-600 self-center text-center">{Math.round((correctAnswers / Math.max(1, totalAnswers)) * 100)}%</div>
-            </div>
+          </div>
+          <div className="mt-4 bg-white rounded-lg p-4 flex flex-col justify-between">
+            <div className="text-gray-500 text-sm uppercase tracking-wide mb-2 text-center">Final Harmony</div>
+            <div className="font-bold text-green-600 text-2xl self-center text-center">{Math.round((correctAnswers / Math.max(1, totalAnswers)) * 100)}%</div>
           </div>
           <div className="mt-4 space-y-2">
             <div className="bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg p-3 font-medium">
