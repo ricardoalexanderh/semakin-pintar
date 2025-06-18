@@ -11,7 +11,7 @@ import { useGameState } from '../hooks/useGameState';
 const TEST_CONFIG = {
   START_LEVEL: 4,        // Change to start at specific level (1-4)
   START_SCORE: 100,       // Change to start with specific score (mastery)
-  ENABLE_TESTING: false  // Set to true to use test values, false for normal gameplay
+  ENABLE_TESTING: true  // Set to true to use test values, false for normal gameplay
 };
 
 // Game Constants
@@ -2437,32 +2437,55 @@ export const MathchaCafe: React.FC = () => {
 
   const renderGameOverScreen = () => (
     <div className={`min-h-[calc(100vh-4rem)] sm:min-h-[calc(100vh-5rem)] bg-gradient-to-br ${theme.playingBg} p-4 flex items-center justify-center`}>
-      <div className={`${theme.cardBg} rounded-3xl shadow-2xl p-8 text-center max-w-md w-full`}>
-        <div className="text-6xl mb-4">😢</div>
-        <h2 className="text-3xl font-bold mb-4 text-red-600">Game Over</h2>
-        <div className="text-gray-600 mb-6">
-          <p className="mb-4">The tea ceremony lost its harmony!</p>
-          <div className="space-y-2">
-            <div>Time Spent: <span className="font-bold">{formatGameTime(gameTimer)}</span></div>
-            <div>Highest Mastery: <span className="font-bold">{Math.max(0, sessionStats.highestMastery)}</span></div>
-            <div>Tea Level Reached: <span className="font-bold">{gameScore.level}</span></div>
-            <div>Total Guests Served: <span className="font-bold">{sessionStats.totalGuestsServed}</span></div>
-            <div>Harmony: <span className="font-bold">{Math.round((correctAnswers / Math.max(1, totalAnswers)) * 100)}%</span></div>
+      <div className={`${theme.cardBg} rounded-3xl shadow-2xl p-8 text-center max-w-lg w-full`}>
+        {/* Header */}
+        <div className="mb-8">
+          <div className="text-7xl mb-4">💔</div>
+          <h2 className="text-4xl font-bold mb-2 text-red-600">Game Over</h2>
+          <p className="text-lg text-gray-600">The tea ceremony lost its harmony!</p>
+        </div>
+
+        {/* Stats Grid */}
+        <div className="bg-red-50 border border-red-200 rounded-2xl p-6 mb-8">
+          <h3 className="text-lg font-semibold text-red-800 mb-4">Final Results</h3>
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            <div className="bg-white rounded-lg p-3 flex flex-col justify-between">
+              <div className="text-gray-500 text-xs uppercase tracking-wide mb-1">Time Spent</div>
+              <div className="font-bold text-blue-600 self-center text-center">{formatGameTime(gameTimer)}</div>
+            </div>
+            <div className="bg-white rounded-lg p-3 flex flex-col justify-between">
+              <div className="text-gray-500 text-xs uppercase tracking-wide mb-1">Tea Level Reached</div>
+              <div className="font-bold text-blue-600 self-center text-center">{gameScore.level}</div>
+            </div>
+            <div className="bg-white rounded-lg p-3 flex flex-col justify-between">
+              <div className="text-gray-500 text-xs uppercase tracking-wide mb-1">Highest Mastery</div>
+              <div className="font-bold text-green-600 self-center text-center">{Math.max(0, sessionStats.highestMastery)}</div>
+            </div>
+            <div className="bg-white rounded-lg p-3 flex flex-col justify-between">
+              <div className="text-gray-500 text-xs uppercase tracking-wide mb-1">Harmony</div>
+              <div className="font-bold text-green-600 self-center text-center">{Math.round((correctAnswers / Math.max(1, totalAnswers)) * 100)}%</div>
+            </div>
+          </div>
+          <div className="mt-4 bg-white rounded-lg p-3 flex flex-col justify-between">
+            <div className="text-gray-500 text-xs uppercase tracking-wide mb-1">Guests Served</div>
+            <div className="font-bold text-blue-600 self-center text-center">{sessionStats.totalGuestsServed}</div>
           </div>
         </div>
-        <div className="space-y-4">
+
+        {/* Actions */}
+        <div className="space-y-3">
           <button
             onClick={startGame}
-            className={`w-full ${theme.button} text-white py-3 rounded-lg hover:scale-105 transition-transform`}
+            className={`w-full ${theme.button} text-white py-4 rounded-xl text-lg font-semibold hover:scale-105 transition-transform flex items-center justify-center gap-2`}
           >
-            <Play className="inline mr-2" size={20} />
+            <Play size={20} />
             Play Again
           </button>
           <button
             onClick={goToMainMenu}
-            className="w-full bg-gray-300 text-gray-700 py-3 rounded-lg hover:bg-gray-400 transition-colors"
+            className="w-full bg-gray-200 text-gray-700 py-4 rounded-xl font-medium hover:bg-gray-300 transition-colors flex items-center justify-center gap-2"
           >
-            <LogOut className="inline mr-2" size={20} />
+            <LogOut size={20} />
             Exit Game
           </button>
         </div>
@@ -2489,32 +2512,58 @@ export const MathchaCafe: React.FC = () => {
 
   const renderVictoryScreen = () => (
     <div className={`min-h-[calc(100vh-4rem)] sm:min-h-[calc(100vh-5rem)] bg-gradient-to-br ${theme.playingBg} p-4 flex items-center justify-center`}>
-      <div className={`${theme.cardBg} rounded-3xl shadow-2xl p-8 text-center max-w-md w-full`}>
-        <div className="text-6xl mb-4">🎉</div>
-        <h2 className="text-3xl font-bold mb-4 text-green-600">Mathcha Master!</h2>
-        <div className="text-gray-600 mb-6">
-          <p className="mb-4">You have achieved true Mathcha Mastery!</p>
-          <div className="space-y-2">
-            <div>Time Spent: <span className="font-bold">{formatGameTime(gameTimer)}</span></div>
-            <div>Highest Mastery: <span className="font-bold">{Math.max(0, sessionStats.highestMastery)}</span></div>
-            <div>All Tea Levels Mastered! 🍵</div>
-            <div>Total Guests Served: <span className="font-bold">{sessionStats.totalGuestsServed}</span></div>
-            <div>Final Harmony: <span className="font-bold">{Math.round((correctAnswers / Math.max(1, totalAnswers)) * 100)}%</span></div>
+      <div className={`${theme.cardBg} rounded-3xl shadow-2xl p-8 text-center max-w-lg w-full`}>
+        {/* Header */}
+        <div className="mb-8">
+          <div className="text-8xl mb-4">🍵</div>
+          <h2 className="text-4xl font-bold mb-2 text-green-600">Mathcha Master!</h2>
+          <p className="text-lg text-gray-600">You have achieved true Mathcha Mastery!</p>
+        </div>        
+
+        {/* Stats Grid */}
+        <div className="bg-green-50 border border-green-200 rounded-2xl p-6 mb-8">
+          <h3 className="text-lg font-semibold text-green-800 mb-4">Mastery Achievements</h3>
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            <div className="bg-white rounded-lg p-3 flex flex-col justify-between">
+              <div className="text-gray-500 text-xs uppercase tracking-wide mb-1">Time Spent</div>
+              <div className="font-bold text-blue-600 self-center text-center">{formatGameTime(gameTimer)}</div>
+            </div>
+            <div className="bg-white rounded-lg p-3 flex flex-col justify-between">
+              <div className="text-gray-500 text-xs uppercase tracking-wide mb-1">Final Mastery</div>
+              <div className="font-bold text-green-600 text-lg self-center text-center">{gameScore.score}</div>
+            </div>
+            <div className="bg-white rounded-lg p-3 flex flex-col justify-between">
+              <div className="text-gray-500 text-xs uppercase tracking-wide mb-1">Highest Mastery</div>
+              <div className="font-bold text-green-600 self-center text-center">{Math.max(0, sessionStats.highestMastery)}</div>
+            </div>
+            <div className="bg-white rounded-lg p-3 flex flex-col justify-between">
+              <div className="text-gray-500 text-xs uppercase tracking-wide mb-1">Final Harmony</div>
+              <div className="font-bold text-green-600 self-center text-center">{Math.round((correctAnswers / Math.max(1, totalAnswers)) * 100)}%</div>
+            </div>
+          </div>
+          <div className="mt-4 space-y-2">
+            <div className="bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg p-3 font-medium">
+              ✨ All Tea Levels Mastered!
+            </div>
+            <div className="bg-gradient-to-r from-amber-500 to-amber-600 text-white rounded-lg p-3 font-medium">
+              🌟 All Guests Served Successfully!
+            </div>
           </div>
         </div>
-        <div className="space-y-4">
+        {/* Actions */}
+        <div className="space-y-3">
           <button
             onClick={startGame}
-            className={`w-full ${theme.button} text-white py-3 rounded-lg hover:scale-105 transition-transform`}
+            className={`w-full ${theme.button} text-white py-4 rounded-xl text-lg font-semibold hover:scale-105 transition-transform flex items-center justify-center gap-2`}
           >
-            <Play className="inline mr-2" size={20} />
+            <Play size={20} />
             Play Again
           </button>
           <button
             onClick={goToMainMenu}
-            className="w-full bg-gray-300 text-gray-700 py-3 rounded-lg hover:bg-gray-400 transition-colors"
+            className="w-full bg-gray-200 text-gray-700 py-4 rounded-xl font-medium hover:bg-gray-300 transition-colors flex items-center justify-center gap-2"
           >
-            <LogOut className="inline mr-2" size={20} />
+            <LogOut size={20} />
             Exit Game
           </button>
         </div>
