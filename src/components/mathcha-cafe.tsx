@@ -50,9 +50,9 @@ const CUSTOMER_TYPES = [
   { id: 4, name: 'Girl', avatar: '/girl-guest.png', color: 'bg-purple-200' },
 ];
 
-const THEME = { 
-  name: 'Matcha Classic', 
-  playingBg: 'from-green-100 to-amber-100', 
+const THEME = {
+  name: 'Matcha Classic',
+  playingBg: 'from-green-100 to-amber-100',
   cardBg: 'bg-white/90 backdrop-blur-sm',
   accent: 'text-green-700',
   button: 'bg-green-600 hover:bg-green-700'
@@ -71,7 +71,7 @@ const QUESTION_THEMES = {
     description: 'Calculate Total'
   },
   subtraction: {
-    name: 'Subtraction', 
+    name: 'Subtraction',
     icon: '➖',
     bgGradient: 'from-blue-50 to-blue-100',
     borderColor: 'border-blue-300',
@@ -83,7 +83,7 @@ const QUESTION_THEMES = {
   budget: {
     name: 'Budget',
     icon: '💰',
-    bgGradient: 'from-purple-50 to-purple-100', 
+    bgGradient: 'from-purple-50 to-purple-100',
     borderColor: 'border-purple-300',
     textColor: 'text-purple-800',
     buttonBg: 'bg-purple-600 hover:bg-purple-700',
@@ -94,7 +94,7 @@ const QUESTION_THEMES = {
     name: 'Discount',
     icon: '🏷️',
     bgGradient: 'from-orange-50 to-orange-100',
-    borderColor: 'border-orange-300', 
+    borderColor: 'border-orange-300',
     textColor: 'text-orange-800',
     buttonBg: 'bg-orange-600 hover:bg-orange-700',
     headerBg: 'bg-orange-200/50',
@@ -245,7 +245,7 @@ const generateQuestion = (
   gameMenuItems?: typeof BASE_MENU_ITEMS
 ): Question => {
   const orderTotal = order.reduce((sum, item) => sum + item.price, 0);
-  
+
   switch (questionType) {
     case 'addition':
       return {
@@ -255,7 +255,7 @@ const generateQuestion = (
         correctAnswer: orderTotal,
         orderTotal,
       };
-      
+
     case 'subtraction':
       const payment = orderTotal + Math.floor(Math.random() * 10) + 1;
       const change = payment - orderTotal;
@@ -267,26 +267,26 @@ const generateQuestion = (
         orderTotal,
         payment,
       };
-      
+
     case 'budget':
       // Use current game state for budget questions to match menu box
       const useGameLevel = gameLevel || level;
       const useMenuItems = gameMenuItems || currentMenuItems;
       const availableItems = useMenuItems.slice(0, LEVEL_CONFIG[useGameLevel - 1].menuItems);
-      
+
       // Determine number of items based on level
       const minItems = useGameLevel >= 4 ? 2 : 2; // Level 3: 2-3, Level 4: 2-4
       const maxItems = useGameLevel >= 4 ? 4 : 3;
       const targetItemCount = Math.floor(Math.random() * (maxItems - minItems + 1)) + minItems;
-      
+
       // Randomly select target combination
       const shuffledItems = [...availableItems].sort(() => Math.random() - 0.5);
       const targetCombination = shuffledItems.slice(0, targetItemCount);
       const targetTotal = targetCombination.reduce((sum, item) => sum + item.price, 0);
-      
+
       // Set budget based on target combination (exact or small buffer)
       const budget = targetTotal + (Math.random() > 0.7 ? 1 : 0); // 30% chance for +$1 buffer
-      
+
       return {
         type: 'budget',
         question: `Select items you can order with $${budget}`,
@@ -296,7 +296,7 @@ const generateQuestion = (
         menuItems: shuffledItems, // Store all menu items for display
         targetCombination, // Store target combination for validation
       };
-      
+
     case 'discount':
       // TODO: Temporarily disabled percentage discounts - only using fixed amount discounts for now
       const discountType = 'fixed'; // Math.random() > 0.5 ? 'percentage' : 'fixed';
@@ -304,12 +304,12 @@ const generateQuestion = (
       //   Math.floor(Math.random() * 30) + 10 : 
       //   Math.floor(Math.random() * 5) + 1;
       const discountValue = Math.floor(Math.random() * 5) + 1; // Fixed amount only
-      
+
       // const discountedTotal = discountType === 'percentage' ? 
       //   Math.floor(orderTotal * (100 - discountValue) / 100) :
       //   Math.max(0, orderTotal - discountValue);
       const discountedTotal = Math.max(0, orderTotal - discountValue); // Fixed amount only
-        
+
       return {
         type: 'discount',
         question: `Apply $${discountValue} discount to $${orderTotal} order:`,
@@ -318,7 +318,7 @@ const generateQuestion = (
         orderTotal,
         discount: { type: discountType, value: discountValue },
       };
-      
+
     default:
       return generateQuestion(level, order, 'addition', currentMenuItems);
   }
@@ -336,18 +336,18 @@ const generateOptions = (correct: number): string[] => {
 };
 
 const createCustomer = (
-  level: number, 
-  tableId: number, 
+  level: number,
+  tableId: number,
   currentMenuItems: typeof BASE_MENU_ITEMS,
   gameLevel?: number,
   gameMenuItems?: typeof BASE_MENU_ITEMS
 ): Customer => {
   const levelConfig = LEVEL_CONFIG[level - 1];
   const availableItems = currentMenuItems.slice(0, levelConfig.menuItems);
-  
+
   // Determine question type based on level first
   let questionType: QuestionType = 'addition';
-  
+
   if (level === 1) {
     questionType = 'addition'; // Level 1: Only addition
   } else if (level === 2) {
@@ -364,7 +364,7 @@ const createCustomer = (
     else if (rand > 0.3) questionType = 'subtraction'; // 30% subtraction
     else questionType = 'addition';                // 30% addition
   }
-  
+
   // Generate random order (addition, subtraction, budget scale with level)
   let orderSize: number;
   if (questionType === 'addition') {
@@ -376,12 +376,12 @@ const createCustomer = (
   } else {
     orderSize = Math.floor(Math.random() * 3) + 1; // 1-3 items for discount
   }
-  
+
   const order = [];
   for (let i = 0; i < orderSize; i++) {
     order.push(availableItems[Math.floor(Math.random() * availableItems.length)]);
   }
-  
+
   return {
     id: `customer-${Date.now()}-${Math.random()}`,
     type: CUSTOMER_TYPES[Math.floor(Math.random() * CUSTOMER_TYPES.length)],
@@ -414,10 +414,10 @@ export const MathchaCafe: React.FC = () => {
 
   // Background music manager using single audio instance
   const backgroundMusicRef = useRef<HTMLAudioElement | null>(null);
-  
+
   // Splash music manager using single audio instance
   const splashMusicRef = useRef<HTMLAudioElement | null>(null);
-  
+
   // Initialize background music once
   useEffect(() => {
     if (!backgroundMusicRef.current) {
@@ -427,7 +427,7 @@ export const MathchaCafe: React.FC = () => {
       audio.preload = 'auto';
       backgroundMusicRef.current = audio;
     }
-    
+
     return () => {
       if (backgroundMusicRef.current) {
         backgroundMusicRef.current.pause();
@@ -445,11 +445,11 @@ export const MathchaCafe: React.FC = () => {
       audio.preload = 'auto';
       splashMusicRef.current = audio;
     }
-    
+
     // Reset music playing state on page refresh
     splashMusicPlayingRef.current = false;
     musicPlayingRef.current = false;
-    
+
     return () => {
       if (splashMusicRef.current) {
         splashMusicRef.current.pause();
@@ -554,13 +554,13 @@ export const MathchaCafe: React.FC = () => {
     accuracy: 100,
     timeBonus: 0,
   });
-  
+
   // Session tracking for end screens
   const [sessionStats, setSessionStats] = useState({
     highestMastery: 0,
     totalGuestsServed: 0,
   });
-  
+
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [gameTimer, setGameTimer] = useState(0);
@@ -583,7 +583,7 @@ export const MathchaCafe: React.FC = () => {
   const [levelUpCountdown, setLevelUpCountdown] = useState(3);
   const [menuItems, setMenuItems] = useState(() => randomizeMenuPrices());
   const [selectedBudgetItems, setSelectedBudgetItems] = useState<number[]>([]);
-  
+
   // Refs
   const gameLoopRef = useRef<number | null>(null);
   const audioManagerRef = useRef<AudioManager | null>(null);
@@ -593,12 +593,12 @@ export const MathchaCafe: React.FC = () => {
   const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const musicPlayingRef = useRef<boolean>(false);
   const splashMusicPlayingRef = useRef<boolean>(false);
-  
+
   // Initialize audio manager
   useEffect(() => {
     audioManagerRef.current = new AudioManager();
     audioManagerRef.current.setSFXEnabled(settings.sfxEnabled);
-    
+
     return () => {
       if (gameLoopRef.current) {
         cancelAnimationFrame(gameLoopRef.current);
@@ -612,7 +612,7 @@ export const MathchaCafe: React.FC = () => {
   // Safe music control functions to prevent double playing
   const safePlayMusic = useCallback(async () => {
     if (settings.soundEnabled && (gameState === 'playing' || gameState === 'levelUp') && !musicPlayingRef.current) {
-      await playMusic();      
+      await playMusic();
     }
   }, [playMusic, settings.soundEnabled, gameState]);
 
@@ -644,13 +644,13 @@ export const MathchaCafe: React.FC = () => {
     if (gameState === 'splash') {
       // Entering splash state - stop background music
       safePauseMusic();
-      
+
       // Reset splash music state when entering splash screen
       if (!hasUserInteracted) {
         splashMusicPlayingRef.current = false;
         setShowContinueButton(false);
       }
-      
+
       // Only play splash music if user has interacted
       if (hasUserInteracted) {
         // Reset splash music state to allow fresh start
@@ -683,7 +683,7 @@ export const MathchaCafe: React.FC = () => {
         spread: 70,
         origin: { y: 0.6 }
       });
-      
+
       // Side cannons
       setTimeout(() => {
         confetti({
@@ -699,7 +699,7 @@ export const MathchaCafe: React.FC = () => {
           origin: { x: 1 }
         });
       }, 250);
-      
+
       // Final celebration
       setTimeout(() => {
         confetti({
@@ -710,24 +710,24 @@ export const MathchaCafe: React.FC = () => {
       }, 500);
     }
   }, [gameState]);
-  
+
   // Update settings
   const updateSettings = useCallback((newSettings: Partial<GameSettings>) => {
     const updated = { ...settingsRef.current, ...newSettings };
     settingsRef.current = updated;
     setSettings(updated);
-    
+
     try {
       localStorage.setItem('mathcha-cafe-settings', JSON.stringify(updated));
     } catch (error) {
       console.log('Failed to save settings to localStorage:', error);
       // Continue without saving - app will use defaults next time
     }
-    
+
     if (audioManagerRef.current) {
       audioManagerRef.current.setSFXEnabled(updated.sfxEnabled);
     }
-    
+
     // Handle music enable/disable
     if ('soundEnabled' in newSettings) {
       if (!newSettings.soundEnabled) {
@@ -741,58 +741,58 @@ export const MathchaCafe: React.FC = () => {
         }
       }
     }
-    
+
     Object.entries(newSettings).forEach(([key, value]) => {
       trackSettingsChange(key, value, 'mathcha-cafe');
     });
   }, [stopMusic, stopSplashMusic]);
-  
+
   // Game Loop
   const gameLoop = useCallback(() => {
     if (gameState !== 'playing') return;
-    
+
     // Use performance-based timing for high refresh rate devices
     const currentTime = performance.now();
     if (lastFrameTimeRef.current === 0) {
       lastFrameTimeRef.current = currentTime;
     }
-    
+
     const deltaTime = (currentTime - lastFrameTimeRef.current) / 1000; // Convert to seconds
     lastFrameTimeRef.current = currentTime;
-    
+
     // Cap delta time to prevent huge jumps and ensure consistent 60fps equivalent
-    const targetDelta = 1/60; // Target 60fps timing
+    const targetDelta = 1 / 60; // Target 60fps timing
     const clampedDelta = Math.min(deltaTime, targetDelta * 2); // Max 2 frames worth
-    
+
     setGameTimer(prev => prev + clampedDelta);
     setWaveTimer(prev => prev + clampedDelta);
-    
+
     // Update bubble message timers
-    cashierTimerRef.current += 1/60;
-    managerTimerRef.current += 1/60;
-    
+    cashierTimerRef.current += 1 / 60;
+    managerTimerRef.current += 1 / 60;
+
     // Show random cashier messages every 5-8 seconds
     if (cashierTimerRef.current >= 5 && Math.random() < 0.03) {
       const allMessages = [
         // Original messages
-        'Fresh matcha latte!', 'Try our matcha special!', 'Best matcha in town!', 
+        'Fresh matcha latte!', 'Try our matcha special!', 'Best matcha in town!',
         'Matcha magic awaits!', 'Premium matcha blend!', 'Matcha lovers welcome!',
         'Authentic Japanese matcha!', 'Creamy matcha goodness!', 'Matcha made perfect!',
         'Taste the difference!', 'Pure matcha bliss!', 'Handcrafted with love!',
         // Additional matcha-themed messages
-        'Fresh matcha brewing!', 'Ceremonial grade matcha!', 'Whisked to perfection!', 
+        'Fresh matcha brewing!', 'Ceremonial grade matcha!', 'Whisked to perfection!',
         'Zen in every sip!', 'Premium Uji matcha!', 'Matcha ceremony awaits!',
         'Stone-ground excellence!', 'Emerald green delight!', 'Traditional matcha art!',
         'Mindful matcha moments!', 'Pure matcha meditation!', 'Artisan matcha craft!'
       ];
-      
+
       // Get unused messages, reset if all used
       let availableMessages = allMessages.filter(msg => !usedCashierMessages.includes(msg));
       if (availableMessages.length === 0) {
         availableMessages = allMessages;
         setUsedCashierMessages([]);
       }
-      
+
       const selectedMessage = availableMessages[Math.floor(Math.random() * availableMessages.length)];
       setCashierMessage(selectedMessage);
       setUsedCashierMessages(prev => [...prev, selectedMessage]);
@@ -800,78 +800,78 @@ export const MathchaCafe: React.FC = () => {
       setTimeout(() => setShowCashierBubble(false), 3000);
       cashierTimerRef.current = 0;
     }
-    
+
     // Update customer patience - simplified and more stable
     if (customers.length > 0) {
       setCustomers(prev => prev.map(customer => {
         if (customer.isAnswered) return customer;
-        
+
         const newPatience = customer.patience - clampedDelta;
-      if (newPatience <= 0 && customer.emotion !== 'angry') {
-        audioManagerRef.current?.playAngryCustomer();
-        
-        // Show timeout failure message from manager
-        const allTimeoutMessages = [
-          // Keep existing matcha messages
-          'Quicker whisking!', 'Customer wandered!', 'Swift like tea!', 'Time flows like water!', 'Faster brewing!', 
-          'Keep the rhythm!', 'Swift tea service!', 'Time\'s flowing!', 'Quick matcha mind!', 
-          'Tea rush hour!', 'Efficiency in motion!', 'Mindful speed!',
-          // New matcha & cafe messages
-          'Whisk with urgency!', 'Matcha cools quickly!', 'Steam rises fast!',
-          'Guest patience fading!', 'Cafe rush demands speed!', 'Tea time is fleeting!',
-          'Swift matcha mastery!', 'Quick cafe service!', 'Powder awaits action!',
-          'Peak tea hour!', 'Rapid tea artistry!', 'Urgent hospitality needed!'
-        ];
-        
-        let availableMessages = allTimeoutMessages.filter(msg => !usedTimeoutMessages.includes(msg));
-        if (availableMessages.length === 0) {
-          availableMessages = allTimeoutMessages;
-          setUsedTimeoutMessages([]);
+        if (newPatience <= 0 && customer.emotion !== 'angry') {
+          audioManagerRef.current?.playAngryCustomer();
+
+          // Show timeout failure message from manager
+          const allTimeoutMessages = [
+            // Keep existing matcha messages
+            'Quicker whisking!', 'Customer wandered!', 'Swift like tea!', 'Time flows like water!', 'Faster brewing!',
+            'Keep the rhythm!', 'Swift tea service!', 'Time\'s flowing!', 'Quick matcha mind!',
+            'Tea rush hour!', 'Efficiency in motion!', 'Mindful speed!',
+            // New matcha & cafe messages
+            'Whisk with urgency!', 'Matcha cools quickly!', 'Steam rises fast!',
+            'Guest patience fading!', 'Cafe rush demands speed!', 'Tea time is fleeting!',
+            'Swift matcha mastery!', 'Quick cafe service!', 'Powder awaits action!',
+            'Peak tea hour!', 'Rapid tea artistry!', 'Urgent hospitality needed!'
+          ];
+
+          let availableMessages = allTimeoutMessages.filter(msg => !usedTimeoutMessages.includes(msg));
+          if (availableMessages.length === 0) {
+            availableMessages = allTimeoutMessages;
+            setUsedTimeoutMessages([]);
+          }
+
+          const selectedMessage = availableMessages[Math.floor(Math.random() * availableMessages.length)];
+          setManagerMessage(selectedMessage);
+          setManagerMessageType('timeout');
+          setUsedTimeoutMessages(prev => [...prev, selectedMessage]);
+          setShowManagerBubble(true);
+          setTimeout(() => setShowManagerBubble(false), 2000);
+          managerTimerRef.current = 0;
+
+          // Reduce score for patience timeout
+          const levelConfig = LEVEL_CONFIG[gameScore.level - 1];
+          setGameScore(prev => ({
+            ...prev,
+            score: prev.score - levelConfig.penaltyMultiplier
+          }));
+
+          // If this customer is currently selected for a question, close the modal
+          if (selectedCustomer && selectedCustomer.id === customer.id) {
+            setSelectedBudgetItems([]);
+            setSelectedCustomer(null);
+          }
+
+          return { ...customer, patience: -0.1, emotion: 'angry' as const, hasWarned: true };
         }
-        
-        const selectedMessage = availableMessages[Math.floor(Math.random() * availableMessages.length)];
-        setManagerMessage(selectedMessage);
-        setManagerMessageType('timeout');
-        setUsedTimeoutMessages(prev => [...prev, selectedMessage]);
-        setShowManagerBubble(true);
-        setTimeout(() => setShowManagerBubble(false), 2000);
-        managerTimerRef.current = 0;
-        
-        // Reduce score for patience timeout
-        const levelConfig = LEVEL_CONFIG[gameScore.level - 1];
-        setGameScore(prev => ({
-          ...prev,
-          score: prev.score - levelConfig.penaltyMultiplier
-        }));
-        
-        // If this customer is currently selected for a question, close the modal
-        if (selectedCustomer && selectedCustomer.id === customer.id) {
-          setSelectedBudgetItems([]);
-          setSelectedCustomer(null);
+
+        // Only play warning sound once when patience hits 3 seconds
+        if (newPatience <= 3 && customer.emotion === 'neutral' && !customer.hasWarned) {
+          audioManagerRef.current?.playTimerWarning();
+          // Continue with normal patience update but mark as warned
+          return { ...customer, patience: Math.max(0, newPatience), hasWarned: true };
         }
-        
-        return { ...customer, patience: -0.1, emotion: 'angry' as const, hasWarned: true };
-      }
-      
-      // Only play warning sound once when patience hits 3 seconds
-      if (newPatience <= 3 && customer.emotion === 'neutral' && !customer.hasWarned) {
-        audioManagerRef.current?.playTimerWarning();
-        // Continue with normal patience update but mark as warned
-        return { ...customer, patience: Math.max(0, newPatience), hasWarned: true };
-      }
-      
+
         // Allow angry customers' patience to go negative for removal timing
         const minPatience = customer.emotion === 'angry' ? -5 : 0;
         return { ...customer, patience: Math.max(minPatience, newPatience) };
       }));
     }
-    
+
     // Spawn new wave of customers (only after initial spawn is complete)
     const levelConfig = LEVEL_CONFIG[gameScore.level - 1];
     if (initialSpawnComplete && waveTimer >= 5 && customers.length < levelConfig.customers) {
       const emptyTables = Array.from({ length: 8 }, (_, i) => i)
         .filter(tableId => !customers.some(c => c.tableId === tableId));
-      
+
       if (emptyTables.length > 0) {
         const tableId = emptyTables[Math.floor(Math.random() * emptyTables.length)];
         const newCustomer = createCustomer(gameScore.level, tableId, menuItems, gameScore.level, menuItems);
@@ -885,7 +885,7 @@ export const MathchaCafe: React.FC = () => {
         setWaveTimer(0);
       }
     }
-    
+
     // Remove happy and angry customers after short time, spawn new ones
     setCustomers(prev => {
       const remaining = prev.filter(customer => {
@@ -899,13 +899,13 @@ export const MathchaCafe: React.FC = () => {
         }
         return true;
       });
-      
+
       // Spawn new customers to replace removed ones (only after initial spawn is complete)
       const levelConfig = LEVEL_CONFIG[gameScore.level - 1];
       if (initialSpawnComplete && remaining.length < levelConfig.customers && Math.random() < 0.1) {
         const emptyTables = Array.from({ length: 8 }, (_, i) => i)
           .filter(tableId => !remaining.some(c => c.tableId === tableId));
-        
+
         if (emptyTables.length > 0 && remaining.length < levelConfig.customers) {
           const tableId = emptyTables[Math.floor(Math.random() * emptyTables.length)];
           const newCustomer = createCustomer(gameScore.level, tableId, menuItems, gameScore.level, menuItems);
@@ -915,10 +915,10 @@ export const MathchaCafe: React.FC = () => {
           }
         }
       }
-      
+
       return remaining;
     });
-    
+
     // Check level progression based on satisfied guests
     const currentConfig = LEVEL_CONFIG[gameScore.level - 1];
     if (gameScore.customersServed >= currentConfig.guestTarget) {
@@ -929,7 +929,7 @@ export const MathchaCafe: React.FC = () => {
         setGameState('levelUp');
         setLevelUpCountdown(3);
         audioManagerRef.current?.playLevelUp();
-        
+
         // Clear any existing countdown
         if (countdownIntervalRef.current) {
           clearInterval(countdownIntervalRef.current);
@@ -940,7 +940,7 @@ export const MathchaCafe: React.FC = () => {
         countdownIntervalRef.current = setInterval(() => {
           countdownValue--;
           setLevelUpCountdown(countdownValue);
-          
+
           if (countdownValue <= 0) {
             if (countdownIntervalRef.current) {
               clearInterval(countdownIntervalRef.current);
@@ -956,34 +956,34 @@ export const MathchaCafe: React.FC = () => {
         audioManagerRef.current?.playLevelUp();
         stopMusic();
         musicPlayingRef.current = false;
-        trackGameEvent('mathcha-cafe', 'complete', { 
-          score: gameScore.score, 
+        trackGameEvent('mathcha-cafe', 'complete', {
+          score: gameScore.score,
           level: gameScore.level,
           accuracy: Math.round((correctAnswers / Math.max(1, totalAnswers)) * 100)
         });
         return;
       }
     }
-    
+
     // Check game over condition when score goes below 0
     if (gameScore.score < 0) {
       setGameState('gameOver');
       audioManagerRef.current?.playGameOver();
       stopMusic();
       musicPlayingRef.current = false;
-      trackGameEvent('mathcha-cafe', 'complete', { 
-        score: Math.max(0, gameScore.score), 
+      trackGameEvent('mathcha-cafe', 'complete', {
+        score: Math.max(0, gameScore.score),
         level: gameScore.level,
         reason: 'negative-score'
       });
       return;
     }
-    
+
     if (gameState === 'playing' || gameState === 'levelUp') {
       gameLoopRef.current = requestAnimationFrame(gameLoop);
     }
   }, [gameState, gameScore, customers, waveTimer, correctAnswers, totalAnswers, stopMusic]);
-  
+
   // Start game loop - more stable with iOS fix
   useEffect(() => {
     if (gameState === 'playing' || gameState === 'levelUp') {
@@ -991,11 +991,11 @@ export const MathchaCafe: React.FC = () => {
         cancelAnimationFrame(gameLoopRef.current);
       }
       gameLoopRef.current = requestAnimationFrame(gameLoop);
-      
+
       // iOS fix: Add interval fallback for when requestAnimationFrame pauses
       const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
       let intervalFallback: NodeJS.Timeout | null = null;
-      
+
       if (isIOS) {
         intervalFallback = setInterval(() => {
           // Only run if requestAnimationFrame seems to have stopped
@@ -1005,7 +1005,7 @@ export const MathchaCafe: React.FC = () => {
           }
         }, 100); // Check every 100ms
       }
-      
+
       return () => {
         if (intervalFallback) {
           clearInterval(intervalFallback);
@@ -1017,18 +1017,18 @@ export const MathchaCafe: React.FC = () => {
         gameLoopRef.current = null;
       }
     }
-    
+
     return () => {
       if (gameLoopRef.current) {
         cancelAnimationFrame(gameLoopRef.current);
       }
     };
   }, [gameState, gameLoop]);
-  
+
   // Handle window focus/blur to pause/resume music with iOS fixes
   useEffect(() => {
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-    
+
     const handleVisibilityChange = () => {
       if (document.hidden) {
         // Window lost focus - pause music if playing
@@ -1038,7 +1038,7 @@ export const MathchaCafe: React.FC = () => {
         // Window gained focus - resume music if game is playing
         safePlayMusic();
         safePlaySplashMusic();
-        
+
         // iOS fix: Restart game loop if it stopped
         if (isIOS && (gameState === 'playing' || gameState === 'levelUp') && !gameLoopRef.current) {
           gameLoopRef.current = requestAnimationFrame(gameLoop);
@@ -1057,7 +1057,7 @@ export const MathchaCafe: React.FC = () => {
     const handleWindowFocus = () => {
       safePlayMusic();
       safePlaySplashMusic();
-      
+
       // iOS fix: Ensure game loop is running
       if (isIOS && (gameState === 'playing' || gameState === 'levelUp') && !gameLoopRef.current) {
         gameLoopRef.current = requestAnimationFrame(gameLoop);
@@ -1075,17 +1075,17 @@ export const MathchaCafe: React.FC = () => {
       window.removeEventListener('focus', handleWindowFocus);
     };
   }, [safePlayMusic, safePauseMusic, safePlaySplashMusic, safePauseSplashMusic, gameState, gameLoop]);
-  
+
   // Game Actions
   // Function to spawn customers with staggered timing
   const spawnStaggeredCustomers = (level: number) => {
     const levelConfig = LEVEL_CONFIG[level - 1];
     const maxCustomers = levelConfig.customers;
-    
+
     // Clear existing customers and reset spawn flag
     setCustomers([]);
     setInitialSpawnComplete(false);
-    
+
     // Spawn all customers with increasing delays
     for (let i = 0; i < maxCustomers; i++) {
       const delay = (i * 3000) + Math.random() * 2000 + 1000; // Staggered: 1-3s, 4-6s, etc.
@@ -1096,11 +1096,11 @@ export const MathchaCafe: React.FC = () => {
           if (prev.length >= currentLevelConfig.customers) {
             return prev; // Don't exceed level limit
           }
-          
+
           // Find empty table
           const emptyTables = Array.from({ length: 8 }, (_, tableIndex) => tableIndex)
             .filter(tableId => !prev.some(c => c.tableId === tableId));
-          
+
           if (emptyTables.length > 0) {
             const tableId = emptyTables[Math.floor(Math.random() * emptyTables.length)];
             const newCustomer = createCustomer(level, tableId, menuItems, level, menuItems);
@@ -1110,7 +1110,7 @@ export const MathchaCafe: React.FC = () => {
         });
       }, delay);
     }
-    
+
     // Mark initial spawn as complete after the last customer should arrive
     const lastCustomerDelay = ((maxCustomers - 1) * 3000) + 3000; // Last customer + buffer
     setTimeout(() => {
@@ -1133,13 +1133,13 @@ export const MathchaCafe: React.FC = () => {
       clearInterval(countdownIntervalRef.current);
       countdownIntervalRef.current = null;
     }
-    
+
     setGameState('playing');
-    
+
     // Use test configuration if enabled
     const startLevel = testConfig.ENABLE_TESTING ? testConfig.START_LEVEL : 1;
     const startScore = testConfig.ENABLE_TESTING ? testConfig.START_SCORE : 0;
-    
+
     setGameScore({ score: startScore, level: startLevel, customersServed: 0, accuracy: 100, timeBonus: 0 });
     setSessionStats({ highestMastery: startScore, totalGuestsServed: 0 });
     setCustomers([]);
@@ -1151,17 +1151,18 @@ export const MathchaCafe: React.FC = () => {
     setCorrectAnswers(0);
     setInitialSpawnComplete(false);
     setLevelUpCountdown(3);
-    
+    setNewLevel(startLevel); // Reset to starting level to prevent level-up display race condition
+
     // Randomize menu prices for new game
     const newMenuItems = randomizeMenuPrices();
     setMenuItems(newMenuItems);
-    
+
     // Use staggered spawning for the starting level
     spawnStaggeredCustomers(startLevel);
-    
+
     trackGameEvent('mathcha-cafe', 'start', { level: settings.level });
     audioManagerRef.current?.playButtonClick();
-    
+
     // Restart music if enabled (stop and start fresh)
     if (settings.soundEnabled) {
       stopMusic(); // Stop current music
@@ -1170,13 +1171,13 @@ export const MathchaCafe: React.FC = () => {
       await playMusic();
     }
   };
-  
+
   const pauseGame = () => {
     setGameState('paused');
     audioManagerRef.current?.playButtonClick();
     safePauseMusic();
   };
-  
+
   const resumeGame = async () => {
     setGameState('playing');
     audioManagerRef.current?.playButtonClick();
@@ -1185,7 +1186,7 @@ export const MathchaCafe: React.FC = () => {
       await playMusic();
     }
   };
-  
+
   const restartGame = () => {
     setShowRestartConfirm(true);
   };
@@ -1198,25 +1199,25 @@ export const MathchaCafe: React.FC = () => {
   const cancelRestart = () => {
     setShowRestartConfirm(false);
   };
-  
+
   const goToMainMenu = () => {
     setGameState('setup');
     audioManagerRef.current?.playButtonClick();
     stopMusic();
     musicPlayingRef.current = false;
   };
-  
+
   const selectCustomer = (customer: Customer) => {
     if (customer.isAnswered || customer.emotion === 'angry') return;
     setSelectedCustomer(customer);
     audioManagerRef.current?.playButtonClick();
   };
-  
+
   const answerQuestion = (answerIndex: number) => {
     if (!selectedCustomer) return;
-    
+
     let isCorrect = false;
-    
+
     if (selectedCustomer.question.type === 'budget') {
       // For budget questions, this function shouldn't be called
       // Budget questions use submitBudgetAnswer instead
@@ -1224,38 +1225,38 @@ export const MathchaCafe: React.FC = () => {
     } else {
       isCorrect = selectedCustomer.question.options[answerIndex] === `$${selectedCustomer.question.correctAnswer}`;
     }
-    
+
     setTotalAnswers(prev => prev + 1);
-    
+
     if (isCorrect) {
       setCorrectAnswers(prev => prev + 1);
-      
+
       // Update customer to happy (they'll leave soon)
-      setCustomers(prev => prev.map(c => 
-        c.id === selectedCustomer.id 
+      setCustomers(prev => prev.map(c =>
+        c.id === selectedCustomer.id
           ? { ...c, emotion: 'happy' as const, isAnswered: true, patience: c.maxPatience - 1 }
           : c
       ));
-      
+
       // Show success message from manager
       const allSuccessMessages = [
         // Keep existing matcha messages
-        'Matcha mastery!', 'Perfect tea service!', 'Zen precision!', 'Tea ceremony worthy!', 'Outstanding brew!', 
-        'Brilliant matcha skills!', 'Amazing technique!', 'Fantastic flow!', 'Keep brewing!', 
+        'Matcha mastery!', 'Perfect tea service!', 'Zen precision!', 'Tea ceremony worthy!', 'Outstanding brew!',
+        'Brilliant matcha skills!', 'Amazing technique!', 'Fantastic flow!', 'Keep brewing!',
         'You\'re a matcha master!', 'Impressive tea work!',
         // New matcha & cafe messages
-        'Exquisite whisking!', 'Ceremonial grade service!', 'Jade powder perfection!', 
+        'Exquisite whisking!', 'Ceremonial grade service!', 'Jade powder perfection!',
         'Tea harmony achieved!', 'Sublime matcha craft!', 'Cafe excellence!',
         'Perfect guest service!', 'Matcha meditation success!', 'Tea artistry displayed!',
         'Flawless cafe rhythm!', 'Premium matcha quality!', 'Guest delight achieved!'
       ];
-      
+
       let availableMessages = allSuccessMessages.filter(msg => !usedSuccessMessages.includes(msg));
       if (availableMessages.length === 0) {
         availableMessages = allSuccessMessages;
         setUsedSuccessMessages([]);
       }
-      
+
       const selectedMessage = availableMessages[Math.floor(Math.random() * availableMessages.length)];
       setManagerMessage(selectedMessage);
       setManagerMessageType('success');
@@ -1263,7 +1264,7 @@ export const MathchaCafe: React.FC = () => {
       setShowManagerBubble(true);
       setTimeout(() => setShowManagerBubble(false), 2000);
       managerTimerRef.current = 0;
-      
+
       // Update score
       const levelConfig = LEVEL_CONFIG[gameScore.level - 1];
       const points = levelConfig.scoreMultiplier;
@@ -1271,8 +1272,8 @@ export const MathchaCafe: React.FC = () => {
       // Get the current customer state from the customers array to ensure sync
       const currentCustomer = customers.find(c => c.id === selectedCustomer.id) || selectedCustomer;
       const patiencePercent = currentCustomer.patience / currentCustomer.maxPatience;
-      const timeBonus = patiencePercent > 0.8 ? 1 : 0; // 1 bonus point if >80% patience remains
-      
+      const timeBonus = patiencePercent > 0.7 ? 1 : 0; // 1 bonus point if >80% patience remains
+
       setGameScore(prev => {
         const newScore = prev.score + points + timeBonus;
         setSessionStats(sessionPrev => ({
@@ -1288,50 +1289,50 @@ export const MathchaCafe: React.FC = () => {
           timeBonus: prev.timeBonus + timeBonus,
         };
       });
-      
+
       audioManagerRef.current?.playHappyCustomer();
-      
+
       // Remove happy customer after 2 seconds
       setTimeout(() => {
         setCustomers(prev => prev.filter(c => c.id !== selectedCustomer.id));
       }, 2000);
-      
+
     } else {
       // Wrong answer - make customer angry and reduce score
-      setCustomers(prev => prev.map(c => 
-        c.id === selectedCustomer.id 
+      setCustomers(prev => prev.map(c =>
+        c.id === selectedCustomer.id
           ? { ...c, emotion: 'angry' as const, patience: -1 }
           : c
       ));
-      
+
       // Reduce score for wrong answer (matches level base points)
       const levelConfig = LEVEL_CONFIG[gameScore.level - 1];
       setGameScore(prev => ({
         ...prev,
         score: prev.score - levelConfig.penaltyMultiplier // Penalty matches base points
       }));
-      
+
       audioManagerRef.current?.playAngryCustomer();
-      
+
       // Show failure message from manager
       const allFailMessages = [
         // Keep existing matcha messages
-        'Breathe and brew!', 'Find your zen!', 'Focus your chi!', 'Channel matcha energy!', 'Stay centered!', 
-        'Keep practicing!', 'Almost perfect!', 'Mindful moment!', 
+        'Breathe and brew!', 'Find your zen!', 'Focus your chi!', 'Channel matcha energy!', 'Stay centered!',
+        'Keep practicing!', 'Almost perfect!', 'Mindful moment!',
         'No rush, just flow!', 'Practice makes mastery!', 'You\'ve got the spirit!',
         // New matcha & cafe messages
-        'Re-whisk with care!', 'Perfect the powder ratio!', 'Study the tea way!', 
+        'Re-whisk with care!', 'Perfect the powder ratio!', 'Study the tea way!',
         'Meditate on matcha!', 'Center your cafe focus!', 'Trust the brewing process!',
         'Review the tea order!', 'Mind the guest timing!', 'Practice tea precision!',
         'Refine your technique!', 'Balance like matcha foam!', 'Cafe wisdom grows!'
       ];
-      
+
       let availableMessages = allFailMessages.filter(msg => !usedFailMessages.includes(msg));
       if (availableMessages.length === 0) {
         availableMessages = allFailMessages;
         setUsedFailMessages([]);
       }
-      
+
       const selectedMessage = availableMessages[Math.floor(Math.random() * availableMessages.length)];
       setManagerMessage(selectedMessage);
       setManagerMessageType('failure');
@@ -1340,11 +1341,11 @@ export const MathchaCafe: React.FC = () => {
       setTimeout(() => setShowManagerBubble(false), 2000);
       managerTimerRef.current = 0;
     }
-    
+
     setSelectedBudgetItems([]);
     setSelectedCustomer(null);
-    trackGameEvent('mathcha-cafe', 'view', { 
-      correct: isCorrect, 
+    trackGameEvent('mathcha-cafe', 'view', {
+      correct: isCorrect,
       questionType: selectedCustomer.question.type,
       level: gameScore.level
     });
@@ -1352,48 +1353,48 @@ export const MathchaCafe: React.FC = () => {
 
   const submitBudgetAnswer = () => {
     if (!selectedCustomer || selectedCustomer.question.type !== 'budget') return;
-    
+
     // Calculate total cost of selected items
-    const selectedItems = selectedBudgetItems.map(index => 
+    const selectedItems = selectedBudgetItems.map(index =>
       selectedCustomer.question.menuItems![index]
     );
     const totalCost = selectedItems.reduce((sum, item) => sum + item.price, 0);
     const budget = selectedCustomer.question.budget!;
-    
+
     // Check for correctness: total cost must exactly match the budget
     const isCorrect = selectedBudgetItems.length > 0 && totalCost === budget;
-    
+
     setTotalAnswers(prev => prev + 1);
-    
+
     if (isCorrect) {
       setCorrectAnswers(prev => prev + 1);
-      
+
       // Update customer to happy (they'll leave soon)
-      setCustomers(prev => prev.map(c => 
-        c.id === selectedCustomer.id 
+      setCustomers(prev => prev.map(c =>
+        c.id === selectedCustomer.id
           ? { ...c, emotion: 'happy' as const, isAnswered: true, patience: c.maxPatience - 1 }
           : c
       ));
-      
+
       // Show success message from manager
       const allSuccessMessages = [
         // Keep existing matcha messages
-        'Matcha mastery!', 'Perfect tea service!', 'Zen precision!', 'Tea ceremony worthy!', 'Outstanding brew!', 
-        'Brilliant matcha skills!', 'Amazing technique!', 'Fantastic flow!', 'Keep brewing!', 
+        'Matcha mastery!', 'Perfect tea service!', 'Zen precision!', 'Tea ceremony worthy!', 'Outstanding brew!',
+        'Brilliant matcha skills!', 'Amazing technique!', 'Fantastic flow!', 'Keep brewing!',
         'You\'re a matcha master!', 'Impressive tea work!',
         // New matcha & cafe messages
-        'Exquisite whisking!', 'Ceremonial grade service!', 'Jade powder perfection!', 
+        'Exquisite whisking!', 'Ceremonial grade service!', 'Jade powder perfection!',
         'Tea harmony achieved!', 'Sublime matcha craft!', 'Cafe excellence!',
         'Perfect guest service!', 'Matcha meditation success!', 'Tea artistry displayed!',
         'Flawless cafe rhythm!', 'Premium matcha quality!', 'Guest delight achieved!'
       ];
-      
+
       let availableMessages = allSuccessMessages.filter(msg => !usedSuccessMessages.includes(msg));
       if (availableMessages.length === 0) {
         availableMessages = allSuccessMessages;
         setUsedSuccessMessages([]);
       }
-      
+
       const selectedMessage = availableMessages[Math.floor(Math.random() * availableMessages.length)];
       setManagerMessage(selectedMessage);
       setManagerMessageType('success');
@@ -1401,7 +1402,7 @@ export const MathchaCafe: React.FC = () => {
       setShowManagerBubble(true);
       setTimeout(() => setShowManagerBubble(false), 2000);
       managerTimerRef.current = 0;
-      
+
       // Update score
       const levelConfig = LEVEL_CONFIG[gameScore.level - 1];
       const points = levelConfig.scoreMultiplier;
@@ -1409,8 +1410,8 @@ export const MathchaCafe: React.FC = () => {
       // Get the current customer state from the customers array to ensure sync
       const currentCustomer = customers.find(c => c.id === selectedCustomer.id) || selectedCustomer;
       const patiencePercent = currentCustomer.patience / currentCustomer.maxPatience;
-      const timeBonus = patiencePercent > 0.8 ? 1 : 0; // 1 bonus point if >80% patience remains
-      
+      const timeBonus = patiencePercent > 0.7 ? 1 : 0; // 1 bonus point if >80% patience remains
+
       setGameScore(prev => {
         const newScore = prev.score + points + timeBonus;
         setSessionStats(sessionPrev => ({
@@ -1426,50 +1427,50 @@ export const MathchaCafe: React.FC = () => {
           timeBonus: prev.timeBonus + timeBonus,
         };
       });
-      
+
       audioManagerRef.current?.playHappyCustomer();
-      
+
       // Remove happy customer after 2 seconds
       setTimeout(() => {
         setCustomers(prev => prev.filter(c => c.id !== selectedCustomer.id));
       }, 2000);
-      
+
     } else {
       // Wrong answer - make customer angry and reduce score
-      setCustomers(prev => prev.map(c => 
-        c.id === selectedCustomer.id 
+      setCustomers(prev => prev.map(c =>
+        c.id === selectedCustomer.id
           ? { ...c, emotion: 'angry' as const, patience: -1 }
           : c
       ));
-      
+
       // Reduce score for wrong answer
       const levelConfig = LEVEL_CONFIG[gameScore.level - 1];
       setGameScore(prev => ({
         ...prev,
         score: prev.score - levelConfig.penaltyMultiplier
       }));
-      
+
       audioManagerRef.current?.playAngryCustomer();
-      
+
       // Show failure message from manager
       const allFailMessages = [
         // Keep existing matcha messages
-        'Breathe and brew!', 'Find your zen!', 'Focus your chi!', 'Channel matcha energy!', 'Stay centered!', 
-        'Keep practicing!', 'Almost perfect!', 'Mindful moment!', 
+        'Breathe and brew!', 'Find your zen!', 'Focus your chi!', 'Channel matcha energy!', 'Stay centered!',
+        'Keep practicing!', 'Almost perfect!', 'Mindful moment!',
         'No rush, just flow!', 'Practice makes mastery!', 'You\'ve got the spirit!',
         // New matcha & cafe messages
-        'Re-whisk with care!', 'Perfect the powder ratio!', 'Study the tea way!', 
+        'Re-whisk with care!', 'Perfect the powder ratio!', 'Study the tea way!',
         'Meditate on matcha!', 'Center your cafe focus!', 'Trust the brewing process!',
         'Review the tea order!', 'Mind the guest timing!', 'Practice tea precision!',
         'Refine your technique!', 'Balance like matcha foam!', 'Cafe wisdom grows!'
       ];
-      
+
       let availableMessages = allFailMessages.filter(msg => !usedFailMessages.includes(msg));
       if (availableMessages.length === 0) {
         availableMessages = allFailMessages;
         setUsedFailMessages([]);
       }
-      
+
       const selectedMessage = availableMessages[Math.floor(Math.random() * availableMessages.length)];
       setManagerMessage(selectedMessage);
       setManagerMessageType('failure');
@@ -1478,26 +1479,26 @@ export const MathchaCafe: React.FC = () => {
       setTimeout(() => setShowManagerBubble(false), 2000);
       managerTimerRef.current = 0;
     }
-    
+
     // Reset selected items and close modal
     setSelectedBudgetItems([]);
     setSelectedCustomer(null);
-    trackGameEvent('mathcha-cafe', 'view', { 
-      correct: isCorrect, 
+    trackGameEvent('mathcha-cafe', 'view', {
+      correct: isCorrect,
       questionType: selectedCustomer.question.type,
       level: gameScore.level
     });
   };
-  
+
   const closeQuestion = () => {
     setSelectedCustomer(null);
     setSelectedBudgetItems([]);
     audioManagerRef.current?.playButtonClick();
   };
-  
+
   // Use default theme
   const theme = THEME;
-  
+
   // Helper function to format game time
   const formatGameTime = (seconds: number) => {
     const totalSeconds = Math.floor(seconds);
@@ -1505,12 +1506,12 @@ export const MathchaCafe: React.FC = () => {
     const remainingSeconds = totalSeconds % 60;
     return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
   };
-  
+
   // Render functions
   const renderSplashScreen = () => {
     const iosSmallScreen = isIOSSmallScreen();
     const isAndroidChrome = /Android/i.test(navigator.userAgent) && /Chrome/i.test(navigator.userAgent);
-    
+
     const handleSplashInteraction = () => {
       if (!hasUserInteracted) {
         setHasUserInteracted(true);
@@ -1518,10 +1519,10 @@ export const MathchaCafe: React.FC = () => {
         setGameState('setup');
       }
     };
-    
+
     return (
-      <div 
-        className="fixed inset-0 w-full h-full overflow-hidden sm:bg-gradient-to-br sm:from-green-100 sm:via-amber-50 sm:to-green-200 sm:flex sm:items-center sm:justify-center sm:p-4"
+      <div
+        className={`fixed inset-0 w-full h-full overflow-hidden sm:bg-gradient-to-br sm:from-green-100 sm:via-amber-50 sm:to-green-200 sm:flex sm:items-center sm:justify-center sm:p-4 ${!isAndroidChrome ? 'cursor-pointer' : ''}`}
         style={iosSmallScreen ? {
           height: '100dvh', // Dynamic viewport height for iOS
           position: 'fixed',
@@ -1534,7 +1535,7 @@ export const MathchaCafe: React.FC = () => {
         onTouchStart={!isAndroidChrome ? handleSplashInteraction : undefined}
       >
         {/* Mobile: Full screen image with overlay text */}
-        <div 
+        <div
           className="sm:hidden relative w-full h-full flex items-center justify-center bg-gradient-to-br from-green-100 via-amber-50 to-green-200"
           style={iosSmallScreen ? {
             height: '100dvh',
@@ -1545,9 +1546,9 @@ export const MathchaCafe: React.FC = () => {
             alignItems: 'center'
           } : {}}
         >
-          <img 
-            src="/mathcha-cafe-title.png" 
-            alt="Mathcha Cafe" 
+          <img
+            src="/mathcha-cafe-title.png"
+            alt="Mathcha Cafe"
             className="max-w-full max-h-full w-auto h-auto object-contain"
             style={iosSmallScreen ? {
               maxWidth: '90%',
@@ -1571,8 +1572,8 @@ export const MathchaCafe: React.FC = () => {
               {!hasUserInteracted ? 'Tap Here to Start' : (showContinueButton ? 'Tap Here to Continue' : 'Loading...')}
             </button>
           ) : (
-            <div 
-              className="absolute bottom-16 left-1/2 transform -translate-x-1/2 text-white text-lg font-bold animate-pulse bg-black/30 px-6 py-3 rounded-full"
+            <div
+              className="absolute bottom-16 left-1/2 transform -translate-x-1/2 text-white text-lg font-bold animate-pulse bg-black/30 px-6 py-3 rounded-full cursor-pointer"
               style={iosSmallScreen ? {
                 position: 'fixed',
                 bottom: '20px',
@@ -1586,12 +1587,12 @@ export const MathchaCafe: React.FC = () => {
             </div>
           )}
         </div>
-        
+
         {/* Desktop: Centered with background */}
         <div className="hidden sm:block relative text-center">
-          <img 
-            src="/mathcha-cafe-title.png" 
-            alt="Mathcha Cafe" 
+          <img
+            src="/mathcha-cafe-title.png"
+            alt="Mathcha Cafe"
             className="max-w-full max-h-[70vh] w-auto h-auto object-contain mx-auto"
           />
           {isAndroidChrome ? (
@@ -1602,7 +1603,7 @@ export const MathchaCafe: React.FC = () => {
               {!hasUserInteracted ? 'Tap Here to Start' : (showContinueButton ? 'Tap Here to Continue' : 'Loading...')}
             </button>
           ) : (
-            <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 text-white text-xl font-bold animate-pulse bg-black/30 px-6 py-3 rounded-full">
+            <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 text-white text-xl font-bold animate-pulse bg-black/30 px-6 py-3 rounded-full cursor-pointer">
               {!hasUserInteracted ? 'Tap to Start' : (showContinueButton ? 'Tap to Continue' : 'Loading...')}
             </div>
           )}
@@ -1625,38 +1626,38 @@ export const MathchaCafe: React.FC = () => {
           <h1 className={`text-4xl font-bold mb-2 ${theme.accent}`}>Mathcha Cafe</h1>
           {/* TODO: Temporary start level selection for testing - remove before production */}
           {testConfig.ENABLE_TESTING && (
-          <div className="bg-yellow-100 border border-yellow-300 rounded-lg p-3 mb-4">
-            <div className="flex items-center justify-center gap-3 mb-3">
-              <label className="text-sm text-yellow-800 font-medium">🧪 Test Start Level:</label>
-              <select 
-                className="px-2 py-1 rounded border border-yellow-400 bg-white text-sm"
-                value={testConfig.START_LEVEL}
-                onChange={(e) => {
-                  setTestConfig(prev => ({
-                    ...prev,
-                    START_LEVEL: parseInt(e.target.value),
-                    ENABLE_TESTING: true
-                  }));
-                }}
-              >
-                <option value={1}>Level 1</option>
-                <option value={2}>Level 2</option>
-                <option value={3}>Level 3</option>
-                <option value={4}>Level 4</option>
-              </select>
+            <div className="bg-yellow-100 border border-yellow-300 rounded-lg p-3 mb-4">
+              <div className="flex items-center justify-center gap-3 mb-3">
+                <label className="text-sm text-yellow-800 font-medium">🧪 Test Start Level:</label>
+                <select
+                  className="px-2 py-1 rounded border border-yellow-400 bg-white text-sm"
+                  value={testConfig.START_LEVEL}
+                  onChange={(e) => {
+                    setTestConfig(prev => ({
+                      ...prev,
+                      START_LEVEL: parseInt(e.target.value),
+                      ENABLE_TESTING: true
+                    }));
+                  }}
+                >
+                  <option value={1}>Level 1</option>
+                  <option value={2}>Level 2</option>
+                  <option value={3}>Level 3</option>
+                  <option value={4}>Level 4</option>
+                </select>
+              </div>
+              <div className="flex justify-center">
+                <button
+                  onClick={() => setGameState('victory')}
+                  className="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded text-sm transition-colors"
+                >
+                  🎉 Test Victory Confetti
+                </button>
+              </div>
             </div>
-            <div className="flex justify-center">
-              <button
-                onClick={() => setGameState('victory')}
-                className="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded text-sm transition-colors"
-              >
-                🎉 Test Victory Confetti
-              </button>
-            </div>
-          </div>
           )}
           <p className="text-gray-600 mb-6">Master the art of matcha service through mindful mathematics!</p>
-          
+
           {/* Game Instructions */}
           <div className="bg-green-50 border border-green-200 rounded-2xl p-6 mb-8 text-left">
             <h3 className="text-lg font-semibold text-green-800 mb-4 text-center">🍵 How to Play</h3>
@@ -1668,7 +1669,7 @@ export const MathchaCafe: React.FC = () => {
               <div className="flex items-start gap-3">
                 <span className="text-lg">🧮</span>
                 <div><strong>Solve math questions:</strong> Calculate totals, change, discounts, and budgets to earn mastery points</div>
-              </div>              
+              </div>
               <div className="flex items-start gap-3">
                 <span className="text-lg">⏰</span>
                 <div><strong>Serve quickly:</strong> Customers lose patience if you take too long</div>
@@ -1676,42 +1677,40 @@ export const MathchaCafe: React.FC = () => {
               <div className="flex items-start gap-3">
                 <span className="text-lg">😊</span>
                 <div><strong>Level up:</strong> Serve enough happy guests to advance levels</div>
-              </div>              
+              </div>
               <div className="flex items-start gap-3">
                 <span className="text-lg">🎯</span>
                 <div><strong>Goal:</strong> Complete all 4 levels to become a true Mathcha Master! Losing mastery below 0 will end the game</div>
               </div>
             </div>
           </div>
-          
+
           <div className="space-y-6 mb-8">
             <div className="flex gap-4 justify-center">
               <button
                 onClick={() => updateSettings({ soundEnabled: !settings.soundEnabled })}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
-                  settings.soundEnabled
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${settings.soundEnabled
                     ? `${theme.button} text-white`
                     : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                }`}
+                  }`}
               >
                 {settings.soundEnabled ? <Volume2 size={20} /> : <VolumeX size={20} />}
                 Music
               </button>
-              
+
               <button
                 onClick={() => updateSettings({ sfxEnabled: !settings.sfxEnabled })}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
-                  settings.sfxEnabled
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${settings.sfxEnabled
                     ? `${theme.button} text-white`
                     : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                }`}
+                  }`}
               >
                 {settings.sfxEnabled ? <Volume2 size={20} /> : <VolumeX size={20} />}
                 SFX
               </button>
             </div>
           </div>
-          
+
           <button
             onClick={startGame}
             className={`${theme.button} text-white px-8 py-3 rounded-xl text-lg font-semibold hover:scale-105 transition-transform`}
@@ -1723,7 +1722,7 @@ export const MathchaCafe: React.FC = () => {
       </div>
     </div>
   );
-  
+
   const renderGameScreen = () => (
     <div className={`min-h-[calc(100vh-4rem)] sm:min-h-[calc(100vh-5rem)] bg-gradient-to-br ${theme.playingBg} p-4`}>
       {/* Header */}
@@ -1754,7 +1753,7 @@ export const MathchaCafe: React.FC = () => {
             {Math.floor(gameTimer / 60)}:{(Math.floor(gameTimer % 60)).toString().padStart(2, '0')}
           </div>
         </div>
-        
+
         <div className="flex gap-2">
           <button
             onClick={pauseGame}
@@ -1770,9 +1769,9 @@ export const MathchaCafe: React.FC = () => {
           </button>
         </div>
       </div>
-      
+
       {/* Game Area */}
-      <div 
+      <div
         className={`${theme.cardBg} rounded-3xl shadow-2xl p-2 sm:p-6 h-[calc(100vh-9rem)] sm:h-[560px] relative flex flex-col sm:block overflow-hidden`}
         style={{
           backgroundImage: 'url(/tile.png)',
@@ -1781,7 +1780,7 @@ export const MathchaCafe: React.FC = () => {
           backgroundPosition: 'top left'
         }}
       >
-        
+
         {/* Mobile Portrait Layout */}
         <div className="sm:hidden flex flex-col h-full max-h-full overflow-hidden">
           {/* Top Section: Menu */}
@@ -1790,7 +1789,7 @@ export const MathchaCafe: React.FC = () => {
               {/* Decorative elements */}
               <div className="absolute top-0 right-0 w-8 h-8 bg-yellow-400/20 rounded-full transform translate-x-2 -translate-y-2"></div>
               <div className="absolute bottom-0 left-0 w-6 h-6 bg-green-400/20 rounded-full transform -translate-x-1 translate-y-1"></div>
-              
+
               <h3 className="font-bold mb-1.5 text-xs text-center flex items-center justify-center gap-1.5">
                 <span className="text-sm">🍵</span>
                 <span className="text-yellow-300">Matcha Menu</span>
@@ -1806,7 +1805,7 @@ export const MathchaCafe: React.FC = () => {
               </div>
             </div>
           </div>
-          
+
           {/* Middle Section: Customer Tables - Mobile Vertical 2x4 */}
           <div className="flex-1 flex items-center justify-center min-h-0">
             <div className="grid grid-cols-2 gap-4">
@@ -1815,18 +1814,17 @@ export const MathchaCafe: React.FC = () => {
                 return (
                   <div key={i} className="relative">
                     {/* Table */}
-                    <div 
-                      className={`${gameScore.level === 4 ? 'w-14 h-14' : gameScore.level >= 2 ? 'w-16 h-16' : 'w-20 h-20'} flex items-center justify-center relative z-10 ${
-                        customer ? 'cursor-pointer hover:scale-105 transition-transform' : ''
-                      }`}
+                    <div
+                      className={`${gameScore.level === 4 ? 'w-14 h-14' : gameScore.level >= 2 ? 'w-16 h-16' : 'w-20 h-20'} flex items-center justify-center relative z-10 ${customer ? 'cursor-pointer hover:scale-105 transition-transform' : ''
+                        }`}
                       onClick={customer ? () => selectCustomer(customer) : undefined}
                     >
-                      <img 
-                        src="/matcha-table.png" 
-                        alt="Table" 
+                      <img
+                        src="/matcha-table.png"
+                        alt="Table"
                         className={`${gameScore.level === 4 ? 'w-14 h-14' : gameScore.level >= 2 ? 'w-16 h-16' : 'w-20 h-20'} object-contain`}
                       />
-                      
+
                       {/* Menu icon on table when guest is present */}
                       {customer && (
                         <div className="absolute -top-1 left-1/2 transform -translate-x-1/2 z-20">
@@ -1845,44 +1843,43 @@ export const MathchaCafe: React.FC = () => {
                         </div>
                       )}
                     </div>
-                    
+
                     {/* Customer - positioned on left or right side of table */}
                     {customer && (() => {
                       // Mobile 2x4 grid: alternate left/right based on column position
                       const isLeftColumn = i % 2 === 0; // Even indices (0,2,4,6) are left column
-                      const positionClass = isLeftColumn 
-                        ? 'left-0 top-1/2 transform -translate-x-full -translate-y-1/2' 
+                      const positionClass = isLeftColumn
+                        ? 'left-0 top-1/2 transform -translate-x-full -translate-y-1/2'
                         : 'right-0 top-1/2 transform translate-x-full -translate-y-1/2';
-                      
+
                       return (
                         <div
                           className={`absolute ${positionClass} cursor-pointer hover:scale-110 transition-transform z-0`}
                           onClick={() => selectCustomer(customer)}
                         >
-                          <img 
-                            src={customer.type.avatar} 
+                          <img
+                            src={customer.type.avatar}
                             alt={customer.type.name}
-                            className={`${gameScore.level === 4 ? 'w-16 h-16' : gameScore.level >= 2 ? 'w-20 h-20' : 'w-24 h-24'} scale-90 sm:scale-50 object-contain filter ${
-                              customer.emotion === 'happy' ? 'brightness-110' :
-                              customer.emotion === 'angry' ? 'brightness-75 saturate-150' :
-                              ''
-                            }`}
+                            className={`${gameScore.level === 4 ? 'w-16 h-16' : gameScore.level >= 2 ? 'w-20 h-20' : 'w-24 h-24'} scale-90 sm:scale-50 object-contain filter ${customer.emotion === 'happy' ? 'brightness-110' :
+                                customer.emotion === 'angry' ? 'brightness-75 saturate-150' :
+                                  ''
+                              }`}
                           />
-                          
+
                           {/* Emotion Indicator - positioned above guest avatar */}
                           {customer.emotion !== 'neutral' && (
                             <div className="absolute -top-6 sm:-top-5 left-1/2 transform -translate-x-1/2 z-20">
                               {customer.emotion === 'happy' && (
-                                <img 
-                                  src={getRandomEmotionAsset('happy', customer.id)} 
-                                  alt="Happy" 
+                                <img
+                                  src={getRandomEmotionAsset('happy', customer.id)}
+                                  alt="Happy"
                                   className="w-6 h-6 object-contain animate-bounce drop-shadow-md"
                                 />
                               )}
                               {customer.emotion === 'angry' && (
-                                <img 
-                                  src={getRandomEmotionAsset('angry', customer.id)} 
-                                  alt="Angry" 
+                                <img
+                                  src={getRandomEmotionAsset('angry', customer.id)}
+                                  alt="Angry"
                                   className="w-6 h-6 object-contain animate-pulse drop-shadow-md"
                                 />
                               )}
@@ -1891,16 +1888,15 @@ export const MathchaCafe: React.FC = () => {
                         </div>
                       );
                     })()}
-                    
+
                     {/* Patience Bar */}
                     {customer && !customer.isAnswered && (
                       <div className={`absolute -bottom-3 left-0 ${gameScore.level === 4 ? 'w-14' : gameScore.level >= 2 ? 'w-16' : 'w-20'} h-2 bg-gray-300 rounded-full overflow-hidden`}>
-                        <div 
-                          className={`h-full ${
-                            customer.patience / customer.maxPatience > 0.5 ? 'bg-green-500' :
-                            customer.patience / customer.maxPatience > 0.2 ? 'bg-yellow-500' :
-                            'bg-red-500'
-                          }`}
+                        <div
+                          className={`h-full ${customer.patience / customer.maxPatience > 0.5 ? 'bg-green-500' :
+                              customer.patience / customer.maxPatience > 0.2 ? 'bg-yellow-500' :
+                                'bg-red-500'
+                            }`}
                           style={{ width: `${Math.max(0, (customer.patience / customer.maxPatience) * 100)}%` }}
                         />
                       </div>
@@ -1910,13 +1906,13 @@ export const MathchaCafe: React.FC = () => {
               })}
             </div>
           </div>
-          
+
           {/* Bottom Section: Staff */}
           <div className="flex justify-between items-end mt-auto">
             {/* Cashier */}
             <div className="flex items-end gap-2">
-              <img 
-                src="/robo-cashier.png" 
+              <img
+                src="/robo-cashier.png"
                 alt="Robo Cashier"
                 className="w-14 h-14 object-contain"
               />
@@ -1927,11 +1923,11 @@ export const MathchaCafe: React.FC = () => {
                 </div>
               </div>
             </div>
-            
+
             {/* Manager */}
             <div className="flex items-end gap-2 mt-1">
-              <img 
-                src="/tea-master.png" 
+              <img
+                src="/tea-master.png"
                 alt="Tea Master"
                 className="w-14 h-14 object-contain"
               />
@@ -1943,14 +1939,14 @@ export const MathchaCafe: React.FC = () => {
               </div>
             </div>
           </div>
-          
+
           {/* Speech Bubbles for Mobile */}
           {showCashierBubble && (
             <div className="absolute bottom-20 left-2 bg-gradient-to-br from-green-50 to-green-100 text-green-800 px-2 py-1 rounded-lg text-xs shadow-lg border border-green-400 max-w-32 text-center z-10 animate-pulse">
               <div className="font-medium">{cashierMessage}</div>
             </div>
           )}
-          
+
           {showManagerBubble && (() => {
             const colors = {
               success: { bg: 'from-green-50 to-green-100', text: 'text-green-800', border: 'border-green-500' },
@@ -1958,7 +1954,7 @@ export const MathchaCafe: React.FC = () => {
               timeout: { bg: 'from-red-50 to-red-100', text: 'text-red-800', border: 'border-red-500' }
             };
             const color = colors[managerMessageType];
-            
+
             return (
               <div className={`absolute bottom-20 right-2 bg-gradient-to-br ${color.bg} ${color.text} px-2 py-1 rounded-lg text-xs shadow-lg border ${color.border} max-w-32 text-center z-10 animate-bounce`}>
                 <div className="font-semibold">{managerMessage}</div>
@@ -1977,11 +1973,11 @@ export const MathchaCafe: React.FC = () => {
               <div className="absolute bottom-2 left-2 text-3xl">🍃</div>
               <div className="absolute top-1/2 right-6 text-2xl">✨</div>
             </div>
-            
+
             {/* Corner decorations */}
             <div className="absolute top-0 right-0 w-12 h-12 bg-yellow-400/20 rounded-full transform translate-x-3 -translate-y-3"></div>
             <div className="absolute bottom-0 left-0 w-8 h-8 bg-green-400/20 rounded-full transform -translate-x-2 translate-y-2"></div>
-            
+
             <h3 className="font-bold mb-3 text-lg text-center relative z-10 flex items-center justify-center gap-2">
               <span className="text-xl animate-pulse">🍵</span>
               <span className="text-yellow-300 tracking-wide">Matcha Menu</span>
@@ -1999,11 +1995,11 @@ export const MathchaCafe: React.FC = () => {
               ))}
             </div>
           </div>
-          
+
           {/* Cashier/Ordering Counter */}
           <div className="absolute bottom-8 left-4 flex items-end gap-4">
-            <img 
-              src="/robo-cashier.png" 
+            <img
+              src="/robo-cashier.png"
               alt="Robo Cashier"
               className="w-20 h-20 object-contain scale-150 hover:scale-[1.6] transition-transform"
             />
@@ -2014,7 +2010,7 @@ export const MathchaCafe: React.FC = () => {
               </div>
             </div>
           </div>
-          
+
           {/* Cashier Speech Bubble */}
           {showCashierBubble && (
             <div className="absolute bottom-36 left-4 bg-gradient-to-br from-green-50 to-green-100 text-green-800 px-4 py-3 rounded-2xl text-sm shadow-xl border-2 border-green-400 max-w-80 text-center z-10 animate-pulse">
@@ -2025,7 +2021,7 @@ export const MathchaCafe: React.FC = () => {
               </div>
             </div>
           )}
-          
+
           {/* Manager */}
           <div className="absolute bottom-6 right-4 flex items-end gap-4">
             <div className="flex-1 mb-2">
@@ -2034,13 +2030,13 @@ export const MathchaCafe: React.FC = () => {
                 <div className="text-xs text-green-600">Matcha Sensei</div>
               </div>
             </div>
-            <img 
-              src="/tea-master.png" 
+            <img
+              src="/tea-master.png"
               alt="Tea Master"
               className="w-20 h-20 object-contain scale-150 hover:scale-[1.6] transition-transform"
             />
           </div>
-          
+
           {/* Manager Speech Bubble */}
           {showManagerBubble && (() => {
             const colors = {
@@ -2067,7 +2063,7 @@ export const MathchaCafe: React.FC = () => {
               }
             };
             const color = colors[managerMessageType];
-            
+
             return (
               <div className={`absolute bottom-32 right-4 bg-gradient-to-br ${color.bg} ${color.text} px-4 py-3 rounded-2xl text-sm shadow-xl border-2 ${color.border} max-w-80 text-center z-10 animate-bounce`}>
                 <div className="font-semibold">{managerMessage}</div>
@@ -2078,7 +2074,7 @@ export const MathchaCafe: React.FC = () => {
               </div>
             );
           })()}
-          
+
           {/* Customer Tables */}
           <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 grid grid-cols-4 gap-x-12 gap-y-24">
             {Array.from({ length: 8 }, (_, i) => {
@@ -2086,18 +2082,17 @@ export const MathchaCafe: React.FC = () => {
               return (
                 <div key={i} className="relative">
                   {/* Table */}
-                  <div 
-                    className={`w-24 h-24 flex items-center justify-center relative z-10 ${
-                      customer ? 'cursor-pointer hover:scale-105 transition-transform' : ''
-                    }`}
+                  <div
+                    className={`w-24 h-24 flex items-center justify-center relative z-10 ${customer ? 'cursor-pointer hover:scale-105 transition-transform' : ''
+                      }`}
                     onClick={customer ? () => selectCustomer(customer) : undefined}
                   >
-                    <img 
-                      src="/matcha-table.png" 
-                      alt="Table" 
+                    <img
+                      src="/matcha-table.png"
+                      alt="Table"
                       className="w-24 h-24 object-contain"
                     />
-                    
+
                     {/* Menu icon on table when guest is present */}
                     {customer && (
                       <div className="absolute top-0 left-1/2 transform -translate-x-1/2 z-20">
@@ -2116,55 +2111,53 @@ export const MathchaCafe: React.FC = () => {
                       </div>
                     )}
                   </div>
-                  
+
                   {/* Customer - positioned higher and scaled up */}
                   {customer && (
                     <div
                       className="absolute top-4 left-1/2 transform -translate-x-1/2 -translate-y-3/4 scale-[2.3] cursor-pointer hover:scale-[2.5] transition-transform z-0"
                       onClick={() => selectCustomer(customer)}
                     >
-                      <img 
-                        src={customer.type.avatar} 
+                      <img
+                        src={customer.type.avatar}
                         alt={customer.type.name}
-                        className={`w-32 h-32 scale-90 sm:scale-50 object-contain filter ${
-                          customer.emotion === 'happy' ? 'brightness-110' :
-                          customer.emotion === 'angry' ? 'brightness-75 saturate-150' :
-                          ''
-                        }`}
+                        className={`w-32 h-32 scale-90 sm:scale-50 object-contain filter ${customer.emotion === 'happy' ? 'brightness-110' :
+                            customer.emotion === 'angry' ? 'brightness-75 saturate-150' :
+                              ''
+                          }`}
                       />
-                      
+
                     </div>
                   )}
-                  
+
                   {/* Emotion Indicator - positioned relative to table, above guest */}
                   {customer && customer.emotion !== 'neutral' && (
                     <div className="absolute -top-28 left-1/2 transform -translate-x-1/2 z-30">
                       {customer.emotion === 'happy' && (
-                        <img 
-                          src={getRandomEmotionAsset('happy', customer.id)} 
-                          alt="Happy" 
+                        <img
+                          src={getRandomEmotionAsset('happy', customer.id)}
+                          alt="Happy"
                           className="w-8 h-8 object-contain animate-bounce drop-shadow-lg"
                         />
                       )}
                       {customer.emotion === 'angry' && (
-                        <img 
-                          src={getRandomEmotionAsset('angry', customer.id)} 
-                          alt="Angry" 
+                        <img
+                          src={getRandomEmotionAsset('angry', customer.id)}
+                          alt="Angry"
                           className="w-8 h-8 object-contain animate-pulse drop-shadow-lg"
                         />
                       )}
                     </div>
                   )}
-                  
+
                   {/* Patience Bar */}
                   {customer && !customer.isAnswered && (
                     <div className="absolute -bottom-4 left-0 w-24 h-3 bg-gray-300 rounded-full overflow-hidden">
-                      <div 
-                        className={`h-full ${
-                          customer.patience / customer.maxPatience > 0.5 ? 'bg-green-500' :
-                          customer.patience / customer.maxPatience > 0.2 ? 'bg-yellow-500' :
-                          'bg-red-500'
-                        }`}
+                      <div
+                        className={`h-full ${customer.patience / customer.maxPatience > 0.5 ? 'bg-green-500' :
+                            customer.patience / customer.maxPatience > 0.2 ? 'bg-yellow-500' :
+                              'bg-red-500'
+                          }`}
                         style={{ width: `${Math.max(0, (customer.patience / customer.maxPatience) * 100)}%` }}
                       />
                     </div>
@@ -2175,13 +2168,13 @@ export const MathchaCafe: React.FC = () => {
           </div>
         </div>
       </div>
-      
+
       {/* Question Modal */}
       {selectedCustomer && (() => {
         // Get the current customer state from the customers array to ensure sync
         const currentCustomer = customers.find(c => c.id === selectedCustomer.id) || selectedCustomer;
         const questionTheme = QUESTION_THEMES[currentCustomer.question.type];
-        
+
         return (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
             <div className={`bg-gradient-to-br ${questionTheme.bgGradient} rounded-2xl p-6 max-w-md w-full border-2 ${questionTheme.borderColor} shadow-2xl`}>
@@ -2196,8 +2189,8 @@ export const MathchaCafe: React.FC = () => {
 
               <div className="text-center mb-4">
                 <div className="mb-2 flex justify-center">
-                  <img 
-                    src={currentCustomer.type.avatar} 
+                  <img
+                    src={currentCustomer.type.avatar}
                     alt={currentCustomer.type.name}
                     className="w-16 h-16 object-contain"
                   />
@@ -2205,18 +2198,17 @@ export const MathchaCafe: React.FC = () => {
                 <h3 className={`text-lg font-semibold ${questionTheme.textColor}`}>Customer Order</h3>
                 {/* Patience Timer in Modal */}
                 <div className="mt-3 mx-auto w-48 h-2 bg-gray-300 rounded-full overflow-hidden">
-                  <div 
-                    className={`h-full ${
-                      currentCustomer.patience / currentCustomer.maxPatience > 0.5 ? 'bg-green-500' :
-                      currentCustomer.patience / currentCustomer.maxPatience > 0.2 ? 'bg-yellow-500' :
-                      'bg-red-500'
-                    }`}
+                  <div
+                    className={`h-full ${currentCustomer.patience / currentCustomer.maxPatience > 0.5 ? 'bg-green-500' :
+                        currentCustomer.patience / currentCustomer.maxPatience > 0.2 ? 'bg-yellow-500' :
+                          'bg-red-500'
+                      }`}
                     style={{ width: `${Math.max(0, (currentCustomer.patience / currentCustomer.maxPatience) * 100)}%` }}
                   />
                 </div>
                 <div className={`text-xs ${questionTheme.textColor} opacity-75 mt-1`}>Customer Patience: {Math.ceil(currentCustomer.patience)}s</div>
               </div>
-            
+
               {/* Show order only for non-budget questions */}
               {currentCustomer.question.type !== 'budget' && (
                 <div className="mb-4">
@@ -2231,10 +2223,10 @@ export const MathchaCafe: React.FC = () => {
                   </div>
                 </div>
               )}
-              
+
               <div className="mb-6">
                 <div className={`font-medium mb-3 ${questionTheme.textColor}`}>{currentCustomer.question.question}</div>
-                
+
                 {currentCustomer.question.type === 'budget' ? (
                   // Budget questions: Show compact menu with toggle buttons
                   <>
@@ -2251,11 +2243,10 @@ export const MathchaCafe: React.FC = () => {
                                 setSelectedBudgetItems(prev => [...prev, index]);
                               }
                             }}
-                            className={`p-1 sm:p-1.5 rounded-md border-2 transition-all text-xs ${
-                              selectedBudgetItems.includes(index)
+                            className={`p-1 sm:p-1.5 rounded-md border-2 transition-all text-xs ${selectedBudgetItems.includes(index)
                                 ? `${questionTheme.borderColor} ${questionTheme.buttonBg} text-white shadow-md`
                                 : `border-gray-300 ${questionTheme.textColor} hover:border-gray-400 bg-white/20`
-                            }`}
+                              }`}
                           >
                             <div className="flex flex-col items-center gap-0 sm:gap-0.5">
                               <span className="text-xs sm:text-sm">{item.icon}</span>
@@ -2266,16 +2257,16 @@ export const MathchaCafe: React.FC = () => {
                         ))}
                       </div>
                     </div>
-                    
+
                     {/* Show current total */}
                     {selectedBudgetItems.length > 0 && (
                       <div className={`text-xs sm:text-sm ${questionTheme.textColor} mb-3 sm:mb-4 text-center`}>
-                        Selected Total: ${selectedBudgetItems.reduce((sum, index) => 
+                        Selected Total: ${selectedBudgetItems.reduce((sum, index) =>
                           sum + (currentCustomer.question.menuItems?.[index]?.price || 0), 0
                         )} / ${currentCustomer.question.budget}
                       </div>
                     )}
-                    
+
                     <button
                       onClick={submitBudgetAnswer}
                       disabled={selectedBudgetItems.length === 0}
@@ -2299,7 +2290,7 @@ export const MathchaCafe: React.FC = () => {
                   </div>
                 )}
               </div>
-            
+
               <button
                 onClick={closeQuestion}
                 className={`w-full bg-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-400 transition-colors border border-gray-400`}
@@ -2339,7 +2330,7 @@ export const MathchaCafe: React.FC = () => {
       )}
     </div>
   );
-  
+
   const renderPauseScreen = () => (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl p-8 text-center max-w-sm w-full">
@@ -2397,7 +2388,7 @@ export const MathchaCafe: React.FC = () => {
       )}
     </div>
   );
-  
+
   const renderGameOverScreen = () => (
     <div className={`min-h-[calc(100vh-4rem)] sm:min-h-[calc(100vh-5rem)] bg-gradient-to-br ${theme.playingBg} p-4 flex items-center justify-center`}>
       <div className={`${theme.cardBg} rounded-3xl shadow-2xl p-8 text-center max-w-md w-full`}>
@@ -2432,7 +2423,7 @@ export const MathchaCafe: React.FC = () => {
       </div>
     </div>
   );
-  
+
   const renderLevelUpScreen = () => (
     <div className={`min-h-[calc(100vh-4rem)] sm:min-h-[calc(100vh-5rem)] bg-gradient-to-br ${theme.playingBg} p-4 flex items-center justify-center`}>
       <div className={`${theme.cardBg} rounded-3xl shadow-2xl p-8 text-center max-w-md w-full`}>
@@ -2449,7 +2440,7 @@ export const MathchaCafe: React.FC = () => {
       </div>
     </div>
   );
-  
+
   const renderVictoryScreen = () => (
     <div className={`min-h-[calc(100vh-4rem)] sm:min-h-[calc(100vh-5rem)] bg-gradient-to-br ${theme.playingBg} p-4 flex items-center justify-center`}>
       <div className={`${theme.cardBg} rounded-3xl shadow-2xl p-8 text-center max-w-md w-full`}>
@@ -2484,7 +2475,7 @@ export const MathchaCafe: React.FC = () => {
       </div>
     </div>
   );
-  
+
   // Main render
   return (
     <div className="mathcha-cafe-game mathcha-cafe-container">
