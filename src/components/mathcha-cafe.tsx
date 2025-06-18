@@ -866,9 +866,9 @@ export const MathchaCafe: React.FC = () => {
       }));
     }
 
-    // Spawn new wave of customers (only after initial spawn is complete)
+    // Spawn new wave of customers (only after initial spawn is complete and not during level-up)
     const levelConfig = LEVEL_CONFIG[gameScore.level - 1];
-    if (initialSpawnComplete && waveTimer >= 5 && customers.length < levelConfig.customers) {
+    if (initialSpawnComplete && gameState === 'playing' && waveTimer >= 5 && customers.length < levelConfig.customers) {
       const emptyTables = Array.from({ length: 8 }, (_, i) => i)
         .filter(tableId => !customers.some(c => c.tableId === tableId));
 
@@ -900,9 +900,9 @@ export const MathchaCafe: React.FC = () => {
         return true;
       });
 
-      // Spawn new customers to replace removed ones (only after initial spawn is complete)
+      // Spawn new customers to replace removed ones (only after initial spawn is complete and not during level-up)
       const levelConfig = LEVEL_CONFIG[gameScore.level - 1];
-      if (initialSpawnComplete && remaining.length < levelConfig.customers && Math.random() < 0.1) {
+      if (initialSpawnComplete && gameState === 'playing' && remaining.length < levelConfig.customers && Math.random() < 0.1) {
         const emptyTables = Array.from({ length: 8 }, (_, i) => i)
           .filter(tableId => !remaining.some(c => c.tableId === tableId));
 
@@ -1193,6 +1193,14 @@ export const MathchaCafe: React.FC = () => {
 
   const confirmRestart = () => {
     setShowRestartConfirm(false);
+    
+    // Immediately stop game loop and clear all state to prevent race conditions
+    setGameState('setup'); // Stop the game loop immediately
+    setCustomers([]);
+    setSelectedCustomer(null);
+    setGameScore({ score: 0, level: 1, customersServed: 0, accuracy: 100, timeBonus: 0 });
+    setNewLevel(1);
+    
     startGame(); // Start a new game directly
   };
 
