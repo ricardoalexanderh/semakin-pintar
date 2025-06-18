@@ -11,7 +11,7 @@ import { useGameState } from '../hooks/useGameState';
 const TEST_CONFIG = {
   START_LEVEL: 4,        // Change to start at specific level (1-4)
   START_SCORE: 100,       // Change to start with specific score (mastery)
-  ENABLE_TESTING: true  // Set to true to use test values, false for normal gameplay
+  ENABLE_TESTING: false  // Set to true to use test values, false for normal gameplay
 };
 
 // Game Constants
