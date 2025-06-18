@@ -11,7 +11,7 @@ import { useGameState } from '../hooks/useGameState';
 const TEST_CONFIG = {
   START_LEVEL: 4,        // Change to start at specific level (1-4)
   START_SCORE: 100,       // Change to start with specific score (mastery)
-  ENABLE_TESTING: false  // Set to true to use test values, false for normal gameplay
+  ENABLE_TESTING: true  // Set to true to use test values, false for normal gameplay
 };
 
 // Game Constants
@@ -1773,7 +1773,10 @@ export const MathchaCafe: React.FC = () => {
     </div>
   );
 
-  const renderGameScreen = () => (
+  const renderGameScreen = () => {
+    const isSmallIOS = isIOSSmallScreen();
+    
+    return (
     <div className={`min-h-[calc(100vh-4rem)] sm:min-h-[calc(100vh-5rem)] bg-gradient-to-br ${theme.playingBg} p-4`}>
       {/* Header */}
       <div className="flex justify-between items-center mb-2 sm:mb-4">
@@ -1835,21 +1838,21 @@ export const MathchaCafe: React.FC = () => {
         <div className="sm:hidden flex flex-col h-full max-h-full overflow-hidden">
           {/* Top Section: Menu */}
           <div className="flex-shrink-0 mb-1">
-            <div className="bg-gradient-to-br from-green-900 via-green-800 to-emerald-900 text-white p-2 rounded-lg mx-auto w-fit max-w-xs min-w-64 shadow-xl border-2 border-green-600 relative overflow-hidden">
+            <div className={`bg-gradient-to-br from-green-900 via-green-800 to-emerald-900 text-white ${isSmallIOS ? 'p-1.5' : 'p-2'} rounded-lg mx-auto w-fit ${isSmallIOS ? 'max-w-[280px] min-w-[240px]' : 'max-w-xs min-w-64'} shadow-xl border-2 border-green-600 relative overflow-hidden`}>
               {/* Decorative elements */}
               <div className="absolute top-0 right-0 w-8 h-8 bg-yellow-400/20 rounded-full transform translate-x-2 -translate-y-2"></div>
               <div className="absolute bottom-0 left-0 w-6 h-6 bg-green-400/20 rounded-full transform -translate-x-1 translate-y-1"></div>
 
-              <h3 className="font-bold mb-1.5 text-xs text-center flex items-center justify-center gap-1.5">
+              <h3 className={`font-bold ${isSmallIOS ? 'mb-1 text-[10px]' : 'mb-1.5 text-xs'} text-center flex items-center justify-center gap-1.5`}>
                 <span className="text-sm">🍵</span>
                 <span className="text-yellow-300">Matcha Menu</span>
                 <span className="text-sm">🍃</span>
               </h3>
-              <div className={`grid grid-cols-2 gap-1 text-xs relative z-10`}>
+              <div className={`grid grid-cols-2 ${isSmallIOS ? 'gap-0.5 text-[10px]' : 'gap-1 text-xs'} relative z-10`}>
                 {menuItems.slice(0, LEVEL_CONFIG[gameScore.level - 1].menuItems).map((item: typeof BASE_MENU_ITEMS[0]) => (
-                  <div key={item.id} className={`flex justify-between ${gameScore.level >= 2 ? 'min-w-8 p-0.5' : 'min-w-10 p-0.5'} bg-green-800/40 rounded-md hover:bg-green-700/50 transition-colors`}>
-                    <span className="font-medium text-xs">{item.icon} {item.name}</span>
-                    <span className="text-yellow-300 font-bold text-xs">${item.price}</span>
+                  <div key={item.id} className={`flex justify-between ${gameScore.level >= 2 ? (isSmallIOS ? 'min-w-6 p-0.5' : 'min-w-8 p-0.5') : (isSmallIOS ? 'min-w-8 p-0.5' : 'min-w-10 p-0.5')} bg-green-800/40 rounded-md hover:bg-green-700/50 transition-colors`}>
+                    <span className={`font-medium ${isSmallIOS ? 'text-[9px]' : 'text-xs'}`}>{item.icon} {item.name}</span>
+                    <span className={`text-yellow-300 font-bold ${isSmallIOS ? 'text-[9px]' : 'text-xs'}`}>${item.price}</span>
                   </div>
                 ))}
               </div>
@@ -1858,21 +1861,21 @@ export const MathchaCafe: React.FC = () => {
 
           {/* Middle Section: Customer Tables - Mobile Vertical 2x4 */}
           <div className="flex-1 flex items-center justify-center min-h-0">
-            <div className="grid grid-cols-2 gap-4">
+            <div className={`grid grid-cols-2 ${isSmallIOS ? 'gap-4' : 'gap-4'}`}>
               {Array.from({ length: 8 }, (_, i) => {
                 const customer = customers.find(c => c.tableId === i);
                 return (
                   <div key={i} className="relative">
                     {/* Table */}
                     <div
-                      className={`${gameScore.level === 4 ? 'w-14 h-14' : gameScore.level >= 2 ? 'w-16 h-16' : 'w-20 h-20'} flex items-center justify-center relative z-10 ${customer ? 'cursor-pointer hover:scale-105 transition-transform' : ''
+                      className={`${gameScore.level === 4 ? (isSmallIOS ? 'w-12 h-12' : 'w-14 h-14') : gameScore.level >= 2 ? (isSmallIOS ? 'w-14 h-14' : 'w-16 h-16') : (isSmallIOS ? 'w-14 h-14' : 'w-20 h-20')} flex items-center justify-center relative z-10 ${customer ? 'cursor-pointer hover:scale-105 transition-transform' : ''
                         }`}
                       onClick={customer ? () => selectCustomer(customer) : undefined}
                     >
                       <img
                         src="/matcha-table.png"
                         alt="Table"
-                        className={`${gameScore.level === 4 ? 'w-14 h-14' : gameScore.level >= 2 ? 'w-16 h-16' : 'w-20 h-20'} object-contain`}
+                        className={`${gameScore.level === 4 ? (isSmallIOS ? 'w-12 h-12' : 'w-14 h-14') : gameScore.level >= 2 ? (isSmallIOS ? 'w-14 h-14' : 'w-16 h-16') : (isSmallIOS ? 'w-14 h-14' : 'w-20 h-20')} object-contain`}
                       />
 
                       {/* Menu icon on table when guest is present */}
@@ -1910,7 +1913,7 @@ export const MathchaCafe: React.FC = () => {
                           <img
                             src={customer.type.avatar}
                             alt={customer.type.name}
-                            className={`${gameScore.level === 4 ? 'w-16 h-16' : gameScore.level >= 2 ? 'w-20 h-20' : 'w-24 h-24'} scale-90 sm:scale-50 object-contain filter ${customer.emotion === 'happy' ? 'brightness-110' :
+                            className={`${gameScore.level === 4 ? (isSmallIOS ? 'w-14 h-14' : 'w-16 h-16') : gameScore.level >= 2 ? (isSmallIOS ? 'w-16 h-16' : 'w-20 h-20') : (isSmallIOS ? 'w-14 h-14' : 'w-24 h-24')} scale-90 sm:scale-50 object-contain filter ${customer.emotion === 'happy' ? 'brightness-110' :
                                 customer.emotion === 'angry' ? 'brightness-75 saturate-150' :
                                   ''
                               }`}
@@ -1923,14 +1926,14 @@ export const MathchaCafe: React.FC = () => {
                                 <img
                                   src={getRandomEmotionAsset('happy', customer.id)}
                                   alt="Happy"
-                                  className="w-6 h-6 object-contain animate-bounce drop-shadow-md"
+                                  className={`${isSmallIOS ? 'w-4 h-4' : 'w-6 h-6'} object-contain animate-bounce drop-shadow-md`}
                                 />
                               )}
                               {customer.emotion === 'angry' && (
                                 <img
                                   src={getRandomEmotionAsset('angry', customer.id)}
                                   alt="Angry"
-                                  className="w-6 h-6 object-contain animate-pulse drop-shadow-md"
+                                  className={`${isSmallIOS ? 'w-4 h-4' : 'w-6 h-6'} object-contain animate-pulse drop-shadow-md`}
                                 />
                               )}
                             </div>
@@ -1941,7 +1944,7 @@ export const MathchaCafe: React.FC = () => {
 
                     {/* Patience Bar */}
                     {customer && !customer.isAnswered && (
-                      <div className={`absolute -bottom-3 left-0 ${gameScore.level === 4 ? 'w-14' : gameScore.level >= 2 ? 'w-16' : 'w-20'} h-2 bg-gray-300 rounded-full overflow-hidden`}>
+                      <div className={`absolute -bottom-3 left-0 ${gameScore.level === 4 ? (isSmallIOS ? 'w-12' : 'w-14') : gameScore.level >= 2 ? (isSmallIOS ? 'w-14' : 'w-16') : (isSmallIOS ? 'w-14' : 'w-20')} ${isSmallIOS ? 'h-1.5' : 'h-2'} bg-gray-300 rounded-full overflow-hidden`}>
                         <div
                           className={`h-full ${customer.patience / customer.maxPatience > 0.5 ? 'bg-green-500' :
                               customer.patience / customer.maxPatience > 0.2 ? 'bg-yellow-500' :
@@ -1964,12 +1967,12 @@ export const MathchaCafe: React.FC = () => {
               <img
                 src="/robo-cashier.png"
                 alt="Robo Cashier"
-                className="w-14 h-14 object-contain"
+                className={`${isSmallIOS ? 'w-14 h-14' : 'w-14 h-14'} object-contain`}
               />
               <div className="mb-1">
                 <div className="bg-green-100 border border-green-300 rounded px-2 py-1">
-                  <div className="font-semibold text-[10px] text-green-800">Robo Cashier</div>
-                  <div className="text-[9px] text-green-600">Matcha Bot</div>
+                  <div className={`font-semibold ${isSmallIOS ? 'text-[8px]' : 'text-[10px]'} text-green-800`}>Robo Cashier</div>
+                  <div className={`${isSmallIOS ? 'text-[7px]' : 'text-[9px]'} text-green-600`}>Matcha Bot</div>
                 </div>
               </div>
             </div>
@@ -1979,12 +1982,12 @@ export const MathchaCafe: React.FC = () => {
               <img
                 src="/tea-master.png"
                 alt="Tea Master"
-                className="w-14 h-14 object-contain"
+                className={`${isSmallIOS ? 'w-14 h-14' : 'w-14 h-14'} object-contain`}
               />
               <div className="mb-1">
                 <div className="bg-green-100 border border-green-300 rounded px-2 py-1">
-                  <div className="font-semibold text-[10px] text-green-800">Tea Master</div>
-                  <div className="text-[9px] text-green-600">Matcha Sensei</div>
+                  <div className={`font-semibold ${isSmallIOS ? 'text-[8px]' : 'text-[10px]'} text-green-800`}>Tea Master</div>
+                  <div className={`${isSmallIOS ? 'text-[7px]' : 'text-[9px]'} text-green-600`}>Matcha Sensei</div>
                 </div>
               </div>
             </div>
@@ -2226,28 +2229,28 @@ export const MathchaCafe: React.FC = () => {
         const questionTheme = QUESTION_THEMES[currentCustomer.question.type];
 
         return (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className={`bg-gradient-to-br ${questionTheme.bgGradient} rounded-2xl p-6 max-w-md w-full border-2 ${questionTheme.borderColor} shadow-2xl`}>
+          <div className={`fixed inset-0 bg-black/50 flex items-center justify-center z-50 ${currentCustomer.question.type === 'budget' ? 'p-2 sm:p-4' : (isSmallIOS ? 'p-3' : 'p-4')}`}>
+            <div className={`bg-gradient-to-br ${questionTheme.bgGradient} rounded-2xl ${currentCustomer.question.type === 'budget' ? 'p-3 sm:p-4 lg:p-6 max-w-xs sm:max-w-sm lg:max-w-md max-h-[95vh] overflow-y-auto' : (isSmallIOS ? 'p-4 max-w-sm max-h-[90vh] overflow-y-auto' : 'p-6 max-w-md')} w-full border-2 ${questionTheme.borderColor} shadow-2xl`}>
               {/* Question Type Header */}
-              <div className={`${questionTheme.headerBg} rounded-xl p-3 mb-4 text-center border ${questionTheme.borderColor}`}>
+              <div className={`${questionTheme.headerBg} rounded-xl ${currentCustomer.question.type === 'budget' ? 'p-2 sm:p-3 mb-2 sm:mb-3' : (isSmallIOS ? 'p-2 mb-3' : 'p-3 mb-4')} text-center border ${questionTheme.borderColor}`}>
                 <div className="flex items-center justify-center gap-2 mb-1">
                   <span className="text-2xl">{questionTheme.icon}</span>
-                  <h3 className={`text-lg font-bold ${questionTheme.textColor}`}>{questionTheme.name}</h3>
+                  <h3 className={`${currentCustomer.question.type === 'budget' ? 'text-sm sm:text-base lg:text-lg' : (isSmallIOS ? 'text-base' : 'text-lg')} font-bold ${questionTheme.textColor}`}>{questionTheme.name}</h3>
                 </div>
-                <div className={`text-xs ${questionTheme.textColor} opacity-75`}>{questionTheme.description}</div>
+                <div className={`${currentCustomer.question.type === 'budget' ? 'text-[10px] sm:text-xs' : (isSmallIOS ? 'text-[11px]' : 'text-xs')} ${questionTheme.textColor} opacity-75`}>{questionTheme.description}</div>
               </div>
 
-              <div className="text-center mb-4">
+              <div className={`text-center ${currentCustomer.question.type === 'budget' ? 'mb-2 sm:mb-3' : (isSmallIOS ? 'mb-3' : 'mb-4')}`}>
                 <div className="mb-2 flex justify-center">
                   <img
                     src={currentCustomer.type.avatar}
                     alt={currentCustomer.type.name}
-                    className="w-16 h-16 object-contain"
+                    className={`${currentCustomer.question.type === 'budget' ? 'w-10 sm:w-12 lg:w-16 h-10 sm:h-12 lg:h-16' : (isSmallIOS ? 'w-12 h-12' : 'w-16 h-16')} object-contain`}
                   />
                 </div>
-                <h3 className={`text-lg font-semibold ${questionTheme.textColor}`}>Customer Order</h3>
+                <h3 className={`${currentCustomer.question.type === 'budget' ? 'text-sm sm:text-base lg:text-lg' : (isSmallIOS ? 'text-base' : 'text-lg')} font-semibold ${questionTheme.textColor}`}>Customer Order</h3>
                 {/* Patience Timer in Modal */}
-                <div className="mt-3 mx-auto w-48 h-2 bg-gray-300 rounded-full overflow-hidden">
+                <div className={`${currentCustomer.question.type === 'budget' ? 'mt-2' : (isSmallIOS ? 'mt-2' : 'mt-3')} mx-auto ${currentCustomer.question.type === 'budget' ? 'w-32 sm:w-40 lg:w-48 h-1.5 sm:h-2' : (isSmallIOS ? 'w-40 h-1.5' : 'w-48 h-2')} bg-gray-300 rounded-full overflow-hidden`}>
                   <div
                     className={`h-full ${currentCustomer.patience / currentCustomer.maxPatience > 0.5 ? 'bg-green-500' :
                         currentCustomer.patience / currentCustomer.maxPatience > 0.2 ? 'bg-yellow-500' :
@@ -2256,14 +2259,14 @@ export const MathchaCafe: React.FC = () => {
                     style={{ width: `${Math.max(0, (currentCustomer.patience / currentCustomer.maxPatience) * 100)}%` }}
                   />
                 </div>
-                <div className={`text-xs ${questionTheme.textColor} opacity-75 mt-1`}>Customer Patience: {Math.ceil(currentCustomer.patience)}s</div>
+                <div className={`${currentCustomer.question.type === 'budget' ? 'text-[10px] sm:text-xs' : (isSmallIOS ? 'text-[11px]' : 'text-xs')} ${questionTheme.textColor} opacity-75 mt-1`}>{currentCustomer.question.type === 'budget' ? 'Patience:' : (isSmallIOS ? 'Patience:' : 'Customer Patience:')} {Math.ceil(currentCustomer.patience)}s</div>
               </div>
 
               {/* Show order only for non-budget questions */}
               {currentCustomer.question.type !== 'budget' && (
-                <div className="mb-4">
-                  <div className={`font-medium mb-2 ${questionTheme.textColor}`}>Order:</div>
-                  <div className={`text-sm ${questionTheme.textColor} opacity-80 mb-4`}>
+                <div className={`${isSmallIOS ? 'mb-3' : 'mb-4'}`}>
+                  <div className={`font-medium ${isSmallIOS ? 'mb-1 text-sm' : 'mb-2'} ${questionTheme.textColor}`}>Order:</div>
+                  <div className={`${isSmallIOS ? 'text-xs mb-3' : 'text-sm mb-4'} ${questionTheme.textColor} opacity-80`}>
                     {currentCustomer.order.map((item, index) => (
                       <div key={`order-${item.id}-${index}`} className="flex justify-between">
                         <span>{item.icon} {item.name}</span>
@@ -2274,15 +2277,15 @@ export const MathchaCafe: React.FC = () => {
                 </div>
               )}
 
-              <div className="mb-6">
-                <div className={`font-medium mb-3 ${questionTheme.textColor}`}>{currentCustomer.question.question}</div>
+              <div className={`${isSmallIOS ? 'mb-4' : 'mb-6'}`}>
+                <div className={`font-medium ${isSmallIOS ? 'mb-2 text-sm' : 'mb-3'} ${questionTheme.textColor}`}>{currentCustomer.question.question}</div>
 
                 {currentCustomer.question.type === 'budget' ? (
                   // Budget questions: Show compact menu with toggle buttons
                   <>
-                    <div className={`bg-white/10 rounded-lg p-2 sm:p-3 mb-3 sm:mb-4 border ${questionTheme.borderColor}`}>
-                      <div className={`text-xs sm:text-sm font-medium ${questionTheme.textColor} mb-1 sm:mb-2 text-center`}>Available Menu</div>
-                      <div className="grid grid-cols-2 gap-1.5 sm:gap-2">
+                    <div className={`bg-white/10 rounded-lg p-1.5 sm:p-2 mb-2 sm:mb-3 border ${questionTheme.borderColor}`}>
+                      <div className={`text-[10px] sm:text-xs font-medium ${questionTheme.textColor} mb-1 text-center`}>Available Menu</div>
+                      <div className="grid grid-cols-3 sm:grid-cols-2 gap-1 sm:gap-1.5">
                         {currentCustomer.question.menuItems?.map((item, index) => (
                           <button
                             key={`budget-${item.id}-${index}`}
@@ -2293,15 +2296,15 @@ export const MathchaCafe: React.FC = () => {
                                 setSelectedBudgetItems(prev => [...prev, index]);
                               }
                             }}
-                            className={`p-1 sm:p-1.5 rounded-md border-2 transition-all text-xs ${selectedBudgetItems.includes(index)
+                            className={`p-0.5 sm:p-1 rounded-md border-2 transition-all text-xs ${selectedBudgetItems.includes(index)
                                 ? `${questionTheme.borderColor} ${questionTheme.buttonBg} text-white shadow-md`
                                 : `border-gray-300 ${questionTheme.textColor} hover:border-gray-400 bg-white/20`
                               }`}
                           >
-                            <div className="flex flex-col items-center gap-0 sm:gap-0.5">
-                              <span className="text-xs sm:text-sm">{item.icon}</span>
-                              <span className="font-medium text-2xs sm:text-xs leading-tight">{item.name}</span>
-                              <span className="font-bold text-2xs sm:text-xs">${item.price}</span>
+                            <div className="flex flex-col items-center gap-0">
+                              <span className="text-sm">{item.icon}</span>
+                              <span className="font-medium text-[10px] sm:text-xs leading-tight truncate w-full text-center">{item.name}</span>
+                              <span className="font-bold text-[10px] sm:text-xs">${item.price}</span>
                             </div>
                           </button>
                         ))}
@@ -2310,8 +2313,8 @@ export const MathchaCafe: React.FC = () => {
 
                     {/* Show current total */}
                     {selectedBudgetItems.length > 0 && (
-                      <div className={`text-xs sm:text-sm ${questionTheme.textColor} mb-3 sm:mb-4 text-center`}>
-                        Selected Total: ${selectedBudgetItems.reduce((sum, index) =>
+                      <div className={`text-[10px] sm:text-xs ${questionTheme.textColor} mb-2 text-center bg-black/10 rounded p-1`}>
+                        Total: ${selectedBudgetItems.reduce((sum, index) =>
                           sum + (currentCustomer.question.menuItems?.[index]?.price || 0), 0
                         )} / ${currentCustomer.question.budget}
                       </div>
@@ -2320,7 +2323,7 @@ export const MathchaCafe: React.FC = () => {
                     <button
                       onClick={submitBudgetAnswer}
                       disabled={selectedBudgetItems.length === 0}
-                      className={`w-full ${questionTheme.buttonBg} text-white py-3 rounded-lg hover:scale-105 transition-transform font-medium shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100`}
+                      className={`w-full ${questionTheme.buttonBg} text-white py-2 sm:py-3 rounded-lg hover:scale-105 transition-transform font-medium text-sm shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100`}
                     >
                       Order Selected Items
                     </button>
@@ -2332,7 +2335,7 @@ export const MathchaCafe: React.FC = () => {
                       <button
                         key={index}
                         onClick={() => answerQuestion(index)}
-                        className={`${questionTheme.buttonBg} text-white p-3 rounded-lg hover:scale-105 transition-transform font-medium shadow-md`}
+                        className={`${questionTheme.buttonBg} text-white ${isSmallIOS ? 'p-2 text-sm' : 'p-3'} rounded-lg hover:scale-105 transition-transform font-medium shadow-md`}
                       >
                         {option}
                       </button>
@@ -2343,7 +2346,7 @@ export const MathchaCafe: React.FC = () => {
 
               <button
                 onClick={closeQuestion}
-                className={`w-full bg-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-400 transition-colors border border-gray-400`}
+                className={`w-full bg-gray-300 text-gray-700 ${isSmallIOS ? 'py-1.5 text-sm' : 'py-2'} rounded-lg hover:bg-gray-400 transition-colors border border-gray-400`}
               >
                 Cancel
               </button>
@@ -2379,7 +2382,8 @@ export const MathchaCafe: React.FC = () => {
         </div>
       )}
     </div>
-  );
+    );
+  };
 
   const renderPauseScreen = () => (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
