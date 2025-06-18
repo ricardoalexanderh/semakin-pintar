@@ -29,10 +29,12 @@ const BASE_MENU_ITEMS = [
 ];
 
 // Function to randomize menu prices
-const randomizeMenuPrices = () => {
+const randomizeMenuPrices = (matchaGrade: 'culinary' | 'ceremonial' = 'culinary') => {
   return BASE_MENU_ITEMS.map(item => ({
     ...item,
-    price: Math.floor(Math.random() * 8) + 2 // Random price from $2 to $9
+    price: matchaGrade === 'culinary' 
+      ? Math.floor(Math.random() * 8) + 2 // Culinary: Random price from $2 to $9 (1-digit)
+      : Math.floor(Math.random() * 90) + 10 // Ceremonial: Random price from $10 to $99 (2-digit)
   }));
 };
 
@@ -109,6 +111,7 @@ interface GameSettings {
   level: number;
   soundEnabled: boolean;
   sfxEnabled: boolean;
+  matchaGrade: 'culinary' | 'ceremonial';
 }
 
 interface Customer {
@@ -401,6 +404,7 @@ const defaultSettings: GameSettings = {
   level: 1,
   soundEnabled: true,
   sfxEnabled: true,
+  matchaGrade: 'culinary',
 };
 
 // Main Component
@@ -1078,7 +1082,7 @@ export const MathchaCafe: React.FC = () => {
 
   // Game Actions
   // Function to spawn customers with staggered timing
-  const spawnStaggeredCustomers = (level: number) => {
+  const spawnStaggeredCustomers = (level: number, menuItemsToUse?: typeof BASE_MENU_ITEMS) => {
     const levelConfig = LEVEL_CONFIG[level - 1];
     const maxCustomers = levelConfig.customers;
 
@@ -1103,7 +1107,8 @@ export const MathchaCafe: React.FC = () => {
 
           if (emptyTables.length > 0) {
             const tableId = emptyTables[Math.floor(Math.random() * emptyTables.length)];
-            const newCustomer = createCustomer(level, tableId, menuItems, level, menuItems);
+            const effectiveMenuItems = menuItemsToUse || menuItems;
+            const newCustomer = createCustomer(level, tableId, effectiveMenuItems, level, effectiveMenuItems);
             return [...prev, newCustomer];
           }
           return prev;
@@ -1154,11 +1159,11 @@ export const MathchaCafe: React.FC = () => {
     setNewLevel(startLevel); // Reset to starting level to prevent level-up display race condition
 
     // Randomize menu prices for new game
-    const newMenuItems = randomizeMenuPrices();
+    const newMenuItems = randomizeMenuPrices(settings.matchaGrade);
     setMenuItems(newMenuItems);
 
-    // Use staggered spawning for the starting level
-    spawnStaggeredCustomers(startLevel);
+    // Use staggered spawning for the starting level with new menu items
+    spawnStaggeredCustomers(startLevel, newMenuItems);
 
     trackGameEvent('mathcha-cafe', 'start', { level: settings.level });
     audioManagerRef.current?.playButtonClick();
@@ -1687,6 +1692,10 @@ export const MathchaCafe: React.FC = () => {
                 <div><strong>Level up:</strong> Serve enough happy guests to advance levels</div>
               </div>
               <div className="flex items-start gap-3">
+                <span className="text-lg">🍵</span>
+                <div><strong>Matcha Grade:</strong> Choose Ceremonial for more challenge</div>
+              </div>
+              <div className="flex items-start gap-3">
                 <span className="text-lg">🎯</span>
                 <div><strong>Goal:</strong> Complete all 4 levels to become a true Mathcha Master! Losing mastery below 0 will end the game</div>
               </div>
@@ -1718,6 +1727,35 @@ export const MathchaCafe: React.FC = () => {
               </button>
             </div>
           </div>
+
+          {/* Matcha Grade Selector */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold text-amber-800 text-center">Matcha Grade</h3>
+            <div className="flex gap-3 justify-center">
+              <button
+                onClick={() => updateSettings({ matchaGrade: 'culinary' })}
+                className={`px-4 py-2 rounded-lg font-medium transition-all flex items-center gap-2 min-w-[100px] justify-center ${
+                  settings.matchaGrade === 'culinary'
+                    ? 'bg-green-600 text-white shadow-md'
+                    : 'bg-white/70 text-amber-700 hover:bg-white/90 border border-amber-200'
+                  }`}
+              >
+                🍵 Culinary
+              </button>
+              <button
+                onClick={() => updateSettings({ matchaGrade: 'ceremonial' })}
+                className={`px-4 py-2 rounded-lg font-medium transition-all flex items-center gap-2 min-w-[100px] justify-center ${
+                  settings.matchaGrade === 'ceremonial'
+                    ? 'bg-green-600 text-white shadow-md'
+                    : 'bg-white/70 text-amber-700 hover:bg-white/90 border border-amber-200'
+                  }`}
+              >
+                🌿 Ceremonial
+              </button>
+            </div>
+          </div>
+
+          <div className="h-8"></div>
 
           <button
             onClick={startGame}
