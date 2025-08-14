@@ -25,6 +25,24 @@ interface Game {
 const GamesIndex: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
 
+  // Custom SVG icon for Math Drop
+  const MathDropIcon = () => (
+    <svg className="w-8 h-8" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="12" cy="8" r="5" fill="#ec4899" opacity="0.9">
+        <animate attributeName="cy" values="8;40;8" dur="2s" repeatCount="indefinite"/>
+      </circle>
+      <circle cx="24" cy="12" r="5" fill="#a855f7" opacity="0.7">
+        <animate attributeName="cy" values="12;44;12" dur="2.3s" repeatCount="indefinite"/>
+      </circle>
+      <circle cx="36" cy="6" r="5" fill="#8b5cf6" opacity="0.8">
+        <animate attributeName="cy" values="6;38;6" dur="1.8s" repeatCount="indefinite"/>
+      </circle>
+      <text x="12" y="13" textAnchor="middle" className="text-xs font-bold fill-white">+</text>
+      <text x="24" y="17" textAnchor="middle" className="text-xs font-bold fill-white">×</text>
+      <text x="36" y="11" textAnchor="middle" className="text-xs font-bold fill-white">=</text>
+    </svg>
+  );
+
   //TODO: Update new games
   const games: Game[] = [
     {
@@ -128,6 +146,19 @@ const GamesIndex: React.FC = () => {
       path: '/games/mathcha-cafe',
       difficulty: 'Beginner to Expert',
       duration: '10-25 minutes',
+      category: 'Fun Math Games'
+    },
+    {
+      id: 'math-drop',
+      name: 'Math Drop',
+      description: 'Puzzle math with falling blocks',
+      longDescription: 'Puyo Puyo-style puzzle game with math equations! Match colors, numbers, and solve equations to clear pieces. Features special power-ups, chain reactions, and progressive difficulty.',
+      icon: <MathDropIcon />,
+      available: true,
+      gradient: 'from-pink-500 to-purple-500',
+      path: '/games/math-drop',
+      difficulty: 'Beginner to Expert',
+      duration: '10-30 minutes',
       category: 'Fun Math Games'
     }
   ];

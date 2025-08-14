@@ -17,6 +17,7 @@ import OfflineStatus from './components/offline-status';
 import PatternsDetectiveGame from './components/patterns-detective';
 import RocketMathGame from './components/rocket-math/rocket-math';
 import { MathchaCafe } from './components/mathcha-cafe';
+import MathDropGame from './components/math-drop';
 
 // Component to handle page tracking and SEO
 const PageTracker = () => {
@@ -124,6 +125,12 @@ const GamesIndexPage = () => {
           "position": 7,
           "name": "Mathca Cafe Game",
           "url": "https://www.semakinpintar.com/games/mathcha-cafe"
+        },
+        {
+          "@type": "Game",
+          "position": 8,
+          "name": "Math Drop Game",
+          "url": "https://www.semakinpintar.com/games/math-drop"
         }
       ]
     }
@@ -391,6 +398,41 @@ const MathchaCafePage = () => {
   );
 };
 
+// Math Drop Game page with SEO
+const MathDropPage = () => {
+  const gameJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Game",
+    "name": "Math Drop Game",
+    "description": "Puyo Puyo-style puzzle game with math equations. Match colors, numbers, and solve equations to clear pieces and level up.",
+    "url": "https://www.semakinpintar.com/games/math-drop",
+    "genre": "Educational",
+    "gamePlatform": "Web Browser",
+    "applicationCategory": "EducationalApplication",
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD"
+    }
+  };
+  
+  return (
+    <>
+      <SEOHead
+        title="Math Drop Game - Puzzle Math & Equation Solving | Semakin Pintar"
+        description="Play our Puyo Puyo-style math puzzle game! Match colors, numbers, and solve equations to clear pieces. Progressive difficulty with special power-ups and chain reactions."
+        keywords="math drop, puzzle math, equation solving, math puzzle game, puyo puyo math, number matching, color matching, brain training, educational puzzle"
+        canonicalUrl="https://www.semakinpintar.com/games/math-drop"
+        ogTitle="Math Drop Game - Puzzle Math & Equation Solving"
+        ogDescription="Play our Puyo Puyo-style math puzzle game! Match colors, numbers, and solve equations to clear pieces."
+        ogImage="https://www.semakinpintar.com/logo.png"
+        jsonLd={gameJsonLd}
+      />
+      <MathDropGame />
+    </>
+  );
+};
+
 function App() {
   useEffect(() => {
     // Initialize Google Analytics    
@@ -451,6 +493,11 @@ function App() {
           <Route path="/games/mathcha-cafe" element={
             <GamesLayout>
               <MathchaCafePage />
+            </GamesLayout>
+          } />
+          <Route path="/games/math-drop" element={
+            <GamesLayout>
+              <MathDropPage />
             </GamesLayout>
           } />     
           <Route path="*" element={

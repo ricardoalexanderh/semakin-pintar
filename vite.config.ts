@@ -18,6 +18,7 @@ export default defineConfig({
         '/games/patterns-detective',
         '/games/rocket-math',
         '/games/mathcha-cafe',
+        '/games/math-drop',
       ],
       lastmod: new Date(),
     }),

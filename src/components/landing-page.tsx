@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Calculator, Shapes, Rocket, X, Divide, /*Grid3X3,*/ Lightbulb, Puzzle, Mail, ExternalLink, Layers, Search, Target, Workflow } from 'lucide-react';
+import { Calculator, Shapes, Rocket, X, /*Grid3X3,*/ Lightbulb, Puzzle, Mail, ExternalLink, Layers, Search, Target, Workflow } from 'lucide-react';
 import { trackButtonClick, trackDonationClick } from '../utils/analytics';
 import FloatingButtons from './floating-buttons';
 
@@ -21,6 +21,25 @@ interface LandingPageProps {
   // No props needed anymore since we use React Router directly
 }
 
+    // Custom animated SVG icons for all games
+    const MathDropIcon = () => (
+        <svg className="w-12 h-12" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="12" cy="8" r="5" fill="#ec4899" opacity="0.9">
+                <animate attributeName="cy" values="8;40;8" dur="2s" repeatCount="indefinite"/>
+            </circle>
+            <circle cx="24" cy="12" r="5" fill="#a855f7" opacity="0.7">
+                <animate attributeName="cy" values="12;44;12" dur="2.3s" repeatCount="indefinite"/>
+            </circle>
+            <circle cx="36" cy="6" r="5" fill="#8b5cf6" opacity="0.8">
+                <animate attributeName="cy" values="6;38;6" dur="1.8s" repeatCount="indefinite"/>
+            </circle>
+            <text x="12" y="13" textAnchor="middle" className="text-xs font-bold fill-white">+</text>
+            <text x="24" y="17" textAnchor="middle" className="text-xs font-bold fill-white">×</text>
+            <text x="36" y="11" textAnchor="middle" className="text-xs font-bold fill-white">=</text>
+        </svg>
+    );
+
+
 const LandingPage: React.FC<LandingPageProps> = () => {
     //TODO: Update new games
     const games: Game[] = [        
@@ -33,6 +52,15 @@ const LandingPage: React.FC<LandingPageProps> = () => {
             gradient: 'from-teal-500 to-cyan-500',
             path: '/games/multiplication-table'
         },*/
+        {
+            id: 'math-drop',
+            name: 'Math Drop',
+            description: 'Puzzle math with falling blocks',
+            icon: <MathDropIcon />,
+            available: true,
+            gradient: 'from-pink-500 to-purple-500',
+            path: '/games/math-drop'
+        },
         {
             id: 'mathcha-cafe',
             name: 'Mathcha Cafe',
@@ -78,7 +106,7 @@ const LandingPage: React.FC<LandingPageProps> = () => {
             gradient: 'from-yellow-500 to-orange-400',
             path: '/games/mental-multiplication'
         },
-        {
+        /*{
             id: 'mental-division',
             name: 'Mental Division',
             description: 'Perfect your division abilities',
@@ -86,7 +114,7 @@ const LandingPage: React.FC<LandingPageProps> = () => {
             available: true,
             gradient: 'from-emerald-500 to-teal-500',
             path: '/games/mental-division'
-        }
+        },*/
         /*{
             id: 'patterns',
             name: 'Patterns',
@@ -287,6 +315,7 @@ const LandingPage: React.FC<LandingPageProps> = () => {
                     </div>
                     */}
                     
+                    {/* Previous featured game - Mathcha Cafe
                     <div className="mt-8 p-4 md:p-6 bg-gradient-to-r from-green-100 to-amber-100 rounded-2xl border-2 border-green-200">
                         <div className="flex flex-col md:flex-row items-center md:justify-between gap-4">
                             <div className="flex flex-col sm:flex-row items-center gap-4 text-center sm:text-left">
@@ -304,6 +333,30 @@ const LandingPage: React.FC<LandingPageProps> = () => {
                                     trackButtonClick('featured-mathcha-cafe', 'featured-section');
                                 }}
                                 className="bg-gradient-to-r from-green-500 to-amber-500 text-white px-6 py-3 rounded-xl font-bold hover:from-green-600 hover:to-amber-600 transition-all shadow-lg hover:shadow-xl transform hover:scale-105 w-full sm:w-auto text-center block"
+                            >
+                                Play Now →
+                            </Link>
+                        </div>
+                    </div>
+                    */}
+                    
+                    <div className="mt-8 p-4 md:p-6 bg-gradient-to-r from-pink-100 to-purple-100 rounded-2xl border-2 border-pink-200">
+                        <div className="flex flex-col md:flex-row items-center md:justify-between gap-4">
+                            <div className="flex flex-col sm:flex-row items-center gap-4 text-center sm:text-left">
+                                <div className="bg-gradient-to-r from-pink-500 to-purple-500 text-white w-12 h-12 md:w-16 md:h-16 rounded-2xl flex items-center justify-center shadow-lg flex-shrink-0">
+                                    <MathDropIcon />
+                                </div>
+                                <div>
+                                    <h3 className="text-lg md:text-xl font-bold text-pink-700">Featured: Math Drop</h3>
+                                    <p className="text-sm md:text-base text-purple-700">Puyo Puyo-style puzzle game with math equations and special power-ups!</p>
+                                </div>
+                            </div>
+                            <Link
+                                to="/games/math-drop"
+                                onClick={() => {
+                                    trackButtonClick('featured-math-drop', 'featured-section');
+                                }}
+                                className="bg-gradient-to-r from-pink-500 to-purple-500 text-white px-6 py-3 rounded-xl font-bold hover:from-pink-600 hover:to-purple-600 transition-all shadow-lg hover:shadow-xl transform hover:scale-105 w-full sm:w-auto text-center block"
                             >
                                 Play Now →
                             </Link>
