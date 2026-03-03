@@ -22,7 +22,7 @@ interface LandingPageProps {
 }
 
     // Custom animated SVG icons for all games
-    const MathDropIcon = () => (
+    /*const MathDropIcon = () => (
         <svg className="w-12 h-12" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
             <circle cx="12" cy="8" r="5" fill="#ec4899" opacity="0.9">
                 <animate attributeName="cy" values="8;40;8" dur="2s" repeatCount="indefinite"/>
@@ -37,7 +37,7 @@ interface LandingPageProps {
             <text x="24" y="17" textAnchor="middle" className="text-xs font-bold fill-white">×</text>
             <text x="36" y="11" textAnchor="middle" className="text-xs font-bold fill-white">=</text>
         </svg>
-    );
+    );*/
 
 
 const LandingPage: React.FC<LandingPageProps> = () => {
