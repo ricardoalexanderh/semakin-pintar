@@ -31,8 +31,8 @@ Semakin Pintar is a comprehensive educational games platform designed to make le
 - **Sort Attack** - Sort scrambled numbers using only adjacent swaps before time runs out
 - **Math Flip** - Memory card matching game pairing math equations with their answers
 
-#### Reflex & Decision
-- **Mirror Dash** - Control two ships at once, making split-second decisions on both sides — dodge, grab power-ups, and weigh risk vs reward under pressure
+#### Brain Training
+- **Mirror Dash** - Control two ships at once across mirrored lanes! Navigate both sides simultaneously — dodge obstacles, grab power-ups, and make split-second decisions
 
 ## ✨ Features
 

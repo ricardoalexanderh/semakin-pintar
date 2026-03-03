@@ -64,7 +64,7 @@ const LandingPage: React.FC<LandingPageProps> = () => {
         {
             id: 'mirror-dash',
             name: 'Mirror Dash',
-            description: 'Dual-ship reflex challenge',
+            description: 'Train your brain with dual-focus reflexes',
             icon: <span className="text-3xl">🪞</span>,
             available: true,
             gradient: 'from-purple-600 to-pink-500',
