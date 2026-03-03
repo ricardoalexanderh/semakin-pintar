@@ -177,15 +177,15 @@ const GamesIndex: React.FC = () => {
     {
       id: 'mirror-dash',
       name: 'Mirror Dash',
-      description: 'Dual-ship reflex challenge',
-      longDescription: 'Control two ships simultaneously across mirrored lanes! Dodge obstacles on both sides at the same time in this neon synthwave reflex game. Train split-attention, coordination, and reaction speed.',
+      description: 'Split-attention decision-making challenge',
+      longDescription: 'Control two ships simultaneously across mirrored lanes! Make split-second decisions on both sides — dodge obstacles, grab power-ups, and weigh risk vs reward under pressure. Trains decision-making, split-attention, and coordination.',
       icon: <span className="text-2xl">🪞</span>,
       available: true,
       gradient: 'from-purple-600 to-pink-500',
       path: '/games/mirror-dash',
       difficulty: 'Intermediate to Expert',
       duration: '2-10 minutes',
-      category: 'Fun Math Games'
+      category: 'Reflex & Decision'
     },
     /*{
       id: 'math-drop',
@@ -211,7 +211,7 @@ const GamesIndex: React.FC = () => {
     return acc;
   }, {} as Record<string, Game[]>);
 
-  const categoryOrder = ['Mental Math Games', 'Fun Math Games', 'Math Foundation', 'Cognitive Skills'];
+  const categoryOrder = ['Mental Math Games', 'Fun Math Games', 'Math Foundation', 'Reflex & Decision', 'Cognitive Skills'];
   const allCategories = ['All', ...categoryOrder];
 
   // Filter games based on selected category
