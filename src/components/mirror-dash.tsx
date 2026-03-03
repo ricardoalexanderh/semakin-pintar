@@ -74,6 +74,12 @@ const MirrorDash: React.FC = () => {
   const frameRef = useRef(0);
   const speedRef = useRef(2.0);
   const lastSpawnFrameRef = useRef(0);
+  const lastHeartFrameRef = useRef(0);
+  const lastShieldFrameRef = useRef(0);
+  const nextHeartCooldownRef = useRef(500);
+  const nextShieldCooldownRef = useRef(900);
+  const visualLaneLRef = useRef(1);
+  const visualLaneRRef = useRef(1);
   const obstaclesRef = useRef<Obstacle[]>([]);
   const particlesRef = useRef<Particle[]>([]);
   const pickupsRef = useRef<Pickup[]>([]);
@@ -126,15 +132,14 @@ const MirrorDash: React.FC = () => {
     }
   }, []);
 
-  // Spawn obstacle with minimum distance guarantee
+  // Spawn obstacle — min distance enforced, same lane when close
   const spawnObstacle = useCallback(() => {
-    // Find the closest obstacle to spawn point (-30) to decide danger lane
     const nearby = obstaclesRef.current.filter(o => o.y < 100);
     let dangerLane: number;
     if (nearby.length > 0) {
       const closest = nearby.reduce((a, b) => (a.y < b.y ? a : b));
       if (closest.y < 70) {
-        // Close enough — keep same danger lane so player doesn't face impossible switch
+        // Too close — keep same danger lane so player doesn't face impossible switch
         dangerLane = closest.dangerLane;
       } else {
         dangerLane = Math.floor(Math.random() * LANES);
@@ -145,33 +150,26 @@ const MirrorDash: React.FC = () => {
     obstaclesRef.current.push({ y: -30, dangerLane, type: 'split' });
   }, []);
 
-  // Spawn pickup — place in a safe lane of a nearby obstacle row
-  const spawnPickup = useCallback(() => {
+  // Spawn pickup — place in center safe lane of the given obstacle
+  const spawnPickup = useCallback((obs: Obstacle) => {
     const side: 'left' | 'right' = Math.random() < 0.5 ? 'left' : 'right';
-    // Find a recent obstacle row near the top to align the heart with
-    const nearby = obstaclesRef.current.filter(o => o.y >= -40 && o.y <= 10);
-    if (nearby.length === 0) return; // only spawn aligned with an obstacle row
-    const obs = nearby[0];
-    // Pick a safe lane (no danger block)
     if (side === 'left') {
+      // Prefer center lane (1) if safe, otherwise pick any safe lane
       const safeLanes = [0, 1, 2].filter(l => l !== obs.dangerLane);
-      const lane = safeLanes[Math.floor(Math.random() * safeLanes.length)];
+      const lane = safeLanes.includes(1) ? 1 : safeLanes[0];
       pickupsRef.current.push({ y: obs.y, side, lane });
     } else {
-      const lane = 2 - obs.dangerLane; // the one safe lane on right
+      const lane = 2 - obs.dangerLane;
       pickupsRef.current.push({ y: obs.y, side, lane });
     }
   }, []);
 
-  // Spawn shield power-up — place in a safe lane of a nearby obstacle row
-  const spawnShieldPowerup = useCallback(() => {
+  // Spawn shield power-up — place in center safe lane of the given obstacle
+  const spawnShieldPowerup = useCallback((obs: Obstacle) => {
     const side: 'left' | 'right' = Math.random() < 0.5 ? 'left' : 'right';
-    const nearby = obstaclesRef.current.filter(o => o.y >= -40 && o.y <= 10);
-    if (nearby.length === 0) return;
-    const obs = nearby[0];
     if (side === 'left') {
       const safeLanes = [0, 1, 2].filter(l => l !== obs.dangerLane);
-      const lane = safeLanes[Math.floor(Math.random() * safeLanes.length)];
+      const lane = safeLanes.includes(1) ? 1 : safeLanes[0];
       shieldPowerupsRef.current.push({ y: obs.y, side, lane });
     } else {
       const lane = 2 - obs.dangerLane;
@@ -217,32 +215,43 @@ const MirrorDash: React.FC = () => {
     const frame = frameRef.current;
     frameRef.current++;
 
-    // Speed ramp — smooth linear increase, starts at 2.0, maxes at 4.5
+    // Speed ramp — smooth linear, starts 2.0 → maxes 4.5
     speedRef.current = 2.0 + Math.min(2.5, frame * 0.0006);
     if (invincibleRef.current > 0) invincibleRef.current--;
 
     const speed = speedRef.current;
 
-    // Spawn rate — smooth decrease, interval-based (no modulo drift)
-    const spawnInterval = Math.max(80, Math.floor(200 - frame * 0.02));
+    // Smooth lane interpolation (visual only — prevents frame-jump feel)
+    const lerpSpeed = 0.3;
+    visualLaneLRef.current += (playerLRef.current.lane - visualLaneLRef.current) * lerpSpeed;
+    visualLaneRRef.current += (playerRRef.current.lane - visualLaneRRef.current) * lerpSpeed;
+
+    // Spawn obstacles — interval-based, with min gap enforcement
+    const spawnInterval = Math.max(70, Math.floor(130 - frame * 0.008));
     if (frame - lastSpawnFrameRef.current >= spawnInterval) {
-      // Minimum gap decreases over time (harder) but floors at 55px so it's always passable
-      const minGap = Math.max(55, 90 - Math.floor(frame / 900) * 5);
+      const minGap = Math.max(50, 80 - Math.floor(frame / 900) * 4);
       const tooClose = obstaclesRef.current.some(o => o.y < minGap - 30);
       if (!tooClose) {
         spawnObstacle();
         lastSpawnFrameRef.current = frame;
+        const newObs = obstaclesRef.current[obstaclesRef.current.length - 1];
+
+        // Heart pickup — cooldown-based, only when lives < 3
+        if (livesRef.current < 3 && frame - lastHeartFrameRef.current >= nextHeartCooldownRef.current) {
+          spawnPickup(newObs);
+          lastHeartFrameRef.current = frame;
+          nextHeartCooldownRef.current = 400 + Math.floor(Math.random() * 300);
+        }
+
+        // Shield power-up — cooldown-based, only when neither side is shielded
+        if (shieldLeftRef.current <= 0 && shieldRightRef.current <= 0
+            && frame > 300
+            && frame - lastShieldFrameRef.current >= nextShieldCooldownRef.current) {
+          spawnShieldPowerup(newObs);
+          lastShieldFrameRef.current = frame;
+          nextShieldCooldownRef.current = 800 + Math.floor(Math.random() * 400);
+        }
       }
-    }
-
-    // Heart pickup spawn
-    if (livesRef.current < 3 && frame % Math.floor(600 + Math.random() * 300) === 0) {
-      spawnPickup();
-    }
-
-    // Shield power-up spawn (~every 800-1200 frames, only when neither side is shielded)
-    if (shieldLeftRef.current <= 0 && shieldRightRef.current <= 0 && frame > 300 && frame % Math.floor(800 + Math.random() * 400) === 0) {
-      spawnShieldPowerup();
     }
 
     // Tick per-side shield timers
@@ -651,8 +660,8 @@ const MirrorDash: React.FC = () => {
       ctx.restore();
     };
 
-    drawPlayer('left', playerLRef.current.lane, invincibleRef.current > 0 && flashSideRef.current === 'left');
-    drawPlayer('right', playerRRef.current.lane, invincibleRef.current > 0 && flashSideRef.current === 'right');
+    drawPlayer('left', visualLaneLRef.current, invincibleRef.current > 0 && flashSideRef.current === 'left');
+    drawPlayer('right', visualLaneRRef.current, invincibleRef.current > 0 && flashSideRef.current === 'right');
 
     // Particles
     for (const p of particlesRef.current) {
@@ -673,6 +682,10 @@ const MirrorDash: React.FC = () => {
     frameRef.current = 0;
     speedRef.current = 2.0;
     lastSpawnFrameRef.current = 0;
+    lastHeartFrameRef.current = 0;
+    lastShieldFrameRef.current = 0;
+    nextHeartCooldownRef.current = 500;
+    nextShieldCooldownRef.current = 900;
     obstaclesRef.current = [];
     particlesRef.current = [];
     pickupsRef.current = [];
@@ -683,6 +696,8 @@ const MirrorDash: React.FC = () => {
     setUiShieldRight(false);
     playerLRef.current.lane = 1;
     playerRRef.current.lane = 1;
+    visualLaneLRef.current = 1;
+    visualLaneRRef.current = 1;
     invincibleRef.current = 0;
     flashTimerRef.current = 0;
     flashSideRef.current = null;
@@ -690,7 +705,14 @@ const MirrorDash: React.FC = () => {
     setUiLives(3);
   }, []);
 
-  // Game loop
+  // Keep latest update/draw in refs so the loop never restarts
+  const updateFnRef = useRef(update);
+  const drawFnRef = useRef(draw);
+  useEffect(() => { updateFnRef.current = update; }, [update]);
+  useEffect(() => { drawFnRef.current = draw; }, [draw]);
+
+  // Game loop — runs exactly once, never recreated (prevents frame jumps)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -699,14 +721,14 @@ const MirrorDash: React.FC = () => {
 
     const loop = () => {
       if (stateRef.current === 'playing') {
-        update();
+        updateFnRef.current();
       }
-      draw(ctx);
+      drawFnRef.current(ctx);
       animIdRef.current = requestAnimationFrame(loop);
     };
     animIdRef.current = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(animIdRef.current);
-  }, [draw, update]);
+  }, []);
 
   // Keyboard
   useEffect(() => {
