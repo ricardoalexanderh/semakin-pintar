@@ -38,6 +38,12 @@ interface Obstacle {
   type: string;
 }
 
+/** Swap-and-pop removal — O(1) instead of O(n) splice */
+const swapRemove = <T,>(arr: T[], i: number): void => {
+  arr[i] = arr[arr.length - 1];
+  arr.pop();
+};
+
 /** Pick 1 or 2 random danger lanes out of [0,1,2] */
 const randomDangerLanes = (frame: number = 0): number[] => {
   // At frame 0: 50% chance of 2 danger lanes
@@ -294,7 +300,7 @@ const MirrorDash: React.FC = () => {
     for (let i = shieldPowerupsRef.current.length - 1; i >= 0; i--) {
       shieldPowerupsRef.current[i].y += speed * dt;
       if (shieldPowerupsRef.current[i].y > H + 20) {
-        shieldPowerupsRef.current.splice(i, 1);
+        swapRemove(shieldPowerupsRef.current, i);
         continue;
       }
       const sp = shieldPowerupsRef.current[i];
@@ -321,7 +327,7 @@ const MirrorDash: React.FC = () => {
               color: Math.random() < 0.5 ? '#2fffee' : '#ffffff',
             });
           }
-          shieldPowerupsRef.current.splice(i, 1);
+          swapRemove(shieldPowerupsRef.current, i);
         }
       }
     }
@@ -330,7 +336,7 @@ const MirrorDash: React.FC = () => {
     for (let i = pickupsRef.current.length - 1; i >= 0; i--) {
       pickupsRef.current[i].y += speed * dt;
       if (pickupsRef.current[i].y > H + 20) {
-        pickupsRef.current.splice(i, 1);
+        swapRemove(pickupsRef.current, i);
         continue;
       }
       const pk = pickupsRef.current[i];
@@ -353,7 +359,7 @@ const MirrorDash: React.FC = () => {
               });
             }
           }
-          pickupsRef.current.splice(i, 1);
+          swapRemove(pickupsRef.current, i);
         }
       }
     }
@@ -362,7 +368,7 @@ const MirrorDash: React.FC = () => {
     for (let i = obstaclesRef.current.length - 1; i >= 0; i--) {
       obstaclesRef.current[i].y += speed * dt;
       if (obstaclesRef.current[i].y > H + 40) {
-        obstaclesRef.current.splice(i, 1);
+        swapRemove(obstaclesRef.current, i);
         scoreRef.current += 10;
       }
     }
@@ -392,7 +398,7 @@ const MirrorDash: React.FC = () => {
       p.x += p.vx * dt;
       p.y += p.vy * dt;
       p.life--;
-      if (p.life <= 0) particlesRef.current.splice(i, 1);
+      if (p.life <= 0) swapRemove(particlesRef.current, i);
     }
 
     if (flashTimerRef.current > 0) flashTimerRef.current--;
@@ -499,112 +505,142 @@ const MirrorDash: React.FC = () => {
     ctx.fillText('WORLD B', MID + MID / 2, 20);
     ctx.restore();
 
-    // Obstacles (safe arrows always visible)
+    // Obstacles (safe arrows always visible) — no shadowBlur for performance
     const obsW = LANE_W - 10;
     const obsH = 18;
+    // Batch: draw all danger blocks, then all safe outlines
+    // Danger left
+    ctx.save();
+    ctx.fillStyle = C.dangerLeft;
     for (const obs of obstaclesRef.current) {
-      const y = obs.y;
-      // Left side
       for (let l = 0; l < LANES; l++) {
-        const x = laneX('left', l);
         if (obs.leftDanger.includes(l)) {
-          ctx.save();
-          ctx.shadowColor = C.dangerLeft;
-          ctx.shadowBlur = 12;
-          ctx.fillStyle = C.dangerLeft;
+          const x = laneX('left', l);
           ctx.beginPath();
-          roundRect(ctx, x - obsW / 2, y - obsH / 2, obsW, obsH, 4);
+          roundRect(ctx, x - obsW / 2, obs.y - obsH / 2, obsW, obsH, 4);
           ctx.fill();
-          ctx.restore();
-        } else {
-          ctx.save();
-          ctx.strokeStyle = C.safeLeft;
-          ctx.lineWidth = 2;
-          ctx.globalAlpha = 0.75;
-          ctx.shadowColor = C.safeLeft;
-          ctx.shadowBlur = 8;
-          ctx.beginPath();
-          roundRect(ctx, x - obsW / 2, y - obsH / 2, obsW, obsH, 4);
-          ctx.stroke();
-          ctx.globalAlpha = 0.5;
-          ctx.fillStyle = C.safeLeft;
-          ctx.font = 'bold 10px Rajdhani, sans-serif';
-          ctx.textAlign = 'center';
-          ctx.fillText('\u25BC', x, y - obsH / 2 - 4);
-          ctx.restore();
-        }
-      }
-      // Right side
-      for (let l = 0; l < LANES; l++) {
-        const x = laneX('right', l);
-        if (!obs.rightDanger.includes(l)) {
-          ctx.save();
-          ctx.strokeStyle = C.safeRight;
-          ctx.lineWidth = 2;
-          ctx.globalAlpha = 0.75;
-          ctx.shadowColor = C.safeRight;
-          ctx.shadowBlur = 8;
-          ctx.beginPath();
-          roundRect(ctx, x - obsW / 2, y - obsH / 2, obsW, obsH, 4);
-          ctx.stroke();
-          ctx.globalAlpha = 0.5;
-          ctx.fillStyle = C.safeRight;
-          ctx.font = 'bold 10px Rajdhani, sans-serif';
-          ctx.textAlign = 'center';
-          ctx.fillText('\u25BC', x, y - obsH / 2 - 4);
-          ctx.restore();
-        } else {
-          ctx.save();
-          ctx.shadowColor = C.dangerRight;
-          ctx.shadowBlur = 12;
-          ctx.fillStyle = C.dangerRight;
-          ctx.beginPath();
-          roundRect(ctx, x - obsW / 2, y - obsH / 2, obsW, obsH, 4);
-          ctx.fill();
-          ctx.restore();
         }
       }
     }
+    // Danger right
+    ctx.fillStyle = C.dangerRight;
+    for (const obs of obstaclesRef.current) {
+      for (let l = 0; l < LANES; l++) {
+        if (obs.rightDanger.includes(l)) {
+          const x = laneX('right', l);
+          ctx.beginPath();
+          roundRect(ctx, x - obsW / 2, obs.y - obsH / 2, obsW, obsH, 4);
+          ctx.fill();
+        }
+      }
+    }
+    ctx.restore();
 
-    // Pickups
-    for (const pk of pickupsRef.current) {
-      const x = laneX(pk.side, pk.lane);
-      const y = pk.y;
-      const pulse = 0.7 + 0.3 * Math.sin(frame * 0.15);
+    // Safe left outlines
+    ctx.save();
+    ctx.strokeStyle = C.safeLeft;
+    ctx.lineWidth = 2;
+    ctx.globalAlpha = 0.75;
+    for (const obs of obstaclesRef.current) {
+      for (let l = 0; l < LANES; l++) {
+        if (!obs.leftDanger.includes(l)) {
+          const x = laneX('left', l);
+          ctx.beginPath();
+          roundRect(ctx, x - obsW / 2, obs.y - obsH / 2, obsW, obsH, 4);
+          ctx.stroke();
+        }
+      }
+    }
+    ctx.restore();
+    // Safe left arrows
+    ctx.save();
+    ctx.globalAlpha = 0.5;
+    ctx.fillStyle = C.safeLeft;
+    ctx.font = 'bold 10px Rajdhani, sans-serif';
+    ctx.textAlign = 'center';
+    for (const obs of obstaclesRef.current) {
+      for (let l = 0; l < LANES; l++) {
+        if (!obs.leftDanger.includes(l)) {
+          ctx.fillText('\u25BC', laneX('left', l), obs.y - obsH / 2 - 4);
+        }
+      }
+    }
+    ctx.restore();
+
+    // Safe right outlines
+    ctx.save();
+    ctx.strokeStyle = C.safeRight;
+    ctx.lineWidth = 2;
+    ctx.globalAlpha = 0.75;
+    for (const obs of obstaclesRef.current) {
+      for (let l = 0; l < LANES; l++) {
+        if (!obs.rightDanger.includes(l)) {
+          const x = laneX('right', l);
+          ctx.beginPath();
+          roundRect(ctx, x - obsW / 2, obs.y - obsH / 2, obsW, obsH, 4);
+          ctx.stroke();
+        }
+      }
+    }
+    ctx.restore();
+    // Safe right arrows
+    ctx.save();
+    ctx.globalAlpha = 0.5;
+    ctx.fillStyle = C.safeRight;
+    ctx.font = 'bold 10px Rajdhani, sans-serif';
+    ctx.textAlign = 'center';
+    for (const obs of obstaclesRef.current) {
+      for (let l = 0; l < LANES; l++) {
+        if (!obs.rightDanger.includes(l)) {
+          ctx.fillText('\u25BC', laneX('right', l), obs.y - obsH / 2 - 4);
+        }
+      }
+    }
+    ctx.restore();
+
+    // Pickups — no shadowBlur
+    const pickupPulse = 0.7 + 0.3 * Math.sin(frame * 0.15);
+    if (pickupsRef.current.length > 0) {
       ctx.save();
-      ctx.shadowColor = '#ff6eb4';
-      ctx.shadowBlur = 16 * pulse;
       ctx.font = '20px serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.globalAlpha = pulse;
-      ctx.fillText('\u2764\uFE0F', x, y);
-      ctx.beginPath();
-      ctx.arc(x, y, 18 * pulse, 0, Math.PI * 2);
+      ctx.globalAlpha = pickupPulse;
+      for (const pk of pickupsRef.current) {
+        const x = laneX(pk.side, pk.lane);
+        ctx.fillText('\u2764\uFE0F', x, pk.y);
+      }
       ctx.strokeStyle = 'rgba(255,110,180,0.3)';
       ctx.lineWidth = 1.5;
-      ctx.stroke();
+      for (const pk of pickupsRef.current) {
+        const x = laneX(pk.side, pk.lane);
+        ctx.beginPath();
+        ctx.arc(x, pk.y, 18 * pickupPulse, 0, Math.PI * 2);
+        ctx.stroke();
+      }
       ctx.restore();
     }
 
-    // Shield power-ups (collectible)
-    for (const sp of shieldPowerupsRef.current) {
-      const x = laneX(sp.side, sp.lane);
-      const y = sp.y;
-      const pulse = 0.6 + 0.4 * Math.sin(frame * 0.12);
+    // Shield power-ups (collectible) — no shadowBlur
+    if (shieldPowerupsRef.current.length > 0) {
+      const shieldPulse = 0.6 + 0.4 * Math.sin(frame * 0.12);
       ctx.save();
-      ctx.shadowColor = '#2fffee';
-      ctx.shadowBlur = 14 * pulse;
       ctx.font = '18px serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.globalAlpha = pulse;
-      ctx.fillText('\uD83D\uDEE1\uFE0F', x, y);
-      ctx.beginPath();
-      ctx.arc(x, y, 16 * pulse, 0, Math.PI * 2);
+      ctx.globalAlpha = shieldPulse;
+      for (const sp of shieldPowerupsRef.current) {
+        const x = laneX(sp.side, sp.lane);
+        ctx.fillText('\uD83D\uDEE1\uFE0F', x, sp.y);
+      }
       ctx.strokeStyle = 'rgba(47,255,238,0.35)';
       ctx.lineWidth = 1.5;
-      ctx.stroke();
+      for (const sp of shieldPowerupsRef.current) {
+        const x = laneX(sp.side, sp.lane);
+        ctx.beginPath();
+        ctx.arc(x, sp.y, 16 * shieldPulse, 0, Math.PI * 2);
+        ctx.stroke();
+      }
       ctx.restore();
     }
 
@@ -637,23 +673,25 @@ const MirrorDash: React.FC = () => {
 
       if (damaged && Math.floor(frame / 6) % 2 === 0) return;
 
-      // Shield bubble when this side is shielded
+      // Shield bubble when this side is shielded — no shadowBlur
       if (sideShielded) {
         const pulse = 0.4 + 0.2 * Math.sin(frame * 0.12);
         ctx.save();
         ctx.beginPath();
         ctx.arc(x, y - 4, 22, 0, Math.PI * 2);
         ctx.strokeStyle = `rgba(47,255,238,${pulse})`;
-        ctx.lineWidth = 2;
-        ctx.shadowColor = '#2fffee';
-        ctx.shadowBlur = 12;
+        ctx.lineWidth = 2.5;
+        ctx.stroke();
+        // Inner glow ring
+        ctx.beginPath();
+        ctx.arc(x, y - 4, 20, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(47,255,238,${pulse * 0.3})`;
+        ctx.lineWidth = 4;
         ctx.stroke();
         ctx.restore();
       }
 
       ctx.save();
-      ctx.shadowColor = color;
-      ctx.shadowBlur = 18;
 
       // Body
       ctx.fillStyle = color;
@@ -684,14 +722,15 @@ const MirrorDash: React.FC = () => {
     drawPlayer('left', visualLaneLRef.current, invincibleLeftRef.current > 0);
     drawPlayer('right', visualLaneRRef.current, invincibleRightRef.current > 0);
 
-    // Particles
+    // Particles — use rgba to avoid hex string ops per frame
     for (const p of particlesRef.current) {
       ctx.beginPath();
       ctx.arc(p.x, p.y, 3, 0, Math.PI * 2);
-      const alpha = Math.floor(p.life / 30 * 255).toString(16).padStart(2, '0');
-      ctx.fillStyle = p.color + alpha;
+      ctx.globalAlpha = p.life / 30;
+      ctx.fillStyle = p.color;
       ctx.fill();
     }
+    ctx.globalAlpha = 1;
   }, [laneX, playerY, roundRect]);
 
   // Start game
