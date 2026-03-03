@@ -161,6 +161,7 @@ const GamesIndex: React.FC = () => {
       duration: '2-10 minutes',
       category: 'Fun Math Games'
     },
+    {
       id: 'math-flip',
       name: 'Math Flip',
       description: 'Card-matching math challenge',
