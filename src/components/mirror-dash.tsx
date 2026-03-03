@@ -322,21 +322,24 @@ const MirrorDash: React.FC = () => {
       }
     }
 
-    // Collision (check each side independently, respecting per-side shield)
+    // Collision (detect both sides first, then apply — double hit = 2 damage)
     if (invincibleRef.current === 0) {
+      let hitL = false;
+      let hitR = false;
       for (const obs of obstaclesRef.current) {
         if (obs.y > py - 20 && obs.y < py + 20) {
           if (shieldLeftRef.current <= 0 && playerLRef.current.lane === obs.dangerLane) {
-            hit('left');
-            break;
+            hitL = true;
           }
           const safeLaneR = 2 - obs.dangerLane;
           if (shieldRightRef.current <= 0 && playerRRef.current.lane !== safeLaneR) {
-            hit('right');
-            break;
+            hitR = true;
           }
+          if (hitL || hitR) break;
         }
       }
+      if (hitL) hit('left');
+      if (hitR && stateRef.current === 'playing') hit('right');
     }
 
     // Particles
@@ -738,10 +741,10 @@ const MirrorDash: React.FC = () => {
       <StarField />
 
       <div style={styles.container}>
-        {/* HUD */}
-        <div style={styles.hud}>
+        {/* HUD — hidden on start screen */}
+        <div style={{ ...styles.hud, visibility: uiState === 'idle' ? 'hidden' : 'visible' }}>
           <div style={styles.lives}>{livesDisplay}</div>
-          <div style={styles.title}>MIRROR DASH</div>
+          <div className="md-title" style={styles.title}>MIRROR DASH</div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 100, justifyContent: 'flex-end' }}>
             {uiShieldLeft && (
               <span style={{ fontFamily: "'Orbitron', sans-serif", fontSize: '0.5rem', fontWeight: 700, color: C.leftNeonLight, letterSpacing: 1 }}>
@@ -875,6 +878,9 @@ const StarField: React.FC = React.memo(() => {
           .md-desktop-only { display: none; }
           .md-mobile-only { display: inline; }
         }
+        @media (max-width: 400px) {
+          .md-title { font-size: 0.9rem !important; letter-spacing: 1px !important; }
+        }
       `}</style>
       {stars.map((s, i) => (
         <div
@@ -947,9 +953,7 @@ const styles: Record<string, React.CSSProperties> = {
     background: `linear-gradient(90deg, ${C.leftNeon}, ${C.rightNeon})`,
     WebkitBackgroundClip: 'text',
     WebkitTextFillColor: 'transparent',
-    overflow: 'hidden',
     whiteSpace: 'nowrap',
-    flexShrink: 1,
   },
   scoreDisplay: {
     fontFamily: "'Orbitron', sans-serif",
