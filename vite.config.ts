@@ -19,6 +19,7 @@ export default defineConfig({
         '/games/rocket-math',
         '/games/mathcha-cafe',
         '/games/math-drop',
+        '/games/sort-attack',
       ],
       lastmod: new Date(),
     }),

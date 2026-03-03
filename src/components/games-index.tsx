@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Calculator, Grid3X3, X, Divide, Shapes, Play, Home, /*Search,*/ Rocket, Filter } from 'lucide-react';
+import { Calculator, Grid3X3, X, Divide, Shapes, Play, Home, /*Search,*/ Rocket, Filter, ArrowUpDown } from 'lucide-react';
 import { trackButtonClick } from '../utils/analytics';
 import FloatingButtons from './floating-buttons';
 import Breadcrumb from './breadcrumb';
@@ -146,6 +146,19 @@ const GamesIndex: React.FC = () => {
       path: '/games/mathcha-cafe',
       difficulty: 'Beginner to Expert',
       duration: '10-25 minutes',
+      category: 'Fun Math Games'
+    },
+    {
+      id: 'sort-attack',
+      name: 'Sort Attack',
+      description: 'Sort numbers with adjacent swaps',
+      longDescription: 'Race the clock to sort scrambled numbers using only adjacent swaps. Minimize your moves, use hints wisely, and keep the timer alive by completing rounds. A fast-paced logic challenge!',
+      icon: <ArrowUpDown className="w-8 h-8" />,
+      available: true,
+      gradient: 'from-cyan-500 to-blue-500',
+      path: '/games/sort-attack',
+      difficulty: 'Easy to Hard',
+      duration: '2-10 minutes',
       category: 'Fun Math Games'
     },
     /*{

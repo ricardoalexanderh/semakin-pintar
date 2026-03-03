@@ -28,6 +28,7 @@ Semakin Pintar is a comprehensive educational games platform designed to make le
 - **Rocket Math** - Space-themed math adventure game
 - **Mathcha Cafe** - Cafe-themed math practice with budgeting scenarios
 - **Math Drop** - Puyo Puyo-style puzzle game with math equations and special power-ups
+- **Sort Attack** - Sort scrambled numbers using only adjacent swaps before time runs out
 
 ## ✨ Features
 

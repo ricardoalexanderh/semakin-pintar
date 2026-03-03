@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Calculator, Shapes, Rocket, X, /*Grid3X3,*/ Lightbulb, Puzzle, Mail, ExternalLink, Layers, Search, Target, Workflow } from 'lucide-react';
+import { Calculator, Shapes, Rocket, X, /*Grid3X3,*/ Lightbulb, Puzzle, Mail, ExternalLink, Layers, Search, Target, Workflow, ArrowUpDown } from 'lucide-react';
 import { trackButtonClick, trackDonationClick } from '../utils/analytics';
 import FloatingButtons from './floating-buttons';
 
@@ -61,6 +61,15 @@ const LandingPage: React.FC<LandingPageProps> = () => {
             gradient: 'from-pink-500 to-purple-500',
             path: '/games/math-drop'
         },*/
+        {
+            id: 'sort-attack',
+            name: 'Sort Attack',
+            description: 'Sort numbers with adjacent swaps before time runs out',
+            icon: <ArrowUpDown className="w-12 h-12" />,
+            available: true,
+            gradient: 'from-cyan-500 to-blue-500',
+            path: '/games/sort-attack'
+        },
         {
             id: 'mathcha-cafe',
             name: 'Mathcha Cafe',
