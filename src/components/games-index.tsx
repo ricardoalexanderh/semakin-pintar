@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Calculator, Grid3X3, X, Divide, Shapes, Play, Home, Search, Rocket, Filter } from 'lucide-react';
+import { Calculator, Grid3X3, X, Divide, Shapes, Play, Home, /*Search,*/ Rocket, Filter } from 'lucide-react';
 import { trackButtonClick } from '../utils/analytics';
 import FloatingButtons from './floating-buttons';
 import Breadcrumb from './breadcrumb';
@@ -26,7 +26,7 @@ const GamesIndex: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
 
   // Custom SVG icon for Math Drop
-  const MathDropIcon = () => (
+  /*const MathDropIcon = () => (
     <svg className="w-8 h-8" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
       <circle cx="12" cy="8" r="5" fill="#ec4899" opacity="0.9">
         <animate attributeName="cy" values="8;40;8" dur="2s" repeatCount="indefinite"/>
@@ -41,7 +41,7 @@ const GamesIndex: React.FC = () => {
       <text x="24" y="17" textAnchor="middle" className="text-xs font-bold fill-white">×</text>
       <text x="36" y="11" textAnchor="middle" className="text-xs font-bold fill-white">=</text>
     </svg>
-  );
+  );*/
 
   //TODO: Update new games
   const games: Game[] = [
