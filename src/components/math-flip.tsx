@@ -72,10 +72,10 @@ function playSound(type: 'flip' | 'match' | 'wrong' | 'roundClear' | 'gameOver')
 // MATH GENERATION
 // ============================================================
 
-function generateEquation(round: number, usedAnswers: Set<number>): { equation: string; answer: number } | null {
+function generateEquation(round: number, difficulty: Difficulty, usedAnswers: Set<number>): { equation: string; answer: number } | null {
   const ops: Array<'add' | 'sub' | 'mul' | 'div' | 'sq'> = ['add', 'sub'];
-  if (round >= 2) ops.push('mul');
-  if (round >= 3) ops.push('div', 'sq');
+  if (difficulty === 'medium') ops.push('mul');
+  if (difficulty === 'hard')   ops.push('mul', 'div', 'sq');
 
   for (let attempt = 0; attempt < 200; attempt++) {
     const op = ops[Math.floor(Math.random() * ops.length)];
@@ -110,12 +110,12 @@ function generateEquation(round: number, usedAnswers: Set<number>): { equation: 
   return null;
 }
 
-function buildCards(round: number, pairCount: number): Card[] {
+function buildCards(round: number, pairCount: number, difficulty: Difficulty): Card[] {
   const usedAnswers = new Set<number>();
   const cards: Card[] = [];
   let id = 0;
   for (let pairId = 0; pairId < pairCount; pairId++) {
-    const eq = generateEquation(round, usedAnswers);
+    const eq = generateEquation(round, difficulty, usedAnswers);
     if (!eq) continue;
     usedAnswers.add(eq.answer);
     cards.push({ id: id++, type: 'equation', display: eq.equation,      answer: eq.answer, pairId, isFlipped: false, isMatched: false });
@@ -208,7 +208,7 @@ const MathFlipGame: React.FC = () => {
     setScore(0);
     setTimeLeft(cfg.startTime);
     setTimerMax(cfg.startTime);
-    setCards(buildCards(1, cfg.startPairs));
+    setCards(buildCards(1, cfg.startPairs, diff));
     setFlippedIds([]);
     setTotalCorrect(0);
     setTotalWrong(0);
@@ -227,7 +227,7 @@ const MathFlipGame: React.FC = () => {
     const pairCount = Math.min(basePairs + (newRound - 1), MAX_PAIRS);
     isProcessingRef.current = false;
     setRound(newRound);
-    setCards(buildCards(newRound, pairCount));
+    setCards(buildCards(newRound, pairCount, difficultyRef.current));
     setFlippedIds([]);
     setShakeIds(new Set());
     setRoundClearInfo(null);
