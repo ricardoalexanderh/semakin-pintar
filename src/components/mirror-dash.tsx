@@ -244,6 +244,8 @@ const MirrorDash: React.FC = () => {
       if (blindTimerRef.current <= 0) setUiBlind(false);
     }
 
+    const py = playerY();
+
     // Move & collect blind power-ups
     for (let i = blindPowerupsRef.current.length - 1; i >= 0; i--) {
       blindPowerupsRef.current[i].y += speed;
@@ -276,7 +278,6 @@ const MirrorDash: React.FC = () => {
     }
 
     // Move & collect pickups
-    const py = playerY();
     for (let i = pickupsRef.current.length - 1; i >= 0; i--) {
       pickupsRef.current[i].y += speed;
       if (pickupsRef.current[i].y > H + 20) {
