@@ -72,7 +72,8 @@ const MirrorDash: React.FC = () => {
   const livesRef = useRef(3);
   const [uiLives, setUiLives] = useState(3);
   const frameRef = useRef(0);
-  const speedRef = useRef(3);
+  const speedRef = useRef(2.0);
+  const lastSpawnFrameRef = useRef(0);
   const obstaclesRef = useRef<Obstacle[]>([]);
   const particlesRef = useRef<Particle[]>([]);
   const pickupsRef = useRef<Pickup[]>([]);
@@ -125,19 +126,22 @@ const MirrorDash: React.FC = () => {
     }
   }, []);
 
-  // Spawn obstacle
+  // Spawn obstacle with minimum distance guarantee
   const spawnObstacle = useCallback(() => {
-    // Only copy danger lane if another obstacle is close enough to overlap
-    // at the player hitbox (both move at the same speed, so relative Y is fixed).
-    const overlapping = obstaclesRef.current.filter(o => Math.abs(o.y - (-30)) < 45);
-
+    // Find the closest obstacle to spawn point (-30) to decide danger lane
+    const nearby = obstaclesRef.current.filter(o => o.y < 100);
     let dangerLane: number;
-    if (overlapping.length > 0) {
-      dangerLane = overlapping[0].dangerLane;
+    if (nearby.length > 0) {
+      const closest = nearby.reduce((a, b) => (a.y < b.y ? a : b));
+      if (closest.y < 70) {
+        // Close enough — keep same danger lane so player doesn't face impossible switch
+        dangerLane = closest.dangerLane;
+      } else {
+        dangerLane = Math.floor(Math.random() * LANES);
+      }
     } else {
       dangerLane = Math.floor(Math.random() * LANES);
     }
-
     obstaclesRef.current.push({ y: -30, dangerLane, type: 'split' });
   }, []);
 
@@ -213,15 +217,23 @@ const MirrorDash: React.FC = () => {
     const frame = frameRef.current;
     frameRef.current++;
 
-    // Speed ramp
-    speedRef.current = 1.2 + Math.min(3.3, Math.floor(frame / 600) * 0.25);
+    // Speed ramp — smooth linear increase, starts at 2.0, maxes at 4.5
+    speedRef.current = 2.0 + Math.min(2.5, frame * 0.0006);
     if (invincibleRef.current > 0) invincibleRef.current--;
 
     const speed = speedRef.current;
 
-    // Spawn rate
-    const spawnRate = Math.max(80, 220 - Math.floor(frame / 300) * 8);
-    if (frame % spawnRate === 0) spawnObstacle();
+    // Spawn rate — smooth decrease, interval-based (no modulo drift)
+    const spawnInterval = Math.max(80, Math.floor(200 - frame * 0.02));
+    if (frame - lastSpawnFrameRef.current >= spawnInterval) {
+      // Minimum gap decreases over time (harder) but floors at 55px so it's always passable
+      const minGap = Math.max(55, 90 - Math.floor(frame / 900) * 5);
+      const tooClose = obstaclesRef.current.some(o => o.y < minGap - 30);
+      if (!tooClose) {
+        spawnObstacle();
+        lastSpawnFrameRef.current = frame;
+      }
+    }
 
     // Heart pickup spawn
     if (livesRef.current < 3 && frame % Math.floor(600 + Math.random() * 300) === 0) {
@@ -659,7 +671,8 @@ const MirrorDash: React.FC = () => {
     scoreRef.current = 0;
     livesRef.current = 3;
     frameRef.current = 0;
-    speedRef.current = 3;
+    speedRef.current = 2.0;
+    lastSpawnFrameRef.current = 0;
     obstaclesRef.current = [];
     particlesRef.current = [];
     pickupsRef.current = [];
