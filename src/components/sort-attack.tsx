@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import * as Tone from 'tone';
-import { Volume2, VolumeX, RotateCcw, Lightbulb, Trophy, ArrowUpDown } from 'lucide-react';
+import { Volume2, VolumeX, RotateCcw, Lightbulb, Trophy } from 'lucide-react';
 import { trackGameEvent, trackButtonClick, trackGameCompletion } from '../utils/analytics';
 import { useGameState } from '../hooks/useGameState';
 
@@ -37,15 +37,34 @@ const BASE_SCORE = 1000;
 const SWAP_PENALTY = 50;
 const TIME_SCORE_RATE = 10;
 
+// Prototype color palette
+const C = {
+  bg:     '#1a1a2e',
+  panel:  '#16213e',
+  card:   '#0f3460',
+  accent: '#e94560',
+  yellow: '#f5a623',
+  green:  '#4ecb71',
+  blue:   '#4fc3f7',
+  white:  '#f0f0f0',
+  muted:  '#8892b0',
+};
+
 const TILE_SIZES: Record<Difficulty, string> = {
-  easy:   'w-16 h-16 text-2xl sm:w-20 sm:h-20 sm:text-3xl',
-  medium: 'w-14 h-14 text-xl sm:w-16 sm:h-16 sm:text-2xl',
-  hard:   'w-12 h-12 text-lg sm:w-14 sm:h-14 sm:text-xl',
+  easy:   'w-16 h-16 text-2xl sm:w-[72px] sm:h-[72px] sm:text-3xl',
+  medium: 'w-14 h-14 text-xl  sm:w-16   sm:h-16   sm:text-2xl',
+  hard:   'w-12 h-12 text-lg  sm:w-14   sm:h-14   sm:text-xl',
 };
 
 const LS_DIFFICULTY  = 'sortAttack_difficulty';
 const LS_SOUND       = 'sortAttack_sound';
 const LS_HIGH_SCORES = 'sortAttack_highScores';
+
+const GRID_BG: React.CSSProperties = {
+  backgroundImage: `linear-gradient(rgba(79,195,247,0.04) 1px, transparent 1px),
+                    linear-gradient(90deg, rgba(79,195,247,0.04) 1px, transparent 1px)`,
+  backgroundSize: '40px 40px',
+};
 
 // === Algorithms ===
 const countInversions = (arr: number[]): number => {
@@ -109,7 +128,7 @@ const playSound = async (
 
 // === Component ===
 const SortAttack: React.FC = () => {
-  // --- Settings (persisted) ---
+  // --- Settings ---
   const [difficulty, setDifficulty] = useState<Difficulty>(
     () => (localStorage.getItem(LS_DIFFICULTY) as Difficulty) || 'easy',
   );
@@ -152,12 +171,10 @@ const SortAttack: React.FC = () => {
 
   const { updateGameState } = useGameState();
 
-  // Hide floating buttons while game is active
   useEffect(() => {
     updateGameState('sort-attack', phase === 'playing' || phase === 'countdown' || phase === 'roundEnd');
   }, [phase, updateGameState]);
 
-  // Persist settings
   useEffect(() => { localStorage.setItem(LS_DIFFICULTY, difficulty); }, [difficulty]);
   useEffect(() => { localStorage.setItem(LS_SOUND, String(soundEnabled)); }, [soundEnabled]);
 
@@ -178,7 +195,7 @@ const SortAttack: React.FC = () => {
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
   }, [phase]);
 
-  // Update high score + analytics when game ends
+  // Save high score on game over
   useEffect(() => {
     if (phase !== 'gameover') return;
     setHighScores(prev => {
@@ -215,7 +232,6 @@ const SortAttack: React.FC = () => {
   }, [phase]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // === Handlers ===
-
   const handleStartGame = () => {
     setScore(0);
     setRoundNumber(0);
@@ -235,9 +251,9 @@ const SortAttack: React.FC = () => {
     const roundScore = Math.max(0, BASE_SCORE - penalty + timeBonusScore);
 
     const label: RoundResult['label'] =
-      extraSwaps === 0    ? 'Perfect!' :
-      efficiency >= 70   ? 'Nice!'     :
-                           'Too slow!';
+      extraSwaps === 0  ? 'Perfect!' :
+      efficiency >= 70  ? 'Nice!'    :
+                          'Too slow!';
 
     const result: RoundResult = { swapsUsed: totalSwaps, minSwaps, efficiency, timeBonus: timeBonusScore, roundScore, label };
     setLastResult(result);
@@ -247,8 +263,7 @@ const SortAttack: React.FC = () => {
     setEfficiencies(prev => [...prev, efficiency]);
 
     const { timeBonus: bonusSeconds } = DIFFICULTY_CONFIG[difficulty];
-    const timePenalty = extraSwaps * 2;
-    timerRef.current = Math.min(timerRef.current + bonusSeconds - timePenalty, 99);
+    timerRef.current = Math.min(timerRef.current + bonusSeconds - extraSwaps * 2, 99);
 
     playSound('complete', soundEnabled);
 
@@ -337,32 +352,19 @@ const SortAttack: React.FC = () => {
     const isSorted    = phase === 'roundEnd';
     const isSwapping  = swapAnimating?.includes(index) ?? false;
 
-    const classes: string[] = [
-      'flex items-center justify-center rounded-2xl font-bold select-none cursor-pointer',
-      'transition-all duration-150 border-2',
-      TILE_SIZES[difficulty],
-    ];
+    const base = `flex items-center justify-center rounded-[14px] font-black select-none cursor-pointer transition-all duration-150 border-[2.5px] ${TILE_SIZES[difficulty]}`;
 
-    if (isSorted) {
-      classes.push('bg-green-500 border-green-400 text-white scale-105');
-    } else if (isSelected) {
-      classes.push('bg-purple-500 border-purple-400 text-white scale-110 shadow-lg shadow-purple-900/50');
-    } else if (isHinted) {
-      classes.push('bg-yellow-400 border-yellow-300 text-gray-900 animate-pulse');
-    } else if (isAdjacent) {
-      classes.push('border-purple-400 bg-purple-900/40 text-white animate-pulse');
-    } else {
-      classes.push('bg-gray-700 border-gray-600 text-white hover:border-purple-400 hover:bg-gray-600');
-    }
-    if (isSwapping) classes.push('scale-95 opacity-70');
-
-    return classes.join(' ');
+    if (isSorted)    return `${base} text-[${C.green}] border-[${C.green}] bg-[#1a3a2a]`;
+    if (isSelected)  return `${base} bg-[${C.accent}] border-[#ff6b80] text-white -translate-y-2 scale-110 shadow-[0_12px_32px_rgba(233,69,96,0.45)] z-10`;
+    if (isHinted || isAdjacent) return `${base} bg-[${C.card}] text-white border-[${C.yellow}] shadow-[0_0_16px_rgba(245,166,35,0.35)] animate-pulse`;
+    if (isSwapping)  return `${base} bg-[${C.card}] text-white border-[rgba(79,195,247,0.2)] scale-95 opacity-70`;
+    return `${base} bg-[${C.card}] text-white border-[rgba(79,195,247,0.2)] hover:-translate-y-1 hover:scale-105 hover:border-[${C.blue}] hover:shadow-[0_8px_24px_rgba(79,195,247,0.25)]`;
   };
 
   const timerColor =
-    timerDisplay <= 8  ? 'text-red-400'    :
-    timerDisplay <= 15 ? 'text-yellow-400' :
-                         'text-emerald-400';
+    timerDisplay <= 8  ? `text-[${C.accent}]` :
+    timerDisplay <= 15 ? `text-[${C.yellow}]` :
+                         `text-[${C.green}]`;
   const timerPulse = timerDisplay <= 8 ? 'animate-pulse' : '';
 
   const avgEfficiency =
@@ -370,107 +372,119 @@ const SortAttack: React.FC = () => {
       ? Math.round(efficiencies.reduce((a, b) => a + b, 0) / efficiencies.length)
       : 0;
 
+  const remainingSwaps = phase === 'playing' || phase === 'roundEnd' ? countInversions(tiles) : 0;
+
+  // Shared page wrapper
+  const Page = ({ children }: { children: React.ReactNode }) => (
+    <div
+      className="min-h-screen flex flex-col items-center justify-center p-4 sm:p-6"
+      style={{ backgroundColor: C.bg, ...GRID_BG }}
+    >
+      {children}
+    </div>
+  );
+
   // === Setup Screen ===
   if (phase === 'setup') {
     return (
-      <div className="min-h-screen bg-gray-950 flex items-center justify-center p-4">
-        <div className="max-w-md w-full bg-gray-800 rounded-3xl shadow-2xl border border-gray-700 p-8">
+      <Page>
+        <div className="w-full max-w-md flex flex-col gap-6">
           {/* Title */}
-          <div className="text-center mb-6">
-            <div className="flex justify-center mb-3">
-              <div className="p-4 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-2xl shadow-lg shadow-cyan-900/50">
-                <ArrowUpDown className="w-10 h-10 text-white" />
-              </div>
-            </div>
-            <h1 className="text-3xl font-bold text-white mb-2">Sort Attack</h1>
-            <p className="text-gray-400 text-sm">Sort scrambled numbers using only adjacent swaps. Race the clock!</p>
+          <div className="text-center">
+            <h1 className="text-5xl font-black tracking-tight leading-none" style={{ color: C.white }}>
+              Sort<span style={{ color: C.accent }}>Attack</span>
+            </h1>
+            <p className="font-mono text-xs uppercase tracking-[3px] mt-2" style={{ color: C.muted }}>
+              swap · sort · optimize
+            </p>
           </div>
 
           {/* Difficulty */}
-          <div className="mb-6">
-            <p className="text-sm font-semibold text-gray-300 mb-3 text-center">Difficulty</p>
-            <div className="flex gap-2">
-              {(['easy', 'medium', 'hard'] as Difficulty[]).map(d => (
-                <button
-                  key={d}
-                  onClick={() => setDifficulty(d)}
-                  className={`flex-1 py-2 px-1 rounded-xl font-semibold text-sm transition-all border-2 ${
-                    difficulty === d
-                      ? 'bg-cyan-600 border-cyan-500 text-white shadow-md shadow-cyan-900/50 scale-105'
-                      : 'bg-gray-700 border-gray-600 text-gray-300 hover:border-cyan-500 hover:bg-gray-600'
-                  }`}
-                >
-                  <div>{DIFFICULTY_CONFIG[d].label}</div>
-                  <div className="text-xs opacity-70 mt-0.5">{DIFFICULTY_CONFIG[d].arraySize} tiles</div>
-                </button>
-              ))}
-            </div>
+          <div className="flex gap-2 justify-center">
+            {(['easy', 'medium', 'hard'] as Difficulty[]).map(d => (
+              <button
+                key={d}
+                onClick={() => setDifficulty(d)}
+                className="font-mono text-[0.7rem] uppercase tracking-wider px-4 py-2 rounded-lg border transition-all"
+                style={difficulty === d
+                  ? { borderColor: C.yellow, color: C.yellow, background: 'rgba(245,166,35,0.1)' }
+                  : { borderColor: 'rgba(79,195,247,0.15)', color: C.muted, background: C.panel }
+                }
+              >
+                {DIFFICULTY_CONFIG[d].label} ({DIFFICULTY_CONFIG[d].arraySize})
+              </button>
+            ))}
           </div>
 
           {/* High Scores */}
-          <div className="mb-6 bg-gray-700/50 rounded-2xl p-4 border border-gray-600">
+          <div className="rounded-xl p-4 border" style={{ background: C.panel, borderColor: 'rgba(79,195,247,0.12)' }}>
             <div className="flex items-center gap-2 mb-3">
-              <Trophy className="w-4 h-4 text-yellow-400" />
-              <span className="text-sm font-semibold text-gray-300">High Scores</span>
+              <Trophy className="w-4 h-4" style={{ color: C.yellow }} />
+              <span className="font-mono text-[0.65rem] uppercase tracking-widest" style={{ color: C.muted }}>High Scores</span>
             </div>
             <div className="grid grid-cols-3 gap-2">
               {(['easy', 'medium', 'hard'] as Difficulty[]).map(d => (
                 <div
                   key={d}
-                  className={`text-center p-2 rounded-xl ${difficulty === d ? 'bg-cyan-900/50 border border-cyan-600' : ''}`}
+                  className="text-center p-2 rounded-lg border transition-all"
+                  style={difficulty === d
+                    ? { borderColor: C.yellow, background: 'rgba(245,166,35,0.08)' }
+                    : { borderColor: 'transparent' }
+                  }
                 >
-                  <div className="text-xs text-gray-400">{DIFFICULTY_CONFIG[d].label}</div>
-                  <div className="text-lg font-bold text-white">{highScores[d] || 0}</div>
+                  <div className="font-mono text-[0.6rem] uppercase tracking-wider" style={{ color: C.muted }}>{DIFFICULTY_CONFIG[d].label}</div>
+                  <div className="text-lg font-black" style={{ color: C.white }}>{highScores[d] || 0}</div>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* Sound toggle */}
-          <button
-            onClick={() => setSoundEnabled(!soundEnabled)}
-            className="w-full mb-4 flex items-center justify-center gap-2 py-2 rounded-xl bg-gray-700 border border-gray-600 text-gray-300 hover:bg-gray-600 transition-colors text-sm"
+          {/* Hint bar */}
+          <div
+            className="rounded-r-xl px-4 py-3 border-l-4 text-xs"
+            style={{ background: C.panel, borderLeftColor: C.accent, color: C.muted, fontFamily: 'monospace' }}
           >
-            {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
-            Sound {soundEnabled ? 'On' : 'Off'}
-          </button>
+            <span style={{ color: C.white, fontWeight: 700 }}>How to play: </span>
+            Click a number to select it, then click an adjacent neighbor to swap. Sort lowest → highest!
+          </div>
 
-          {/* Start */}
-          <button
-            onClick={handleStartGame}
-            className="w-full py-4 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-bold text-lg rounded-2xl shadow-lg shadow-cyan-900/50 hover:shadow-xl transition-all active:scale-95"
-          >
-            Start Game
-          </button>
-
-          {/* Instructions */}
-          <div className="mt-6 text-xs text-gray-500 space-y-1">
-            <p>• Click a tile to select it (purple highlight)</p>
-            <p>• Click an adjacent tile to swap them</p>
-            <p>• Sort all numbers from smallest to largest</p>
-            <p>• Complete rounds quickly to earn bonus time</p>
+          {/* Sound + Start */}
+          <div className="flex gap-3">
+            <button
+              onClick={() => setSoundEnabled(!soundEnabled)}
+              className="flex items-center gap-2 px-4 py-3 rounded-xl border text-sm font-bold transition-all"
+              style={{ background: C.panel, borderColor: 'rgba(79,195,247,0.2)', color: C.muted }}
+            >
+              {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+            </button>
+            <button
+              onClick={handleStartGame}
+              className="flex-1 py-3 rounded-xl font-black text-lg tracking-wide transition-all hover:-translate-y-0.5 active:translate-y-0"
+              style={{ background: C.accent, color: 'white', boxShadow: '0 4px 20px rgba(233,69,96,0.4)' }}
+            >
+              Start Game
+            </button>
           </div>
         </div>
-      </div>
+      </Page>
     );
   }
 
   // === Countdown Screen ===
   if (phase === 'countdown') {
     return (
-      <div className="min-h-screen bg-gray-950 flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-cyan-400 text-xl mb-6 font-semibold tracking-widest uppercase">Get Ready!</p>
-          <div
-            className={`text-9xl font-black text-white drop-shadow-2xl transition-all duration-300 ${
-              countdown === 0 ? 'scale-125' : 'scale-100'
-            }`}
-          >
-            {countdown > 0 ? countdown : 'GO!'}
-          </div>
-          <p className="text-gray-500 text-sm mt-8">Use only adjacent swaps to sort</p>
+      <Page>
+        <p className="font-mono text-sm uppercase tracking-[4px] mb-8" style={{ color: C.blue }}>Get Ready!</p>
+        <div
+          className={`text-[9rem] font-black leading-none transition-all duration-300 ${countdown === 0 ? 'scale-125' : 'scale-100'}`}
+          style={{ color: C.white }}
+        >
+          {countdown > 0 ? countdown : 'GO!'}
         </div>
-      </div>
+        <p className="font-mono text-xs mt-10 uppercase tracking-widest" style={{ color: C.muted }}>
+          adjacent swaps only
+        </p>
+      </Page>
     );
   }
 
@@ -480,178 +494,246 @@ const SortAttack: React.FC = () => {
     const isNewHighScore = score > 0 && score >= (highScores[difficulty] || 0);
 
     return (
-      <div className="min-h-screen bg-gray-950 flex items-center justify-center p-4">
-        <div className="max-w-sm w-full bg-gray-800 rounded-3xl shadow-2xl border border-gray-700 p-8 text-center">
+      <Page>
+        <div
+          className="w-full max-w-sm rounded-2xl p-8 text-center border-2"
+          style={{ background: C.panel, borderColor: C.accent, boxShadow: `0 0 60px rgba(233,69,96,0.2)` }}
+        >
           <div className="text-5xl mb-3">⏰</div>
-          <h2 className="text-3xl font-bold text-white mb-2">Game Over!</h2>
+          <h2 className="text-3xl font-black mb-1" style={{ color: C.white }}>Time's Up!</h2>
+          <p className="font-mono text-xs uppercase tracking-widest mb-6" style={{ color: C.muted }}>
+            {DIFFICULTY_CONFIG[difficulty].label} · Round {roundNumber}
+          </p>
 
           {isNewHighScore && (
-            <div className="bg-yellow-900/40 border border-yellow-600 rounded-xl px-4 py-2 mb-4 text-yellow-400 font-semibold text-sm">
+            <div
+              className="rounded-xl px-4 py-2 mb-4 font-bold text-sm border"
+              style={{ background: 'rgba(245,166,35,0.1)', borderColor: C.yellow, color: C.yellow }}
+            >
               🏆 New High Score!
             </div>
           )}
 
-          <div className="bg-gray-700/50 rounded-2xl p-6 mb-6 space-y-3 border border-gray-600">
-            <div>
-              <div className="text-sm text-gray-400 mb-1">Final Score</div>
-              <div className="text-5xl font-black text-cyan-400">{score.toLocaleString()}</div>
+          {/* Stats */}
+          <div className="font-mono text-sm text-left space-y-2 mb-5 leading-loose" style={{ color: C.muted }}>
+            <div className="flex justify-between">
+              <span>Final Score</span>
+              <span className="font-black" style={{ color: C.green }}>{score.toLocaleString()}</span>
             </div>
-            <div className="grid grid-cols-2 gap-3 pt-2">
-              <div className="bg-gray-700 rounded-xl p-3 border border-gray-600">
-                <div className="text-xs text-gray-400">Rounds</div>
-                <div className="text-xl font-bold text-white">{roundNumber}</div>
-              </div>
-              <div className="bg-gray-700 rounded-xl p-3 border border-gray-600">
-                <div className="text-xs text-gray-400">Avg Efficiency</div>
-                <div className="text-xl font-bold text-white">{avgEfficiency}%</div>
-              </div>
+            <div className="flex justify-between">
+              <span>Rounds completed</span>
+              <span style={{ color: C.white }}>{roundNumber}</span>
             </div>
-            <div className="bg-gray-700 rounded-xl p-3 border border-gray-600">
-              <div className="text-xs text-gray-400">High Score ({DIFFICULTY_CONFIG[difficulty].label})</div>
-              <div className="text-xl font-bold text-yellow-400">{finalHighScore.toLocaleString()}</div>
+            <div className="flex justify-between">
+              <span>Avg efficiency</span>
+              <span style={{ color: C.blue }}>{avgEfficiency}%</span>
+            </div>
+            <div className="flex justify-between pt-2 border-t" style={{ borderColor: 'rgba(255,255,255,0.08)' }}>
+              <span>High score</span>
+              <span className="font-black" style={{ color: C.yellow }}>{finalHighScore.toLocaleString()}</span>
             </div>
           </div>
 
-          <div className="space-y-3">
+          {/* Efficiency bar */}
+          <div className="h-2 rounded-full mb-1 overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
+            <div
+              className="h-full rounded-full transition-all duration-700"
+              style={{ width: `${avgEfficiency}%`, background: `linear-gradient(90deg, ${C.green}, ${C.blue})` }}
+            />
+          </div>
+          <p className="font-mono text-[0.6rem] text-right mb-6" style={{ color: C.muted }}>{avgEfficiency}% efficient</p>
+
+          <div className="flex flex-col gap-3">
             <button
               onClick={() => {
-                setScore(0);
-                setRoundNumber(0);
-                setStreak(0);
-                setEfficiencies([]);
-                setLastResult(null);
+                setScore(0); setRoundNumber(0); setStreak(0); setEfficiencies([]); setLastResult(null);
                 trackGameEvent('sort-attack', 'restart', { difficulty });
                 setPhase('countdown');
               }}
-              className="w-full py-3 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-bold rounded-2xl shadow-lg shadow-cyan-900/50 transition-all active:scale-95"
+              className="w-full py-3 rounded-xl font-black tracking-wide transition-all hover:-translate-y-0.5 active:translate-y-0"
+              style={{ background: C.accent, color: 'white', boxShadow: '0 4px 16px rgba(233,69,96,0.4)' }}
             >
-              Play Again
+              Play Again →
             </button>
             <button
               onClick={() => setPhase('setup')}
-              className="w-full py-3 bg-gray-700 hover:bg-gray-600 border border-gray-600 text-gray-300 font-semibold rounded-2xl transition-colors"
+              className="w-full py-3 rounded-xl font-bold border transition-all hover:border-[#4fc3f7]"
+              style={{ background: C.panel, color: C.muted, borderColor: 'rgba(79,195,247,0.2)' }}
             >
               Change Difficulty
             </button>
           </div>
         </div>
-      </div>
+      </Page>
     );
   }
 
-  // === Playing Screen (+ RoundEnd overlay) ===
-  const remainingSwaps = countInversions(tiles);
-
+  // === Playing Screen (+ Round End overlay) ===
   return (
-    <div className="min-h-screen bg-gray-950 flex flex-col items-center justify-start p-4 pt-6">
-      {/* Timer + Score row */}
-      <div className="w-full max-w-lg mb-5">
-        <div className="flex items-center justify-between bg-gray-800 rounded-2xl border border-gray-700 px-5 py-3">
-          <div className="text-center min-w-[60px]">
-            <div className="text-xs text-gray-500 font-medium">Score</div>
-            <div className="text-xl font-bold text-white tabular-nums">{score.toLocaleString()}</div>
-          </div>
-          <div className="text-center">
-            <div className={`text-5xl font-black tabular-nums ${timerColor} ${timerPulse}`}>
-              {Math.ceil(timerDisplay)}
-            </div>
-            <div className="text-xs text-gray-500">seconds</div>
-          </div>
-          <div className="text-center min-w-[60px]">
-            <div className="text-xs text-gray-500 font-medium">Round</div>
-            <div className="text-xl font-bold text-white">{roundNumber + 1}</div>
-          </div>
-        </div>
-
-        {streak > 1 && (
-          <div className="text-center mt-2 text-sm text-orange-400 font-semibold animate-pulse">
-            🔥 {streak} round streak!
-          </div>
-        )}
+    <div
+      className="min-h-screen flex flex-col items-center pt-6 pb-8 px-4 gap-5"
+      style={{ backgroundColor: C.bg, ...GRID_BG }}
+    >
+      {/* Title */}
+      <div className="text-center">
+        <h1 className="text-3xl font-black tracking-tight" style={{ color: C.white }}>
+          Sort<span style={{ color: C.accent }}>Attack</span>
+        </h1>
+        <p className="font-mono text-[0.6rem] uppercase tracking-[3px] mt-0.5" style={{ color: C.muted }}>
+          swap · sort · optimize
+        </p>
       </div>
 
-      {/* Swaps info */}
-      <div className="mb-4 text-center">
-        <span className="text-sm text-gray-500">
-          Swaps used: <span className="font-bold text-purple-400">{swapsUsed}</span>
-          {'  ·  '}
-          Min left: <span className="font-bold text-emerald-400">{remainingSwaps}</span>
-        </span>
-      </div>
-
-      {/* Tiles */}
-      <div className="flex flex-wrap justify-center gap-3 mb-6 px-2 max-w-lg">
-        {tiles.map((value, index) => (
-          <button
-            key={index}
-            onClick={() => handleTileClick(index)}
-            className={getTileClasses(index)}
-            disabled={phase !== 'playing'}
+      {/* Difficulty tabs */}
+      <div className="flex gap-2">
+        {(['easy', 'medium', 'hard'] as Difficulty[]).map(d => (
+          <div
+            key={d}
+            className="font-mono text-[0.6rem] uppercase tracking-wider px-3 py-1 rounded-lg border"
+            style={difficulty === d
+              ? { borderColor: C.yellow, color: C.yellow, background: 'rgba(245,166,35,0.1)' }
+              : { borderColor: 'rgba(79,195,247,0.1)', color: C.muted, background: C.panel }
+            }
           >
-            {value}
-          </button>
+            {DIFFICULTY_CONFIG[d].label}
+          </div>
         ))}
       </div>
 
-      {/* Undo + Hint */}
+      {/* HUD */}
+      <div className="flex gap-3 justify-center">
+        {/* Timer */}
+        <div className="rounded-xl px-4 py-3 text-center border" style={{ background: C.panel, borderColor: 'rgba(79,195,247,0.15)', minWidth: 90 }}>
+          <div className="font-mono text-[0.6rem] uppercase tracking-widest mb-1" style={{ color: C.muted }}>Time</div>
+          <div className={`text-3xl font-black tabular-nums ${timerColor} ${timerPulse}`}>
+            {Math.ceil(timerDisplay)}
+          </div>
+        </div>
+        {/* Swaps */}
+        <div className="rounded-xl px-4 py-3 text-center border" style={{ background: C.panel, borderColor: 'rgba(79,195,247,0.15)', minWidth: 90 }}>
+          <div className="font-mono text-[0.6rem] uppercase tracking-widest mb-1" style={{ color: C.muted }}>Your Swaps</div>
+          <div className="text-3xl font-black" style={{ color: C.yellow }}>{swapsUsed}</div>
+        </div>
+        {/* Min left */}
+        <div className="rounded-xl px-4 py-3 text-center border" style={{ background: C.panel, borderColor: 'rgba(79,195,247,0.15)', minWidth: 90 }}>
+          <div className="font-mono text-[0.6rem] uppercase tracking-widest mb-1" style={{ color: C.muted }}>Min Left</div>
+          <div className="text-3xl font-black" style={{ color: C.blue }}>{remainingSwaps}</div>
+        </div>
+        {/* Score */}
+        <div className="rounded-xl px-4 py-3 text-center border" style={{ background: C.panel, borderColor: 'rgba(79,195,247,0.15)', minWidth: 90 }}>
+          <div className="font-mono text-[0.6rem] uppercase tracking-widest mb-1" style={{ color: C.muted }}>Score</div>
+          <div className="text-3xl font-black" style={{ color: C.green }}>{score.toLocaleString()}</div>
+        </div>
+      </div>
+
+      {streak > 1 && (
+        <div className="font-mono text-xs animate-pulse" style={{ color: C.yellow }}>
+          🔥 {streak} round streak!
+        </div>
+      )}
+
+      {/* Tiles */}
+      <div
+        className="flex flex-wrap justify-center gap-3 w-full max-w-lg rounded-2xl p-6 border"
+        style={{ background: C.panel, borderColor: 'rgba(79,195,247,0.1)' }}
+      >
+        {tiles.map((value, index) => (
+          <div key={index} className="flex flex-col items-center gap-1">
+            <button
+              onClick={() => handleTileClick(index)}
+              className={getTileClasses(index)}
+              disabled={phase !== 'playing'}
+            >
+              {value}
+            </button>
+            <span className="font-mono text-[0.55rem]" style={{ color: C.muted }}>{index + 1}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Controls */}
       <div className="flex gap-3">
         <button
           onClick={handleUndo}
           disabled={undoStack.length === 0 || phase !== 'playing'}
-          className="flex items-center gap-2 px-5 py-3 bg-gray-800 rounded-2xl border border-gray-600 text-gray-300 font-semibold hover:bg-gray-700 transition-all disabled:opacity-40 disabled:cursor-not-allowed active:scale-95"
+          className="flex items-center gap-2 px-5 py-3 rounded-xl font-bold border transition-all hover:-translate-y-0.5 disabled:opacity-40 disabled:cursor-not-allowed active:translate-y-0"
+          style={{ background: C.panel, color: C.white, borderColor: 'rgba(79,195,247,0.2)' }}
         >
           <RotateCcw className="w-4 h-4" />
-          Undo <span className="text-red-400 text-xs font-bold">−{UNDO_COST}s</span>
+          Undo <span className="text-xs font-black" style={{ color: C.accent }}>−{UNDO_COST}s</span>
         </button>
         <button
           onClick={handleHint}
           disabled={phase !== 'playing' || remainingSwaps === 0}
-          className="flex items-center gap-2 px-5 py-3 bg-gray-800 rounded-2xl border border-gray-600 text-gray-300 font-semibold hover:bg-gray-700 transition-all disabled:opacity-40 disabled:cursor-not-allowed active:scale-95"
+          className="flex items-center gap-2 px-5 py-3 rounded-xl font-bold border transition-all hover:-translate-y-0.5 disabled:opacity-40 disabled:cursor-not-allowed active:translate-y-0"
+          style={{ background: C.panel, color: C.white, borderColor: 'rgba(79,195,247,0.2)' }}
         >
-          <Lightbulb className="w-4 h-4 text-yellow-400" />
-          Hint <span className="text-red-400 text-xs font-bold">−{HINT_COST}s</span>
+          <Lightbulb className="w-4 h-4" style={{ color: C.yellow }} />
+          Hint <span className="text-xs font-black" style={{ color: C.accent }}>−{HINT_COST}s</span>
         </button>
       </div>
 
-      <div className="mt-4 text-xs text-gray-600">{DIFFICULTY_CONFIG[difficulty].label} Mode</div>
-
       {/* Round End overlay */}
       {phase === 'roundEnd' && lastResult && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-          <div className="bg-gray-800 rounded-3xl shadow-2xl border border-gray-700 p-8 max-w-sm w-full text-center">
+        <div
+          className="fixed inset-0 flex items-center justify-center z-50 p-4"
+          style={{ background: 'rgba(26,26,46,0.92)', backdropFilter: 'blur(6px)' }}
+        >
+          <div
+            className="w-full max-w-sm rounded-2xl p-8 text-center border-2"
+            style={{
+              background: C.panel,
+              borderColor: lastResult.label === 'Perfect!' ? C.green : lastResult.label === 'Nice!' ? C.yellow : C.accent,
+              boxShadow: `0 0 60px ${lastResult.label === 'Perfect!' ? 'rgba(78,203,113,0.2)' : 'rgba(245,166,35,0.15)'}`,
+              animation: 'win-pop 0.4s cubic-bezier(0.34,1.56,0.64,1)',
+            }}
+          >
+            <div className="text-4xl mb-2">
+              {lastResult.label === 'Perfect!' ? '🏆' : lastResult.label === 'Nice!' ? '⭐' : '✅'}
+            </div>
             <div
-              className={`text-5xl font-black mb-5 ${
-                lastResult.label === 'Perfect!' ? 'text-green-400' :
-                lastResult.label === 'Nice!'    ? 'text-yellow-400' :
-                                                  'text-orange-400'
-              }`}
+              className="text-4xl font-black mb-4"
+              style={{ color: lastResult.label === 'Perfect!' ? C.green : lastResult.label === 'Nice!' ? C.yellow : C.accent }}
             >
               {lastResult.label}
             </div>
 
-            <div className="space-y-2 text-sm mb-5">
+            <div className="font-mono text-sm text-left space-y-2 mb-4 leading-loose" style={{ color: C.muted }}>
               <div className="flex justify-between">
-                <span className="text-gray-400">Swaps used</span>
-                <span className="font-bold text-white">
-                  {lastResult.swapsUsed}
-                  <span className="text-gray-500 font-normal"> (min: {lastResult.minSwaps})</span>
-                </span>
+                <span>Your swaps</span>
+                <span style={{ color: C.white }}>{lastResult.swapsUsed}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-400">Efficiency</span>
-                <span className="font-bold text-white">{lastResult.efficiency}%</span>
+                <span>Minimum possible</span>
+                <span style={{ color: C.white }}>{lastResult.minSwaps}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-400">Time Bonus</span>
-                <span className="font-bold text-cyan-400">+{lastResult.timeBonus} pts</span>
+                <span>Time bonus</span>
+                <span style={{ color: C.blue }}>+{lastResult.timeBonus} pts</span>
               </div>
-              <div className="flex justify-between border-t border-gray-700 pt-2 mt-2">
-                <span className="font-semibold text-gray-300">Round Score</span>
-                <span className="font-black text-purple-400">+{lastResult.roundScore} pts</span>
+              <div
+                className="flex justify-between pt-2 border-t font-black"
+                style={{ borderColor: 'rgba(255,255,255,0.08)', color: C.green }}
+              >
+                <span>Round score</span>
+                <span>+{lastResult.roundScore}</span>
               </div>
             </div>
 
-            <p className="text-xs text-gray-500 animate-pulse">Next round starting…</p>
+            {/* Efficiency bar */}
+            <div className="h-2 rounded-full mb-1 overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
+              <div
+                className="h-full rounded-full"
+                style={{ width: `${lastResult.efficiency}%`, background: `linear-gradient(90deg, ${C.green}, ${C.blue})` }}
+              />
+            </div>
+            <p className="font-mono text-[0.6rem] text-right mb-4" style={{ color: C.muted }}>
+              {lastResult.efficiency}% efficient
+            </p>
+
+            <p className="font-mono text-[0.65rem] uppercase tracking-widest animate-pulse" style={{ color: C.muted }}>
+              Next round starting…
+            </p>
           </div>
         </div>
       )}
