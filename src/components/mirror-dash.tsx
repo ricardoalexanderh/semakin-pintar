@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
+import { useGameState } from '../hooks/useGameState';
 
 /* ───────────────────────────────────────────────────────
    Mirror Dash – Two ships, two hands, neon synthwave
@@ -24,27 +25,22 @@ const C = {
 
 const W = 520;
 const H = 420;
-const HALF = W / 2;
+const MID = W / 2;
 const LANES = 3;
-const LANE_W = HALF / LANES;
-const SHIP_SIZE = 18;
-const OBS_W = LANE_W - 14;
-const OBS_H = 30;
-const HEART_SIZE = 16;
+const LANE_W = (MID - 20) / LANES;
+
+type GameState = 'idle' | 'playing' | 'over';
 
 interface Obstacle {
-  side: 'left' | 'right';
-  lane: number;          // 0-2
   y: number;
-  danger: boolean;
-  scored: boolean;
+  dangerLane: number;
+  type: string;
 }
 
-interface Heart {
+interface Pickup {
+  y: number;
   side: 'left' | 'right';
   lane: number;
-  y: number;
-  collected: boolean;
 }
 
 interface Particle {
@@ -53,882 +49,912 @@ interface Particle {
   vx: number;
   vy: number;
   life: number;
-  maxLife: number;
   color: string;
-  size: number;
 }
-
-interface Star {
-  x: number;
-  y: number;
-  r: number;
-  twinkleSpeed: number;
-  twinkleOffset: number;
-}
-
-type GameState = 'start' | 'playing' | 'over';
 
 const MirrorDash: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const frameRef = useRef(0);
-  const keysRef = useRef<Set<string>>(new Set());
+  const animIdRef = useRef<number>(0);
 
-  // ── game state refs ──
-  const stateRef = useRef<GameState>('start');
-  const [uiState, setUiState] = useState<GameState>('start');
-
+  // Game state refs
+  const stateRef = useRef<GameState>('idle');
+  const [uiState, setUiState] = useState<GameState>('idle');
   const scoreRef = useRef(0);
   const [uiScore, setUiScore] = useState(0);
-  const bestRef = useRef(0);
-  const [uiBest, setUiBest] = useState(0);
-
+  const hiScoreRef = useRef(0);
+  const [uiHiScore, setUiHiScore] = useState(0);
   const livesRef = useRef(3);
   const [uiLives, setUiLives] = useState(3);
-
-  const leftLaneRef = useRef(1);
-  const rightLaneRef = useRef(1);
-
+  const frameRef = useRef(0);
+  const speedRef = useRef(3);
   const obstaclesRef = useRef<Obstacle[]>([]);
-  const heartsRef = useRef<Heart[]>([]);
   const particlesRef = useRef<Particle[]>([]);
+  const pickupsRef = useRef<Pickup[]>([]);
+  const flashTimerRef = useRef(0);
+  const flashSideRef = useRef<'left' | 'right' | null>(null);
+  const invincibleRef = useRef(0);
+  const playerLRef = useRef({ lane: 1 });
+  const playerRRef = useRef({ lane: 1 });
 
-  const speedRef = useRef(1.2);
-  const spawnTimerRef = useRef(0);
-  const spawnIntervalRef = useRef(220);
-  const invincLeftRef = useRef(0);
-  const invincRightRef = useRef(0);
-  const flashLeftRef = useRef(0);
-  const flashRightRef = useRef(0);
-  const heartTimerRef = useRef(0);
-  const starsRef = useRef<Star[]>([]);
-  const gridOffsetRef = useRef(0);
+  // Floating button hide
+  const { updateGameState } = useGameState();
 
-  // ── helpers ──
-  const laneX = (side: 'left' | 'right', lane: number) => {
-    const base = side === 'left' ? 0 : HALF;
-    return base + lane * LANE_W + LANE_W / 2;
-  };
+  // Hide floating buttons whenever this component is mounted (including start screen)
+  useEffect(() => {
+    updateGameState('mirror-dash', true);
+    return () => updateGameState('mirror-dash', false);
+  }, [updateGameState]);
 
-  const spawnParticles = useCallback((x: number, y: number, color: string, count: number) => {
-    for (let i = 0; i < count; i++) {
-      const angle = Math.random() * Math.PI * 2;
-      const speed = 1 + Math.random() * 3;
-      particlesRef.current.push({
-        x, y,
-        vx: Math.cos(angle) * speed,
-        vy: Math.sin(angle) * speed,
-        life: 30 + Math.random() * 20,
-        maxLife: 30 + Math.random() * 20,
-        color,
-        size: 2 + Math.random() * 3,
-      });
+  // Load hi score
+  useEffect(() => {
+    const stored = localStorage.getItem('mirror-dash-best');
+    if (stored) {
+      const val = parseInt(stored, 10);
+      hiScoreRef.current = val;
+      setUiHiScore(val);
     }
   }, []);
 
-  const initStars = useCallback(() => {
-    const stars: Star[] = [];
-    for (let i = 0; i < 80; i++) {
-      stars.push({
-        x: Math.random() * W,
-        y: Math.random() * H,
-        r: 0.4 + Math.random() * 1.2,
-        twinkleSpeed: 0.02 + Math.random() * 0.04,
-        twinkleOffset: Math.random() * Math.PI * 2,
-      });
-    }
-    starsRef.current = stars;
+  // Helpers
+  const laneX = useCallback((side: 'left' | 'right', lane: number) => {
+    const offset = side === 'left' ? 10 : MID + 10;
+    return offset + lane * LANE_W + LANE_W / 2;
   }, []);
 
-  // ── reset ──
-  const resetGame = useCallback(() => {
-    scoreRef.current = 0;
-    livesRef.current = 3;
-    leftLaneRef.current = 1;
-    rightLaneRef.current = 1;
-    obstaclesRef.current = [];
-    heartsRef.current = [];
-    particlesRef.current = [];
-    speedRef.current = 1.2;
-    spawnTimerRef.current = 0;
-    spawnIntervalRef.current = 220;
-    invincLeftRef.current = 0;
-    invincRightRef.current = 0;
-    flashLeftRef.current = 0;
-    flashRightRef.current = 0;
-    heartTimerRef.current = 600 + Math.random() * 300;
-    gridOffsetRef.current = 0;
-    setUiScore(0);
-    setUiLives(3);
-  }, []);
+  const playerY = useCallback(() => H - 70, []);
 
-  // ── move ship ──
   const moveShip = useCallback((side: 'left' | 'right', dir: -1 | 1) => {
     if (stateRef.current !== 'playing') return;
-    const ref = side === 'left' ? leftLaneRef : rightLaneRef;
-    ref.current = Math.max(0, Math.min(LANES - 1, ref.current + dir));
-  }, []);
-
-  // ── spawn obstacles ──
-  const spawnObstacles = useCallback(() => {
-    let dangerLane = Math.floor(Math.random() * LANES);
-
-    // Check solvability: if an obstacle would reach bottom at same time as another
-    // Force same dangerLane pattern
-    const existing = obstaclesRef.current;
-    const nearBottom = existing.filter((o: Obstacle) => o.y > H - 120 && o.y < H - 40);
-    if (nearBottom.length > 0) {
-      const leftDanger = nearBottom.find((o: Obstacle) => o.side === 'left' && o.danger);
-      if (leftDanger) dangerLane = leftDanger.lane;
-    }
-
-    const finalMirrorSafe = 2 - dangerLane;
-
-    // LEFT side: one danger lane, two safe
-    for (let l = 0; l < LANES; l++) {
-      obstaclesRef.current.push({
-        side: 'left',
-        lane: l,
-        y: -OBS_H,
-        danger: l === dangerLane,
-        scored: false,
-      });
-    }
-    // RIGHT side: mirror – dangerLane's mirror is safe, others are danger
-    for (let l = 0; l < LANES; l++) {
-      obstaclesRef.current.push({
-        side: 'right',
-        lane: l,
-        y: -OBS_H,
-        danger: l !== finalMirrorSafe,
-        scored: false,
-      });
+    if (side === 'left') {
+      playerLRef.current.lane = Math.max(0, Math.min(LANES - 1, playerLRef.current.lane + dir));
+    } else {
+      playerRRef.current.lane = Math.max(0, Math.min(LANES - 1, playerRRef.current.lane + dir));
     }
   }, []);
 
-  // ── draw ──
-  const draw = useCallback((ctx: CanvasRenderingContext2D, frame: number) => {
-    const state = stateRef.current;
-
-    // ── background ──
-    ctx.fillStyle = C.bg;
-    ctx.fillRect(0, 0, W, H);
-
-    // side panels
-    ctx.fillStyle = C.leftBg;
-    ctx.fillRect(0, 0, HALF, H);
-    ctx.fillStyle = C.rightBg;
-    ctx.fillRect(HALF, 0, HALF, H);
-
-    // ── stars ──
-    starsRef.current.forEach(s => {
-      const alpha = 0.3 + 0.7 * Math.abs(Math.sin(frame * s.twinkleSpeed + s.twinkleOffset));
-      ctx.beginPath();
-      ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
-      ctx.fillStyle = `rgba(240,234,255,${alpha})`;
-      ctx.fill();
+  // Spawn obstacle
+  const spawnObstacle = useCallback(() => {
+    const py = playerY();
+    const speed = speedRef.current;
+    const dangerouslyClose = obstaclesRef.current.filter(o => {
+      const existingDistToPlayer = py - o.y;
+      const framesUntilHit = existingDistToPlayer / speed;
+      const newYAtSameFrame = -30 + framesUntilHit * speed;
+      return Math.abs(newYAtSameFrame - py) < 60;
     });
 
-    // ── scrolling grid lines ──
-    const gridY = gridOffsetRef.current;
-    ctx.strokeStyle = 'rgba(85,68,102,0.12)';
+    let dangerLane: number;
+    if (dangerouslyClose.length > 0) {
+      dangerLane = dangerouslyClose[0].dangerLane;
+    } else {
+      dangerLane = Math.floor(Math.random() * LANES);
+    }
+
+    obstaclesRef.current.push({ y: -30, dangerLane, type: 'split' });
+  }, [playerY]);
+
+  // Spawn pickup
+  const spawnPickup = useCallback(() => {
+    for (let attempt = 0; attempt < 8; attempt++) {
+      const side: 'left' | 'right' = Math.random() < 0.5 ? 'left' : 'right';
+      const lane = Math.floor(Math.random() * LANES);
+      const blocked = obstaclesRef.current.some(o => {
+        if (Math.abs(o.y - (-20)) > 60) return false;
+        if (side === 'left' && lane === o.dangerLane) return true;
+        if (side === 'right' && lane !== (2 - o.dangerLane)) return true;
+        return false;
+      });
+      if (!blocked) {
+        pickupsRef.current.push({ y: -20, side, lane });
+        return;
+      }
+    }
+  }, []);
+
+  // Hit handler
+  const hit = useCallback((side: 'left' | 'right') => {
+    livesRef.current--;
+    invincibleRef.current = 90;
+    flashTimerRef.current = 20;
+    flashSideRef.current = side;
+    // Spawn particles
+    const px = side === 'left'
+      ? laneX('left', playerLRef.current.lane)
+      : laneX('right', playerRRef.current.lane);
+    const py = playerY();
+    for (let i = 0; i < 12; i++) {
+      particlesRef.current.push({
+        x: px, y: py,
+        vx: (Math.random() - 0.5) * 5,
+        vy: (Math.random() - 0.5) * 5,
+        life: 30,
+        color: side === 'left' ? C.dangerLeft : C.dangerRight,
+      });
+    }
+    setUiLives(livesRef.current);
+    if (livesRef.current <= 0) {
+      stateRef.current = 'over';
+      setUiState('over');
+      const sc = scoreRef.current;
+      if (sc > hiScoreRef.current) {
+        hiScoreRef.current = sc;
+        localStorage.setItem('mirror-dash-best', String(sc));
+      }
+      setUiHiScore(hiScoreRef.current);
+    }
+  }, [laneX, playerY]);
+
+  // Update
+  const update = useCallback(() => {
+    const frame = frameRef.current;
+    frameRef.current++;
+
+    // Speed ramp
+    speedRef.current = 1.2 + Math.min(3.3, Math.floor(frame / 600) * 0.25);
+    if (invincibleRef.current > 0) invincibleRef.current--;
+
+    const speed = speedRef.current;
+
+    // Spawn rate
+    const spawnRate = Math.max(80, 220 - Math.floor(frame / 300) * 8);
+    if (frame % spawnRate === 0) spawnObstacle();
+
+    // Heart pickup spawn
+    if (livesRef.current < 3 && frame % Math.floor(600 + Math.random() * 300) === 0) {
+      spawnPickup();
+    }
+
+    // Move & collect pickups
+    const py = playerY();
+    for (let i = pickupsRef.current.length - 1; i >= 0; i--) {
+      pickupsRef.current[i].y += speed;
+      if (pickupsRef.current[i].y > H + 20) {
+        pickupsRef.current.splice(i, 1);
+        continue;
+      }
+      const pk = pickupsRef.current[i];
+      if (pk.y > py - 22 && pk.y < py + 22) {
+        const pkX = laneX(pk.side, pk.lane);
+        const shipX = pk.side === 'left'
+          ? laneX('left', playerLRef.current.lane)
+          : laneX('right', playerRRef.current.lane);
+        if (Math.abs(pkX - shipX) < LANE_W * 0.7) {
+          if (livesRef.current < 3) {
+            livesRef.current++;
+            setUiLives(livesRef.current);
+            for (let j = 0; j < 14; j++) {
+              particlesRef.current.push({
+                x: pkX, y: py,
+                vx: (Math.random() - 0.5) * 6,
+                vy: (Math.random() - 0.5) * 6,
+                life: 35,
+                color: '#ff9ecc',
+              });
+            }
+          }
+          pickupsRef.current.splice(i, 1);
+        }
+      }
+    }
+
+    // Move obstacles
+    for (let i = obstaclesRef.current.length - 1; i >= 0; i--) {
+      obstaclesRef.current[i].y += speed;
+      if (obstaclesRef.current[i].y > H + 40) {
+        obstaclesRef.current.splice(i, 1);
+        scoreRef.current += 10;
+      }
+    }
+
+    // Collision
+    if (invincibleRef.current === 0) {
+      for (const obs of obstaclesRef.current) {
+        if (obs.y > py - 20 && obs.y < py + 20) {
+          if (playerLRef.current.lane === obs.dangerLane) {
+            hit('left');
+            break;
+          }
+          const safeLaneR = 2 - obs.dangerLane;
+          if (playerRRef.current.lane !== safeLaneR) {
+            hit('right');
+            break;
+          }
+        }
+      }
+    }
+
+    // Particles
+    for (let i = particlesRef.current.length - 1; i >= 0; i--) {
+      const p = particlesRef.current[i];
+      p.x += p.vx;
+      p.y += p.vy;
+      p.life--;
+      if (p.life <= 0) particlesRef.current.splice(i, 1);
+    }
+
+    if (flashTimerRef.current > 0) flashTimerRef.current--;
+    scoreRef.current++;
+    setUiScore(scoreRef.current);
+  }, [spawnObstacle, spawnPickup, playerY, laneX, hit]);
+
+  // roundRect helper on canvas
+  const roundRect = useCallback((ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) => {
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    ctx.lineTo(x + r, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+    ctx.lineTo(x, y + r);
+    ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.closePath();
+  }, []);
+
+  // Draw
+  const draw = useCallback((ctx: CanvasRenderingContext2D) => {
+    const frame = frameRef.current;
+    const speed = speedRef.current;
+    ctx.clearRect(0, 0, W, H);
+
+    // Backgrounds
+    ctx.fillStyle = C.leftBg;
+    ctx.fillRect(0, 0, MID, H);
+    ctx.fillStyle = C.rightBg;
+    ctx.fillRect(MID, 0, MID, H);
+
+    // Flash
+    if (flashTimerRef.current > 0) {
+      const alpha = flashTimerRef.current / 20 * 0.35;
+      if (flashSideRef.current === 'left') {
+        ctx.fillStyle = `rgba(255,47,123,${alpha})`;
+        ctx.fillRect(0, 0, MID, H);
+      } else {
+        ctx.fillStyle = `rgba(123,47,255,${alpha})`;
+        ctx.fillRect(MID, 0, MID, H);
+      }
+    }
+
+    // Center mirror line
+    ctx.save();
+    const grad = ctx.createLinearGradient(MID - 1, 0, MID + 1, H);
+    grad.addColorStop(0, 'rgba(123,47,255,0.8)');
+    grad.addColorStop(0.5, 'rgba(255,255,255,0.9)');
+    grad.addColorStop(1, 'rgba(255,47,123,0.8)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(MID - 1, 0, 2, H);
+    ctx.restore();
+
+    // Lane dividers
+    ctx.save();
+    ctx.strokeStyle = 'rgba(123,47,255,0.12)';
     ctx.lineWidth = 1;
-    for (let y = gridY % 40; y < H; y += 40) {
+    ctx.setLineDash([8, 16]);
+    for (let l = 1; l < LANES; l++) {
+      const x = 10 + l * LANE_W;
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, H);
+      ctx.stroke();
+    }
+    ctx.strokeStyle = 'rgba(255,47,123,0.12)';
+    for (let l = 1; l < LANES; l++) {
+      const x = MID + 10 + l * LANE_W;
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, H);
+      ctx.stroke();
+    }
+    ctx.setLineDash([]);
+    ctx.restore();
+
+    // Ground lines
+    ctx.save();
+    const lineY = (frame * speed) % 40;
+    for (let y = lineY; y < H; y += 40) {
+      const alpha = 0.04 + (y / H) * 0.06;
+      ctx.strokeStyle = `rgba(123,47,255,${alpha})`;
+      ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.moveTo(0, y);
+      ctx.lineTo(MID, y);
+      ctx.stroke();
+      ctx.strokeStyle = `rgba(255,47,123,${alpha})`;
+      ctx.beginPath();
+      ctx.moveTo(MID, y);
       ctx.lineTo(W, y);
       ctx.stroke();
     }
+    ctx.restore();
 
-    // ── dot grid overlay ──
-    ctx.fillStyle = 'rgba(85,68,102,0.06)';
-    for (let x = 8; x < W; x += 20) {
-      for (let y = 8; y < H; y += 20) {
-        ctx.fillRect(x, y, 1, 1);
-      }
-    }
-
-    // ── center divider ──
-    const grad = ctx.createLinearGradient(HALF - 2, 0, HALF + 2, 0);
-    grad.addColorStop(0, C.leftNeon);
-    grad.addColorStop(0.5, '#ffffff');
-    grad.addColorStop(1, C.rightNeon);
-    ctx.fillStyle = grad;
-    ctx.fillRect(HALF - 1, 0, 2, H);
-    // glow
-    ctx.shadowColor = '#ffffff';
-    ctx.shadowBlur = 12;
-    ctx.fillRect(HALF - 0.5, 0, 1, H);
-    ctx.shadowBlur = 0;
-
-    // ── lane dividers (dashed, low opacity) ──
-    ctx.setLineDash([6, 8]);
-    ctx.strokeStyle = 'rgba(85,68,102,0.1)';
-    ctx.lineWidth = 1;
-    for (let i = 1; i < LANES; i++) {
-      const lx = i * LANE_W;
-      ctx.beginPath(); ctx.moveTo(lx, 0); ctx.lineTo(lx, H); ctx.stroke();
-      const rx = HALF + i * LANE_W;
-      ctx.beginPath(); ctx.moveTo(rx, 0); ctx.lineTo(rx, H); ctx.stroke();
-    }
-    ctx.setLineDash([]);
-
-    if (state === 'start') {
-      // start screen drawn in overlay, just show background
-      return;
-    }
-
-    // ── world labels ──
-    ctx.font = '700 10px Orbitron, sans-serif';
-    ctx.fillStyle = 'rgba(185,126,255,0.25)';
+    // Labels
+    ctx.save();
+    ctx.font = '700 11px Rajdhani, sans-serif';
+    ctx.fillStyle = 'rgba(123,47,255,0.4)';
     ctx.textAlign = 'center';
-    ctx.fillText('WORLD A', HALF / 2, 18);
-    ctx.fillStyle = 'rgba(255,126,185,0.25)';
-    ctx.fillText('WORLD B', HALF + HALF / 2, 18);
+    ctx.fillText('WORLD A', MID / 2, 20);
+    ctx.fillStyle = 'rgba(255,47,123,0.4)';
+    ctx.fillText('WORLD B', MID + MID / 2, 20);
+    ctx.restore();
 
-    // ── flash overlay on hit ──
-    if (flashLeftRef.current > 0) {
-      ctx.fillStyle = `rgba(255,47,123,${flashLeftRef.current * 0.08})`;
-      ctx.fillRect(0, 0, HALF, H);
-      flashLeftRef.current--;
-    }
-    if (flashRightRef.current > 0) {
-      ctx.fillStyle = `rgba(123,47,255,${flashRightRef.current * 0.08})`;
-      ctx.fillRect(HALF, 0, HALF, H);
-      flashRightRef.current--;
-    }
-
-    // ── obstacles ──
-    obstaclesRef.current.forEach(o => {
-      const x = laneX(o.side, o.lane);
-      const drawX = x - OBS_W / 2;
-      const drawY = o.y;
-
-      if (o.danger) {
-        // filled danger block
-        const dangerColor = o.side === 'left' ? C.dangerLeft : C.dangerRight;
-        ctx.shadowColor = dangerColor;
-        ctx.shadowBlur = 10;
-        ctx.fillStyle = dangerColor;
-        roundRect(ctx, drawX, drawY, OBS_W, OBS_H, 6);
-        ctx.fill();
-        ctx.shadowBlur = 0;
-      } else {
-        // safe gap outline
-        const safeColor = o.side === 'left' ? C.safeLeft : C.safeRight;
-        ctx.strokeStyle = safeColor;
-        ctx.lineWidth = 1.5;
-        ctx.globalAlpha = 0.35;
-        roundRect(ctx, drawX, drawY, OBS_W, OBS_H, 6);
-        ctx.stroke();
-        // small arrow
-        ctx.fillStyle = safeColor;
-        ctx.font = '10px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText('\u25BC', x, drawY - 3);
-        ctx.globalAlpha = 1;
+    // Obstacles
+    const obsW = LANE_W - 10;
+    const obsH = 18;
+    for (const obs of obstaclesRef.current) {
+      const y = obs.y;
+      // Left side
+      for (let l = 0; l < LANES; l++) {
+        const x = laneX('left', l);
+        if (l === obs.dangerLane) {
+          ctx.save();
+          ctx.shadowColor = C.dangerLeft;
+          ctx.shadowBlur = 12;
+          ctx.fillStyle = C.dangerLeft;
+          ctx.beginPath();
+          roundRect(ctx, x - obsW / 2, y - obsH / 2, obsW, obsH, 4);
+          ctx.fill();
+          ctx.restore();
+        } else {
+          ctx.save();
+          ctx.strokeStyle = C.safeLeft;
+          ctx.lineWidth = 2;
+          ctx.globalAlpha = 0.75;
+          ctx.shadowColor = C.safeLeft;
+          ctx.shadowBlur = 8;
+          ctx.beginPath();
+          roundRect(ctx, x - obsW / 2, y - obsH / 2, obsW, obsH, 4);
+          ctx.stroke();
+          ctx.globalAlpha = 0.5;
+          ctx.fillStyle = C.safeLeft;
+          ctx.font = 'bold 10px Rajdhani, sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText('\u25BC', x, y - obsH / 2 - 4);
+          ctx.restore();
+        }
       }
-    });
+      // Right side
+      const safeLaneR = 2 - obs.dangerLane;
+      for (let l = 0; l < LANES; l++) {
+        const x = laneX('right', l);
+        if (l === safeLaneR) {
+          ctx.save();
+          ctx.strokeStyle = C.safeRight;
+          ctx.lineWidth = 2;
+          ctx.globalAlpha = 0.75;
+          ctx.shadowColor = C.safeRight;
+          ctx.shadowBlur = 8;
+          ctx.beginPath();
+          roundRect(ctx, x - obsW / 2, y - obsH / 2, obsW, obsH, 4);
+          ctx.stroke();
+          ctx.globalAlpha = 0.5;
+          ctx.fillStyle = C.safeRight;
+          ctx.font = 'bold 10px Rajdhani, sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText('\u25BC', x, y - obsH / 2 - 4);
+          ctx.restore();
+        } else {
+          ctx.save();
+          ctx.shadowColor = C.dangerRight;
+          ctx.shadowBlur = 12;
+          ctx.fillStyle = C.dangerRight;
+          ctx.beginPath();
+          roundRect(ctx, x - obsW / 2, y - obsH / 2, obsW, obsH, 4);
+          ctx.fill();
+          ctx.restore();
+        }
+      }
+    }
 
-    // ── hearts ──
-    heartsRef.current.forEach(h => {
-      if (h.collected) return;
-      const x = laneX(h.side, h.lane);
-      ctx.font = `${HEART_SIZE}px sans-serif`;
+    // Pickups
+    for (const pk of pickupsRef.current) {
+      const x = laneX(pk.side, pk.lane);
+      const y = pk.y;
+      const pulse = 0.7 + 0.3 * Math.sin(frame * 0.15);
+      ctx.save();
+      ctx.shadowColor = '#ff6eb4';
+      ctx.shadowBlur = 16 * pulse;
+      ctx.font = '20px serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText('\u2764\uFE0F', x, h.y);
-    });
+      ctx.globalAlpha = pulse;
+      ctx.fillText('\u2764\uFE0F', x, y);
+      ctx.beginPath();
+      ctx.arc(x, y, 18 * pulse, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(255,110,180,0.3)';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.restore();
+    }
 
-    // ── ships ──
-    const drawShip = (side: 'left' | 'right', lane: number, invinc: number) => {
+    // Players
+    const drawPlayer = (side: 'left' | 'right', lane: number, damaged: boolean) => {
       const x = laneX(side, lane);
-      const y = H - 40;
-      const color = side === 'left' ? C.leftNeon : C.rightNeon;
-      const lightColor = side === 'left' ? C.leftNeonLight : C.rightNeonLight;
+      const y = playerY();
+      const color = side === 'left' ? C.leftNeonLight : C.rightNeonLight;
 
-      // blink during invincibility
-      if (invinc > 0 && Math.floor(frame / 4) % 2 === 0) return;
+      if (damaged && Math.floor(frame / 6) % 2 === 0) return;
 
-      // engine trail
-      const trailGrad = ctx.createLinearGradient(x, y + 8, x, y + 28);
-      trailGrad.addColorStop(0, lightColor);
-      trailGrad.addColorStop(1, 'transparent');
+      ctx.save();
+      ctx.shadowColor = color;
+      ctx.shadowBlur = 18;
+
+      // Body
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.moveTo(x, y - 18);
+      ctx.lineTo(x - 12, y + 10);
+      ctx.lineTo(x, y + 4);
+      ctx.lineTo(x + 12, y + 10);
+      ctx.closePath();
+      ctx.fill();
+
+      // Engine trail
+      const trailGrad = ctx.createLinearGradient(x, y + 4, x, y + 30);
+      trailGrad.addColorStop(0, color + 'cc');
+      trailGrad.addColorStop(1, color + '00');
       ctx.fillStyle = trailGrad;
       ctx.beginPath();
-      ctx.moveTo(x - 5, y + 8);
-      ctx.lineTo(x + 5, y + 8);
+      ctx.moveTo(x - 5, y + 4);
+      ctx.lineTo(x + 5, y + 4);
       ctx.lineTo(x + 2, y + 28);
       ctx.lineTo(x - 2, y + 28);
       ctx.closePath();
       ctx.fill();
 
-      // chevron ship
-      ctx.fillStyle = color;
-      ctx.shadowColor = color;
-      ctx.shadowBlur = 12;
-      ctx.beginPath();
-      ctx.moveTo(x, y - SHIP_SIZE);
-      ctx.lineTo(x - SHIP_SIZE * 0.6, y + 4);
-      ctx.lineTo(x, y - 2);
-      ctx.lineTo(x + SHIP_SIZE * 0.6, y + 4);
-      ctx.closePath();
-      ctx.fill();
-      ctx.shadowBlur = 0;
+      ctx.restore();
     };
 
-    drawShip('left', leftLaneRef.current, invincLeftRef.current);
-    drawShip('right', rightLaneRef.current, invincRightRef.current);
+    drawPlayer('left', playerLRef.current.lane, invincibleRef.current > 0 && flashSideRef.current === 'left');
+    drawPlayer('right', playerRRef.current.lane, invincibleRef.current > 0 && flashSideRef.current === 'right');
 
-    // ── particles ──
-    particlesRef.current.forEach(p => {
-      const alpha = p.life / p.maxLife;
-      ctx.globalAlpha = alpha;
-      ctx.fillStyle = p.color;
+    // Particles
+    for (const p of particlesRef.current) {
       ctx.beginPath();
-      ctx.arc(p.x, p.y, p.size * alpha, 0, Math.PI * 2);
+      ctx.arc(p.x, p.y, 3, 0, Math.PI * 2);
+      const alpha = Math.floor(p.life / 30 * 255).toString(16).padStart(2, '0');
+      ctx.fillStyle = p.color + alpha;
       ctx.fill();
-    });
-    ctx.globalAlpha = 1;
-  }, []);
-
-  // ── update ──
-  const update = useCallback(() => {
-    if (stateRef.current !== 'playing') return;
-
-    const frame = frameRef.current;
-
-    // ── process keyboard ──
-    const keys = keysRef.current;
-    // Left ship: A/D
-    if (keys.has('a') || keys.has('A')) { moveShip('left', -1); keys.delete('a'); keys.delete('A'); }
-    if (keys.has('d') || keys.has('D')) { moveShip('left', 1); keys.delete('d'); keys.delete('D'); }
-    // Right ship: Arrow keys
-    if (keys.has('ArrowLeft')) { moveShip('right', -1); keys.delete('ArrowLeft'); }
-    if (keys.has('ArrowRight')) { moveShip('right', 1); keys.delete('ArrowRight'); }
-
-    // ── speed progression ──
-    if (frame % 600 === 0 && frame > 0) {
-      speedRef.current = Math.min(4.5, speedRef.current + 0.25);
     }
-    if (frame % 300 === 0 && frame > 0) {
-      spawnIntervalRef.current = Math.max(80, spawnIntervalRef.current - 10);
-    }
+  }, [laneX, playerY, roundRect]);
 
-    // ── spawn obstacles ──
-    spawnTimerRef.current--;
-    if (spawnTimerRef.current <= 0) {
-      spawnObstacles();
-      spawnTimerRef.current = spawnIntervalRef.current;
-    }
-
-    // ── move obstacles ──
-    const speed = speedRef.current;
-    obstaclesRef.current.forEach(o => { o.y += speed; });
-
-    // ── scroll grid ──
-    gridOffsetRef.current += speed * 0.5;
-
-    // ── collision check ──
-    const shipY = H - 40;
-    const checkCollision = (side: 'left' | 'right', lane: number, invincRef: React.MutableRefObject<number>) => {
-      if (invincRef.current > 0) { invincRef.current--; return; }
-      for (const o of obstaclesRef.current) {
-        if (o.side !== side || !o.danger) continue;
-        if (o.lane === lane && o.y + OBS_H > shipY - SHIP_SIZE && o.y < shipY + 4) {
-          // hit!
-          livesRef.current--;
-          setUiLives(livesRef.current);
-          invincRef.current = 90;
-          if (side === 'left') flashLeftRef.current = 12;
-          else flashRightRef.current = 12;
-          const px = laneX(side, lane);
-          spawnParticles(px, shipY, side === 'left' ? C.dangerLeft : C.dangerRight, 18);
-          if (livesRef.current <= 0) {
-            gameOver();
-            return;
-          }
-          break;
-        }
-      }
-    };
-    checkCollision('left', leftLaneRef.current, invincLeftRef);
-    checkCollision('right', rightLaneRef.current, invincRightRef);
-
-    // ── score cleared obstacles ──
-    obstaclesRef.current.forEach(o => {
-      if (o.y > H + 10 && o.danger && !o.scored) {
-        o.scored = true;
-        scoreRef.current += 10;
-      }
-    });
-    // +1 per frame survived
-    scoreRef.current += 1;
-    setUiScore(scoreRef.current);
-
-    // ── remove off-screen obstacles ──
-    obstaclesRef.current = obstaclesRef.current.filter(o => o.y < H + 60);
-
-    // ── heart spawning ──
-    heartTimerRef.current--;
-    if (heartTimerRef.current <= 0 && livesRef.current < 3) {
-      // try to find a safe spot
-      let spawned = false;
-      for (let attempt = 0; attempt < 8; attempt++) {
-        const side: 'left' | 'right' = Math.random() < 0.5 ? 'left' : 'right';
-        const lane = Math.floor(Math.random() * LANES);
-        // Check no danger block is nearby
-        const blocked = obstaclesRef.current.some(
-          o => o.side === side && o.lane === lane && o.danger && o.y < 60 && o.y > -40
-        );
-        if (!blocked) {
-          heartsRef.current.push({ side, lane, y: -HEART_SIZE, collected: false });
-          spawned = true;
-          break;
-        }
-      }
-      if (!spawned) {
-        heartsRef.current.push({ side: 'left', lane: 1, y: -HEART_SIZE, collected: false });
-      }
-      heartTimerRef.current = 600 + Math.random() * 300;
-    }
-
-    // ── move hearts ──
-    heartsRef.current.forEach(h => { h.y += speed * 0.8; });
-
-    // ── collect hearts ──
-    heartsRef.current.forEach(h => {
-      if (h.collected) return;
-      const side = h.side;
-      const playerLane = side === 'left' ? leftLaneRef.current : rightLaneRef.current;
-      if (h.lane === playerLane && h.y + HEART_SIZE > shipY - SHIP_SIZE && h.y < shipY + 4) {
-        h.collected = true;
-        if (livesRef.current < 3) {
-          livesRef.current++;
-          setUiLives(livesRef.current);
-        }
-        const px = laneX(side, h.lane);
-        spawnParticles(px, shipY, C.heart, 14);
-      }
-    });
-    heartsRef.current = heartsRef.current.filter(h => !h.collected && h.y < H + 30);
-
-    // ── update particles ──
-    particlesRef.current.forEach(p => {
-      p.x += p.vx;
-      p.y += p.vy;
-      p.vy += 0.05;
-      p.life--;
-    });
-    particlesRef.current = particlesRef.current.filter(p => p.life > 0);
-  }, [moveShip, spawnObstacles, spawnParticles]);
-
-  const gameOver = useCallback(() => {
-    stateRef.current = 'over';
-    setUiState('over');
-    const best = bestRef.current;
-    if (scoreRef.current > best) {
-      localStorage.setItem('mirror-dash-best', String(scoreRef.current));
-      bestRef.current = scoreRef.current;
-      setUiBest(scoreRef.current);
-    } else {
-      setUiBest(best);
-    }
-  }, []);
-
+  // Start game
   const startGame = useCallback(() => {
-    resetGame();
     stateRef.current = 'playing';
     setUiState('playing');
+    scoreRef.current = 0;
+    livesRef.current = 3;
     frameRef.current = 0;
-  }, [resetGame]);
+    speedRef.current = 3;
+    obstaclesRef.current = [];
+    particlesRef.current = [];
+    pickupsRef.current = [];
+    playerLRef.current.lane = 1;
+    playerRRef.current.lane = 1;
+    invincibleRef.current = 0;
+    flashTimerRef.current = 0;
+    flashSideRef.current = null;
+    setUiScore(0);
+    setUiLives(3);
+  }, []);
 
-  // ── game loop ──
+  // Game loop
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    initStars();
-    const storedBest = localStorage.getItem('mirror-dash-best');
-    const bestVal = storedBest ? parseInt(storedBest, 10) : 0;
-    bestRef.current = bestVal;
-    setUiBest(bestVal);
-
-    let raf: number;
     const loop = () => {
-      frameRef.current++;
-      update();
-      draw(ctx, frameRef.current);
-      raf = requestAnimationFrame(loop);
+      if (stateRef.current === 'playing') {
+        update();
+      }
+      draw(ctx);
+      animIdRef.current = requestAnimationFrame(loop);
     };
-    raf = requestAnimationFrame(loop);
+    animIdRef.current = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(animIdRef.current);
+  }, [draw, update]);
 
-    return () => cancelAnimationFrame(raf);
-  }, [draw, update, initStars]);
-
-  // ── keyboard ──
+  // Keyboard
   useEffect(() => {
+    const keysDown = new Set<string>();
     const onDown = (e: KeyboardEvent) => {
-      if (['a', 'A', 'd', 'D', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
-        e.preventDefault();
-        keysRef.current.add(e.key);
-      }
-      if (e.key === ' ' || e.key === 'Enter') {
-        e.preventDefault();
-        if (stateRef.current === 'start') startGame();
-        else if (stateRef.current === 'over') startGame();
+      if (!keysDown.has(e.key)) {
+        keysDown.add(e.key);
+        if (stateRef.current === 'playing') {
+          if (e.key === 'a' || e.key === 'A') moveShip('left', -1);
+          if (e.key === 'd' || e.key === 'D') moveShip('left', 1);
+          if (e.key === 'ArrowLeft') { e.preventDefault(); moveShip('right', -1); }
+          if (e.key === 'ArrowRight') { e.preventDefault(); moveShip('right', 1); }
+        }
+        if (stateRef.current === 'idle' || stateRef.current === 'over') {
+          if (e.key === 'Enter' || e.key === ' ') startGame();
+        }
       }
     };
+    const onUp = (e: KeyboardEvent) => { keysDown.delete(e.key); };
     window.addEventListener('keydown', onDown);
-    return () => window.removeEventListener('keydown', onDown);
-  }, [startGame]);
+    window.addEventListener('keyup', onUp);
+    return () => {
+      window.removeEventListener('keydown', onDown);
+      window.removeEventListener('keyup', onUp);
+    };
+  }, [moveShip, startGame]);
 
-  // ── button handlers ──
-  const handleLeftLeft = useCallback(() => moveShip('left', -1), [moveShip]);
-  const handleLeftRight = useCallback(() => moveShip('left', 1), [moveShip]);
-  const handleRightLeft = useCallback(() => moveShip('right', -1), [moveShip]);
-  const handleRightRight = useCallback(() => moveShip('right', 1), [moveShip]);
+  // Touch button handlers
+  const onTouchBtn = useCallback((side: 'left' | 'right', dir: -1 | 1) => (e: React.MouseEvent | React.TouchEvent) => {
+    e.preventDefault();
+    if (stateRef.current === 'playing') moveShip(side, dir);
+  }, [moveShip]);
 
-  const livesDisplay = Array.from({ length: 3 }, (_, i) => i < uiLives ? '\u2764\uFE0F' : '\uD83D\uDDA4');
+  const livesDisplay = '\u2764\uFE0F'.repeat(Math.max(0, uiLives)) + '\uD83D\uDDA4'.repeat(Math.max(0, 3 - uiLives));
 
   return (
-    <div
-      className="md-root"
-      style={{
-        background: C.bg,
-        minHeight: '100vh',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '16px',
-        fontFamily: "'Rajdhani', sans-serif",
-      }}
-    >
+    <div className="md-root" style={styles.root}>
       {/* Google Fonts */}
       <link
         href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Rajdhani:wght@500;700&display=swap"
         rel="stylesheet"
       />
 
-      {/* HUD */}
-      <div
-        style={{
-          width: W,
-          maxWidth: '100%',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: 8,
-          padding: '0 4px',
-        }}
-      >
-        <div style={{ fontSize: 20, letterSpacing: 2 }}>
-          {livesDisplay.map((h, i) => <span key={i}>{h}</span>)}
-        </div>
-        <div
-          style={{
-            fontFamily: "'Orbitron', sans-serif",
-            fontWeight: 900,
-            fontSize: 18,
-            color: C.text,
-            letterSpacing: 1,
-          }}
-        >
-          {uiScore}
-        </div>
-      </div>
+      {/* Star field */}
+      <StarField />
 
-      {/* Canvas container */}
-      <div style={{ position: 'relative', width: W, maxWidth: '100%' }}>
-        <canvas
-          ref={canvasRef}
-          width={W}
-          height={H}
-          style={{
-            display: 'block',
-            width: '100%',
-            maxWidth: W,
-            borderRadius: 16,
-            border: `1px solid ${C.muted}`,
-          }}
-        />
+      <div style={styles.container}>
+        {/* HUD */}
+        <div style={styles.hud}>
+          <div style={styles.lives}>{livesDisplay}</div>
+          <div style={styles.title}>MIRROR DASH</div>
+          <div style={styles.scoreDisplay}>{uiScore}</div>
+        </div>
 
-        {/* Start Overlay */}
-        {uiState === 'start' && (
-          <div
-            style={{
-              position: 'absolute',
-              inset: 0,
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              background: 'rgba(6,4,15,0.88)',
-              borderRadius: 16,
-              zIndex: 10,
-            }}
-          >
-            <h1
-              style={{
-                fontFamily: "'Orbitron', sans-serif",
-                fontWeight: 900,
-                fontSize: 36,
-                background: `linear-gradient(90deg, ${C.leftNeon}, ${C.rightNeon})`,
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                marginBottom: 4,
-              }}
-            >
-              MIRROR DASH
-            </h1>
-            <p
-              style={{
-                fontFamily: "'Rajdhani', sans-serif",
-                fontWeight: 500,
-                fontSize: 16,
-                color: C.muted,
-                marginBottom: 20,
-              }}
-            >
-              Two ships. Two hands.
-            </p>
-            <div
-              style={{
-                fontFamily: "'Rajdhani', sans-serif",
-                fontWeight: 500,
-                fontSize: 13,
-                color: C.text,
-                textAlign: 'center',
-                lineHeight: 1.8,
-                marginBottom: 24,
-                opacity: 0.85,
-              }}
-            >
-              <span style={{ color: C.leftNeonLight }}>A / D</span> controls the left ship.<br />
-              <span style={{ color: C.rightNeonLight }}>&larr; / &rarr;</span> controls the right ship.<br />
-              Dodge both sides — at the same time.
+        {/* Canvas wrap */}
+        <div style={styles.canvasWrap}>
+          <canvas
+            ref={canvasRef}
+            width={W}
+            height={H}
+            style={styles.canvas}
+          />
+
+          {/* Start overlay */}
+          {uiState === 'idle' && (
+            <div style={styles.overlay}>
+              <div style={styles.overlayTitleStart}>MIRROR DASH</div>
+              <div style={styles.overlaySub}>
+                Two ships. Two hands.<br />
+                <b style={{ color: C.leftNeonLight }}>A / D</b> controls the left ship.<br />
+                <b style={{ color: C.rightNeonLight }}>&larr; / &rarr;</b> controls the right ship.<br />
+                Dodge both sides &mdash; at the same time.
+              </div>
+              <button style={styles.btn} onClick={startGame}>PLAY</button>
             </div>
-            <button
-              onClick={startGame}
-              style={{
-                fontFamily: "'Orbitron', sans-serif",
-                fontWeight: 700,
-                fontSize: 18,
-                padding: '12px 48px',
-                borderRadius: 10,
-                border: 'none',
-                cursor: 'pointer',
-                background: `linear-gradient(135deg, ${C.leftNeon}, ${C.rightNeon})`,
-                color: '#fff',
-                letterSpacing: 3,
-                boxShadow: `0 0 24px ${C.leftNeon}55, 0 0 24px ${C.rightNeon}55`,
-                transition: 'transform 0.15s',
-              }}
-              onMouseEnter={e => (e.currentTarget.style.transform = 'scale(1.06)')}
-              onMouseLeave={e => (e.currentTarget.style.transform = 'scale(1)')}
-            >
-              PLAY
-            </button>
+          )}
+
+          {/* Game over overlay */}
+          {uiState === 'over' && (
+            <div style={styles.overlay}>
+              <div style={styles.overlayTitleOver}>GAME OVER</div>
+              <div style={styles.overlayScore}>SCORE: {uiScore}</div>
+              <div style={styles.overlaySub}>
+                {uiScore >= uiHiScore ? '\uD83C\uDFC6 New Best!' : `Best: ${uiHiScore}`}
+              </div>
+              <button style={styles.btn} onClick={startGame}>RETRY</button>
+            </div>
+          )}
+        </div>
+
+        {/* Controls hint */}
+        <div style={styles.controlsHint}>
+          <div style={styles.ctrl}>
+            <span style={{ ...styles.key, color: C.leftNeonLight }}>A</span>
+            <span style={{ color: C.muted }}>/</span>
+            <span style={{ ...styles.key, color: C.leftNeonLight }}>D</span>
+            <span style={{ color: C.leftNeonLight, marginLeft: 4, fontWeight: 700 }}> LEFT SHIP</span>
           </div>
-        )}
-
-        {/* Game Over Overlay */}
-        {uiState === 'over' && (
-          <div
-            style={{
-              position: 'absolute',
-              inset: 0,
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              background: 'rgba(6,4,15,0.92)',
-              borderRadius: 16,
-              zIndex: 10,
-            }}
-          >
-            <h2
-              style={{
-                fontFamily: "'Orbitron', sans-serif",
-                fontWeight: 900,
-                fontSize: 30,
-                color: C.rightNeon,
-                marginBottom: 16,
-                textShadow: `0 0 20px ${C.rightNeon}88`,
-              }}
-            >
-              GAME OVER
-            </h2>
-            <div
-              style={{
-                fontFamily: "'Orbitron', sans-serif",
-                fontWeight: 700,
-                fontSize: 22,
-                color: C.text,
-                marginBottom: 6,
-              }}
-            >
-              {uiScore}
-            </div>
-            <div
-              style={{
-                fontFamily: "'Rajdhani', sans-serif",
-                fontWeight: 500,
-                fontSize: 14,
-                color: C.muted,
-                marginBottom: 24,
-              }}
-            >
-              BEST: {uiBest}
-            </div>
-            <button
-              onClick={startGame}
-              style={{
-                fontFamily: "'Orbitron', sans-serif",
-                fontWeight: 700,
-                fontSize: 16,
-                padding: '12px 44px',
-                borderRadius: 10,
-                border: 'none',
-                cursor: 'pointer',
-                background: `linear-gradient(135deg, ${C.leftNeon}, ${C.rightNeon})`,
-                color: '#fff',
-                letterSpacing: 3,
-                boxShadow: `0 0 24px ${C.leftNeon}55, 0 0 24px ${C.rightNeon}55`,
-                transition: 'transform 0.15s',
-              }}
-              onMouseEnter={e => (e.currentTarget.style.transform = 'scale(1.06)')}
-              onMouseLeave={e => (e.currentTarget.style.transform = 'scale(1)')}
-            >
-              RETRY
-            </button>
+          <div style={{ color: C.muted }}>|</div>
+          <div style={styles.ctrl}>
+            <span style={{ ...styles.key, color: C.rightNeonLight }}>&larr;</span>
+            <span style={{ ...styles.key, color: C.rightNeonLight }}>&rarr;</span>
+            <span style={{ color: C.rightNeonLight, marginLeft: 4, fontWeight: 700 }}> RIGHT SHIP</span>
           </div>
-        )}
-      </div>
+        </div>
 
-      {/* Touch Buttons */}
-      <div
-        style={{
-          width: W,
-          maxWidth: '100%',
-          display: 'flex',
-          justifyContent: 'center',
-          gap: 32,
-          marginTop: 12,
-        }}
-      >
-        {/* Left ship controls */}
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button
-            onPointerDown={handleLeftLeft}
-            style={btnStyle(C.leftNeon, C.leftNeonLight)}
-            aria-label="Left ship move left"
-          >
-            &#9664;
-          </button>
-          <button
-            onPointerDown={handleLeftRight}
-            style={btnStyle(C.leftNeon, C.leftNeonLight)}
-            aria-label="Left ship move right"
-          >
-            &#9654;
-          </button>
+        {/* Tap controls */}
+        <div style={styles.tapControls}>
+          <div style={styles.tapGroup}>
+            <button
+              style={{ ...styles.tapBtn, ...styles.tapLeft }}
+              onMouseDown={onTouchBtn('left', -1)}
+              onTouchStart={onTouchBtn('left', -1)}
+            >&larr;</button>
+            <button
+              style={{ ...styles.tapBtn, ...styles.tapRightL }}
+              onMouseDown={onTouchBtn('left', 1)}
+              onTouchStart={onTouchBtn('left', 1)}
+            >&rarr;</button>
+          </div>
+          <div style={styles.tapLabelCenter}>
+            <span style={{ color: C.leftNeonLight, fontSize: '0.55rem' }}>LEFT</span>
+            <span style={{ color: C.muted, fontSize: '0.45rem' }}>SHIP</span>
+            <span style={{ color: C.rightNeonLight, fontSize: '0.55rem' }}>RIGHT</span>
+          </div>
+          <div style={styles.tapGroup}>
+            <button
+              style={{ ...styles.tapBtn, ...styles.tapLeftR }}
+              onMouseDown={onTouchBtn('right', -1)}
+              onTouchStart={onTouchBtn('right', -1)}
+            >&larr;</button>
+            <button
+              style={{ ...styles.tapBtn, ...styles.tapRight }}
+              onMouseDown={onTouchBtn('right', 1)}
+              onTouchStart={onTouchBtn('right', 1)}
+            >&rarr;</button>
+          </div>
         </div>
-        {/* Label */}
-        <div
-          style={{
-            fontFamily: "'Orbitron', sans-serif",
-            fontWeight: 700,
-            fontSize: 10,
-            color: C.muted,
-            display: 'flex',
-            alignItems: 'center',
-            letterSpacing: 2,
-          }}
-        >
-          SHIP
-        </div>
-        {/* Right ship controls */}
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button
-            onPointerDown={handleRightLeft}
-            style={btnStyle(C.rightNeon, C.rightNeonLight)}
-            aria-label="Right ship move left"
-          >
-            &#9664;
-          </button>
-          <button
-            onPointerDown={handleRightRight}
-            style={btnStyle(C.rightNeon, C.rightNeonLight)}
-            aria-label="Right ship move right"
-          >
-            &#9654;
-          </button>
-        </div>
-      </div>
-
-      {/* Controls hint */}
-      <div
-        style={{
-          marginTop: 10,
-          fontFamily: "'Rajdhani', sans-serif",
-          fontWeight: 500,
-          fontSize: 12,
-          color: C.muted,
-          textAlign: 'center',
-          letterSpacing: 1,
-        }}
-      >
-        <span style={{ color: C.leftNeonLight }}>A / D</span>
-        {' '}LEFT SHIP{'  '}|{'  '}
-        <span style={{ color: C.rightNeonLight }}>&larr; / &rarr;</span>
-        {' '}RIGHT SHIP
       </div>
     </div>
   );
 };
 
-// ── button style helper ──
-function btnStyle(main: string, light: string): React.CSSProperties {
-  return {
+// ── Star field component ──
+const StarField: React.FC = React.memo(() => {
+  const stars = useRef(
+    Array.from({ length: 80 }, () => ({
+      size: Math.random() * 2 + 0.5,
+      left: Math.random() * 100,
+      top: Math.random() * 100,
+      duration: 2 + Math.random() * 3,
+      delay: Math.random() * 3,
+    }))
+  ).current;
+
+  return (
+    <div style={styles.stars}>
+      <style>{`
+        @keyframes md-twinkle {
+          0% { opacity: 0.2; transform: translateY(0); }
+          50% { opacity: 1; }
+          100% { opacity: 0.2; transform: translateY(-2px); }
+        }
+      `}</style>
+      {stars.map((s, i) => (
+        <div
+          key={i}
+          style={{
+            position: 'absolute',
+            background: 'white',
+            borderRadius: '50%',
+            width: s.size,
+            height: s.size,
+            left: `${s.left}%`,
+            top: `${s.top}%`,
+            animation: `md-twinkle ${s.duration}s linear infinite`,
+            animationDelay: `${s.delay}s`,
+          }}
+        />
+      ))}
+    </div>
+  );
+});
+
+// ── Inline styles matching the provided HTML/CSS ──
+const styles: Record<string, React.CSSProperties> = {
+  root: {
+    background: C.bg,
+    fontFamily: "'Rajdhani', sans-serif",
+    minHeight: '100vh',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+    userSelect: 'none',
+  },
+  stars: {
+    position: 'fixed',
+    inset: 0,
+    pointerEvents: 'none',
+    overflow: 'hidden',
+    zIndex: 0,
+  },
+  container: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: 0,
+    width: '100%',
+    maxWidth: 560,
+    padding: 16,
+    position: 'relative',
+    zIndex: 1,
+  },
+  hud: {
+    width: '100%',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '0 4px 12px',
+  },
+  lives: {
+    display: 'flex',
+    gap: 5,
+    fontSize: '1.1rem',
+  },
+  title: {
     fontFamily: "'Orbitron', sans-serif",
+    fontSize: '1.3rem',
+    fontWeight: 900,
+    letterSpacing: 3,
+    background: `linear-gradient(90deg, ${C.leftNeon}, ${C.rightNeon})`,
+    WebkitBackgroundClip: 'text',
+    WebkitTextFillColor: 'transparent',
+  },
+  scoreDisplay: {
+    fontFamily: "'Orbitron', sans-serif",
+    fontSize: '1rem',
     fontWeight: 700,
-    fontSize: 18,
-    width: 48,
-    height: 48,
+    color: C.text,
+    letterSpacing: 2,
+  },
+  canvasWrap: {
+    position: 'relative',
+    width: '100%',
+  },
+  canvas: {
+    display: 'block',
+    width: '100%',
+    borderRadius: 16,
+    border: '1px solid rgba(123,47,255,0.3)',
+    boxShadow: '0 0 30px rgba(123,47,255,0.2), 0 0 60px rgba(255,47,123,0.1), inset 0 0 30px rgba(0,0,0,0.5)',
+  },
+  overlay: {
+    position: 'absolute',
+    inset: 0,
+    borderRadius: 16,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'column',
+    gap: 16,
+    background: 'rgba(6,4,15,0.88)',
+    backdropFilter: 'blur(6px)',
+    zIndex: 10,
+  },
+  overlayTitleStart: {
+    fontFamily: "'Orbitron', sans-serif",
+    fontSize: '1.8rem',
+    fontWeight: 900,
+    letterSpacing: 3,
+    textAlign: 'center',
+    background: `linear-gradient(90deg, ${C.leftNeon}, ${C.rightNeon})`,
+    WebkitBackgroundClip: 'text',
+    WebkitTextFillColor: 'transparent',
+  },
+  overlayTitleOver: {
+    fontFamily: "'Orbitron', sans-serif",
+    fontSize: '1.8rem',
+    fontWeight: 900,
+    letterSpacing: 3,
+    textAlign: 'center',
+    color: C.rightNeon,
+    textShadow: `0 0 20px rgba(255,47,123,0.5)`,
+  },
+  overlaySub: {
+    fontSize: '0.9rem',
+    color: C.muted,
+    textAlign: 'center',
+    letterSpacing: 1,
+    lineHeight: 1.7,
+    maxWidth: 300,
+  },
+  overlayScore: {
+    fontFamily: "'Orbitron', sans-serif",
+    fontSize: '1.1rem',
+    color: C.text,
+    letterSpacing: 2,
+  },
+  btn: {
+    fontFamily: "'Orbitron', sans-serif",
+    fontSize: '0.7rem',
+    fontWeight: 700,
+    padding: '12px 32px',
+    borderRadius: 8,
+    border: 'none',
+    cursor: 'pointer',
+    letterSpacing: 2,
+    background: `linear-gradient(90deg, ${C.leftNeon}, ${C.rightNeon})`,
+    color: '#fff',
+    boxShadow: '0 0 20px rgba(123,47,255,0.4)',
+    transition: 'all 0.15s',
+  },
+  controlsHint: {
+    display: 'flex',
+    gap: 20,
+    fontSize: '0.85rem',
+    fontWeight: 700,
+    color: C.muted,
+    letterSpacing: 1,
+    paddingTop: 12,
+    alignItems: 'center',
+  },
+  ctrl: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 6,
+  },
+  key: {
+    background: 'rgba(255,255,255,0.06)',
+    border: `1px solid ${C.muted}`,
+    borderRadius: 5,
+    padding: '2px 8px',
+    fontFamily: "'Orbitron', sans-serif",
+    fontSize: '0.65rem',
+    color: C.text,
+  },
+  tapControls: {
+    display: 'flex',
+    width: '100%',
+    gap: 8,
+    paddingTop: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tapGroup: {
+    display: 'flex',
+    gap: 6,
+    flex: 1,
+  },
+  tapLabelCenter: {
+    fontFamily: "'Orbitron', sans-serif",
+    fontSize: '0.5rem',
+    color: C.muted,
+    letterSpacing: 1,
+    textAlign: 'center',
+    whiteSpace: 'nowrap',
+    padding: '0 4px',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: 2,
+  },
+  tapBtn: {
+    flex: 1,
+    height: 52,
     borderRadius: 10,
-    border: `2px solid ${main}`,
-    background: 'transparent',
-    color: light,
+    border: 'none',
+    fontFamily: "'Orbitron', sans-serif",
+    fontSize: '0.6rem',
+    fontWeight: 700,
+    letterSpacing: 1,
     cursor: 'pointer',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    transition: 'background 0.15s, box-shadow 0.15s',
-    boxShadow: `0 0 10px ${main}33`,
+    transition: 'all 0.1s',
     WebkitTapHighlightColor: 'transparent',
     touchAction: 'manipulation',
-  };
-}
-
-// ── canvas rounded rect ──
-function roundRect(
-  ctx: CanvasRenderingContext2D,
-  x: number, y: number, w: number, h: number, r: number,
-) {
-  ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.lineTo(x + w - r, y);
-  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
-  ctx.lineTo(x + w, y + h - r);
-  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
-  ctx.lineTo(x + r, y + h);
-  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
-  ctx.lineTo(x, y + r);
-  ctx.quadraticCurveTo(x, y, x + r, y);
-  ctx.closePath();
-}
+  },
+  tapLeft: {
+    background: 'rgba(123,47,255,0.15)',
+    border: `1px solid ${C.leftNeon}`,
+    color: C.leftNeonLight,
+  },
+  tapRightL: {
+    background: 'rgba(255,47,123,0.15)',
+    border: `1px solid ${C.rightNeon}`,
+    color: C.rightNeonLight,
+  },
+  tapLeftR: {
+    background: 'rgba(123,47,255,0.15)',
+    border: `1px solid ${C.leftNeon}`,
+    color: C.leftNeonLight,
+  },
+  tapRight: {
+    background: 'rgba(255,47,123,0.15)',
+    border: `1px solid ${C.rightNeon}`,
+    color: C.rightNeonLight,
+  },
+};
 
 export default MirrorDash;
