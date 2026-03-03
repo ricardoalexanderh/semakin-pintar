@@ -94,6 +94,8 @@ const MirrorDash: React.FC = () => {
   const visualLaneRRef = useRef(1);
   const nextSpawnIntervalRef = useRef(65);
   const groundOffsetRef = useRef(0);
+  const lastTimeRef = useRef(0);
+  const scoreElRef = useRef<HTMLDivElement>(null);
   const obstaclesRef = useRef<Obstacle[]>([]);
   const particlesRef = useRef<Particle[]>([]);
   const pickupsRef = useRef<Pickup[]>([]);
@@ -211,6 +213,7 @@ const MirrorDash: React.FC = () => {
     if (livesRef.current <= 0) {
       stateRef.current = 'over';
       setUiState('over');
+      setUiScore(scoreRef.current);
       const sc = scoreRef.current;
       if (sc > hiScoreRef.current) {
         hiScoreRef.current = sc;
@@ -221,7 +224,7 @@ const MirrorDash: React.FC = () => {
   }, [laneX, playerY]);
 
   // Update
-  const update = useCallback(() => {
+  const update = useCallback((dt: number) => {
     const frame = frameRef.current;
     frameRef.current++;
 
@@ -231,12 +234,13 @@ const MirrorDash: React.FC = () => {
 
     const speed = speedRef.current;
 
-    // Smooth lane interpolation (visual only — prevents frame-jump feel)
-    visualLaneLRef.current += (playerLRef.current.lane - visualLaneLRef.current) * 0.3;
-    visualLaneRRef.current += (playerRRef.current.lane - visualLaneRRef.current) * 0.3;
+    // Smooth lane interpolation (dt-adjusted for frame-rate independence)
+    const lerpFactor = 1 - Math.pow(0.7, dt);
+    visualLaneLRef.current += (playerLRef.current.lane - visualLaneLRef.current) * lerpFactor;
+    visualLaneRRef.current += (playerRRef.current.lane - visualLaneRRef.current) * lerpFactor;
 
-    // Accumulate ground offset smoothly (avoids frame * speed jump)
-    groundOffsetRef.current = (groundOffsetRef.current + speed) % 40;
+    // Accumulate ground offset smoothly (dt-adjusted)
+    groundOffsetRef.current = (groundOffsetRef.current + speed * dt) % 40;
 
     // Spawn obstacles — interval-based, random gap, gets tighter over time
     if (frame - lastSpawnFrameRef.current >= nextSpawnIntervalRef.current) {
@@ -282,7 +286,7 @@ const MirrorDash: React.FC = () => {
 
     // Move & collect shield power-ups (only the collecting side gets shield)
     for (let i = shieldPowerupsRef.current.length - 1; i >= 0; i--) {
-      shieldPowerupsRef.current[i].y += speed;
+      shieldPowerupsRef.current[i].y += speed * dt;
       if (shieldPowerupsRef.current[i].y > H + 20) {
         shieldPowerupsRef.current.splice(i, 1);
         continue;
@@ -318,7 +322,7 @@ const MirrorDash: React.FC = () => {
 
     // Move & collect pickups
     for (let i = pickupsRef.current.length - 1; i >= 0; i--) {
-      pickupsRef.current[i].y += speed;
+      pickupsRef.current[i].y += speed * dt;
       if (pickupsRef.current[i].y > H + 20) {
         pickupsRef.current.splice(i, 1);
         continue;
@@ -350,7 +354,7 @@ const MirrorDash: React.FC = () => {
 
     // Move obstacles
     for (let i = obstaclesRef.current.length - 1; i >= 0; i--) {
-      obstaclesRef.current[i].y += speed;
+      obstaclesRef.current[i].y += speed * dt;
       if (obstaclesRef.current[i].y > H + 40) {
         obstaclesRef.current.splice(i, 1);
         scoreRef.current += 10;
@@ -379,15 +383,15 @@ const MirrorDash: React.FC = () => {
     // Particles
     for (let i = particlesRef.current.length - 1; i >= 0; i--) {
       const p = particlesRef.current[i];
-      p.x += p.vx;
-      p.y += p.vy;
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
       p.life--;
       if (p.life <= 0) particlesRef.current.splice(i, 1);
     }
 
     if (flashTimerRef.current > 0) flashTimerRef.current--;
     scoreRef.current++;
-    if (frame % 20 === 0) setUiScore(scoreRef.current);
+    if (scoreElRef.current) scoreElRef.current.textContent = String(scoreRef.current);
   }, [spawnObstacle, spawnPickup, spawnShieldPowerup, playerY, laneX, hit]);
 
   // roundRect helper on canvas
@@ -699,6 +703,7 @@ const MirrorDash: React.FC = () => {
     nextShieldCooldownRef.current = 1400;
     nextSpawnIntervalRef.current = 65;
     groundOffsetRef.current = 0;
+    lastTimeRef.current = 0;
     obstaclesRef.current = [];
     particlesRef.current = [];
     pickupsRef.current = [];
@@ -732,9 +737,16 @@ const MirrorDash: React.FC = () => {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const loop = () => {
+    const loop = (timestamp: number) => {
       if (stateRef.current === 'playing') {
-        updateFnRef.current();
+        let dt = 1;
+        if (lastTimeRef.current > 0) {
+          dt = Math.min((timestamp - lastTimeRef.current) / (1000 / 60), 2);
+        }
+        lastTimeRef.current = timestamp;
+        updateFnRef.current(dt);
+      } else {
+        lastTimeRef.current = 0;
       }
       drawFnRef.current(ctx);
       animIdRef.current = requestAnimationFrame(loop);
@@ -804,7 +816,7 @@ const MirrorDash: React.FC = () => {
                 R🛡
               </span>
             )}
-            <div style={styles.scoreDisplay}>{uiScore}</div>
+            <div ref={scoreElRef} style={styles.scoreDisplay}>{uiScore}</div>
           </div>
         </div>
 
