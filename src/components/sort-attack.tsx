@@ -1,18 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import * as Tone from 'tone';
-import { Volume2, VolumeX, RotateCcw, Lightbulb, Trophy } from 'lucide-react';
+import { Volume2, VolumeX, RotateCcw, Lightbulb, Trophy, Lock } from 'lucide-react';
 import { trackGameEvent, trackButtonClick, trackGameCompletion } from '../utils/analytics';
 import { useGameState } from '../hooks/useGameState';
 
 // === Types ===
 type GamePhase = 'setup' | 'countdown' | 'playing' | 'roundEnd' | 'gameover';
 type Difficulty = 'easy' | 'medium' | 'hard';
-
-interface DifficultyConfig {
-  arraySize: number;
-  timeBonus: number;
-  label: string;
-}
+type SortDirection = 'asc' | 'desc';
 
 interface RoundResult {
   swapsUsed: number;
@@ -21,23 +16,27 @@ interface RoundResult {
   timeBonus: number;
   roundScore: number;
   label: 'Perfect!' | 'Nice!' | 'Too slow!';
+  direction: SortDirection;
 }
 
 // === Constants ===
-const DIFFICULTY_CONFIG: Record<Difficulty, DifficultyConfig> = {
-  easy:   { arraySize: 4, timeBonus: 15, label: 'Easy' },
-  medium: { arraySize: 6, timeBonus: 20, label: 'Medium' },
-  hard:   { arraySize: 9, timeBonus: 25, label: 'Hard' },
-};
-
 const INITIAL_TIME = 30;
-const UNDO_COST = 3;
-const HINT_COST = 5;
+const UNDO_COST = 6;   // increased from 3
+const HINT_COST = 10;  // increased from 5
 const BASE_SCORE = 1000;
 const SWAP_PENALTY = 50;
 const TIME_SCORE_RATE = 10;
 
-// Prototype color palette
+// Progressive difficulty: array grows every 3 rounds
+const BASE_ARRAY_SIZES: Record<Difficulty, number> = { easy: 4, medium: 5, hard: 7 };
+const MAX_ARRAY_SIZES:  Record<Difficulty, number> = { easy: 8, medium: 10, hard: 12 };
+// Time bonus shrinks every 3 rounds
+const BASE_TIME_BONUSES: Record<Difficulty, number> = { easy: 15, medium: 20, hard: 25 };
+const MIN_TIME_BONUSES:  Record<Difficulty, number> = { easy: 8,  medium: 10, hard: 12 };
+
+const DIFFICULTY_LABELS: Record<Difficulty, string> = { easy: 'Easy', medium: 'Medium', hard: 'Hard' };
+
+// Color palette
 const C = {
   bg:     '#1a1a2e',
   panel:  '#16213e',
@@ -46,14 +45,9 @@ const C = {
   yellow: '#f5a623',
   green:  '#4ecb71',
   blue:   '#4fc3f7',
+  purple: '#a78bfa',
   white:  '#f0f0f0',
   muted:  '#8892b0',
-};
-
-const TILE_SIZES: Record<Difficulty, string> = {
-  easy:   'w-16 h-16 text-2xl sm:w-[72px] sm:h-[72px] sm:text-3xl',
-  medium: 'w-14 h-14 text-xl  sm:w-16   sm:h-16   sm:text-2xl',
-  hard:   'w-12 h-12 text-lg  sm:w-14   sm:h-14   sm:text-xl',
 };
 
 const LS_DIFFICULTY  = 'sortAttack_difficulty';
@@ -66,34 +60,96 @@ const GRID_BG: React.CSSProperties = {
   backgroundSize: '40px 40px',
 };
 
+// === Progressive Helpers ===
+const getCurrentArraySize = (difficulty: Difficulty, round: number): number =>
+  Math.min(BASE_ARRAY_SIZES[difficulty] + Math.floor(round / 3), MAX_ARRAY_SIZES[difficulty]);
+
+const getCurrentTimeBonus = (difficulty: Difficulty, round: number): number =>
+  Math.max(BASE_TIME_BONUSES[difficulty] - Math.floor(round / 3), MIN_TIME_BONUSES[difficulty]);
+
+// Every 5th round (rounds 4, 9, 14…) is a reverse round
+const getSortDirection = (round: number): SortDirection =>
+  round > 0 && round % 5 === 4 ? 'desc' : 'asc';
+
+// Locked tiles: none on easy, 1 on medium from round 3, 1-2 on hard
+const getLockCount = (difficulty: Difficulty, round: number): number => {
+  if (difficulty === 'easy') return 0;
+  if (difficulty === 'medium') return round >= 3 ? 1 : 0;
+  return round >= 5 ? 2 : round >= 1 ? 1 : 0;
+};
+
+// Tile size scales down as arrays grow
+const getTileSize = (arraySize: number): string => {
+  if (arraySize <= 4)  return 'w-16 h-16 text-2xl sm:w-[72px] sm:h-[72px] sm:text-3xl';
+  if (arraySize <= 6)  return 'w-14 h-14 text-xl  sm:w-16   sm:h-16   sm:text-2xl';
+  if (arraySize <= 9)  return 'w-12 h-12 text-lg  sm:w-14   sm:h-14   sm:text-xl';
+  return                      'w-10 h-10 text-base sm:w-12  sm:h-12  sm:text-lg';
+};
+
 // === Algorithms ===
-const countInversions = (arr: number[]): number => {
+const countInversions = (arr: number[], direction: SortDirection = 'asc'): number => {
   let count = 0;
   for (let i = 0; i < arr.length - 1; i++)
     for (let j = i + 1; j < arr.length; j++)
-      if (arr[i] > arr[j]) count++;
+      if (direction === 'asc' ? arr[i] > arr[j] : arr[i] < arr[j]) count++;
   return count;
 };
 
-const generateShuffledArray = (size: number): number[] => {
-  const base = Array.from({ length: size }, (_, i) => i + 1);
-  let arr: number[];
-  do {
-    arr = [...base];
-    for (let i = arr.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [arr[i], arr[j]] = [arr[j], arr[i]];
-    }
-  } while (arr.every((v, i) => v === i + 1));
-  return arr;
+const isArraySorted = (arr: number[], direction: SortDirection = 'asc') =>
+  direction === 'asc'
+    ? arr.every((v, i) => i === 0 || arr[i - 1] <= v)
+    : arr.every((v, i) => i === 0 || arr[i - 1] >= v);
+
+const shuffleArray = <T,>(arr: T[]): T[] => {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
 };
 
-const isArraySorted = (arr: number[]) => arr.every((v, i) => i === 0 || arr[i - 1] <= v);
+/**
+ * Generates a round's array with optional locked border tiles.
+ *
+ * Locked tiles are always placed at position 0 (and optionally size-1)
+ * with the correct border value so the puzzle stays solvable — values
+ * on each side of a lock can freely sort among themselves without
+ * needing to cross the locked position.
+ */
+const generateRoundData = (
+  size: number,
+  direction: SortDirection,
+  lockCount: number,
+): { arr: number[]; locked: number[] } => {
+  const base = Array.from({ length: size }, (_, i) => i + 1); // [1..size]
 
-const findFirstInversion = (arr: number[]): [number, number] | null => {
-  for (let i = 0; i < arr.length - 1; i++)
-    if (arr[i] > arr[i + 1]) return [i, i + 1];
-  return null;
+  if (lockCount >= 2) {
+    // Lock both borders: pos 0 = first correct value, pos size-1 = last correct value
+    let arr: number[];
+    do {
+      const inner = shuffleArray(base.slice(1, -1));
+      arr = direction === 'asc' ? [1, ...inner, size] : [size, ...inner, 1];
+    } while (isArraySorted(arr, direction));
+    return { arr, locked: [0, size - 1] };
+  }
+
+  if (lockCount === 1) {
+    // Lock position 0 with the "first correct" value for this direction
+    let arr: number[];
+    do {
+      arr = direction === 'asc'
+        ? [1, ...shuffleArray(base.slice(1))]
+        : [size, ...shuffleArray(base.slice(0, -1))];
+    } while (isArraySorted(arr, direction));
+    return { arr, locked: [0] };
+  }
+
+  // No locks: plain shuffle
+  let arr: number[];
+  do { arr = shuffleArray(base); }
+  while (isArraySorted(arr, direction));
+  return { arr, locked: [] };
 };
 
 // === Sound ===
@@ -155,6 +211,8 @@ const SortAttack: React.FC = () => {
   const [hintPair, setHintPair] = useState<[number, number] | null>(null);
   const [swapAnimating, setSwapAnimating] = useState<[number, number] | null>(null);
   const [undoStack, setUndoStack] = useState<number[][]>([]);
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+  const [lockedIndices, setLockedIndices] = useState<number[]>([]);
 
   // --- Timer ---
   const timerRef = useRef<number>(INITIAL_TIME);
@@ -206,7 +264,7 @@ const SortAttack: React.FC = () => {
     trackGameCompletion('sort-attack', score, 0, difficulty);
   }, [phase]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Countdown → start round
+  // Countdown → start first round
   useEffect(() => {
     if (phase !== 'countdown') return;
     setCountdown(3);
@@ -216,9 +274,16 @@ const SortAttack: React.FC = () => {
       setCountdown(count);
       if (count <= 0) {
         clearInterval(timer);
-        const arr = generateShuffledArray(DIFFICULTY_CONFIG[difficulty].arraySize);
+        const direction = getSortDirection(0);
+        const { arr, locked } = generateRoundData(
+          getCurrentArraySize(difficulty, 0),
+          direction,
+          getLockCount(difficulty, 0),
+        );
         setTiles(arr);
         setOriginalTiles(arr);
+        setSortDirection(direction);
+        setLockedIndices(locked);
         setSwapsUsed(0);
         setSelectedIndex(null);
         setHintPair(null);
@@ -243,7 +308,7 @@ const SortAttack: React.FC = () => {
   };
 
   const handleRoundComplete = (totalSwaps: number) => {
-    const minSwaps = countInversions(originalTiles);
+    const minSwaps = countInversions(originalTiles, sortDirection);
     const extraSwaps = Math.max(0, totalSwaps - minSwaps);
     const efficiency = totalSwaps === 0 ? 100 : Math.round((minSwaps / totalSwaps) * 100);
     const penalty = extraSwaps * SWAP_PENALTY;
@@ -255,22 +320,36 @@ const SortAttack: React.FC = () => {
       efficiency >= 70  ? 'Nice!'    :
                           'Too slow!';
 
-    const result: RoundResult = { swapsUsed: totalSwaps, minSwaps, efficiency, timeBonus: timeBonusScore, roundScore, label };
+    const result: RoundResult = {
+      swapsUsed: totalSwaps, minSwaps, efficiency,
+      timeBonus: timeBonusScore, roundScore, label,
+      direction: sortDirection,
+    };
     setLastResult(result);
     setScore(s => s + roundScore);
     setStreak(extraSwaps === 0 ? streak + 1 : 0);
-    setRoundNumber(r => r + 1);
+
+    const nextRoundNumber = roundNumber + 1;
+    setRoundNumber(nextRoundNumber);
     setEfficiencies(prev => [...prev, efficiency]);
 
-    const { timeBonus: bonusSeconds } = DIFFICULTY_CONFIG[difficulty];
+    // Time bonus shrinks as rounds progress
+    const bonusSeconds = getCurrentTimeBonus(difficulty, roundNumber);
     timerRef.current = Math.min(timerRef.current + bonusSeconds - extraSwaps * 2, 99);
 
     playSound('complete', soundEnabled);
 
     setTimeout(() => {
-      const arr = generateShuffledArray(DIFFICULTY_CONFIG[difficulty].arraySize);
+      const nextDirection = getSortDirection(nextRoundNumber);
+      const { arr, locked } = generateRoundData(
+        getCurrentArraySize(difficulty, nextRoundNumber),
+        nextDirection,
+        getLockCount(difficulty, nextRoundNumber),
+      );
       setTiles(arr);
       setOriginalTiles(arr);
+      setSortDirection(nextDirection);
+      setLockedIndices(locked);
       setSwapsUsed(0);
       setSelectedIndex(null);
       setHintPair(null);
@@ -296,7 +375,7 @@ const SortAttack: React.FC = () => {
       setSwapAnimating(null);
       playSound('swap', soundEnabled);
 
-      if (isArraySorted(newTiles)) {
+      if (isArraySorted(newTiles, sortDirection)) {
         setPhase('roundEnd');
         handleRoundComplete(newSwapsCount);
       }
@@ -305,6 +384,7 @@ const SortAttack: React.FC = () => {
 
   const handleTileClick = (index: number) => {
     if (phase !== 'playing' || swapAnimating) return;
+    if (lockedIndices.includes(index)) return; // locked — cannot interact
     setHintPair(null);
 
     if (selectedIndex === null) {
@@ -337,7 +417,15 @@ const SortAttack: React.FC = () => {
 
   const handleHint = () => {
     if (phase !== 'playing') return;
-    const pair = findFirstInversion(tiles);
+    // Find first inversion that doesn't involve a locked tile
+    let pair: [number, number] | null = null;
+    for (let i = 0; i < tiles.length - 1; i++) {
+      if (lockedIndices.includes(i) || lockedIndices.includes(i + 1)) continue;
+      if (sortDirection === 'asc' ? tiles[i] > tiles[i + 1] : tiles[i] < tiles[i + 1]) {
+        pair = [i, i + 1];
+        break;
+      }
+    }
     setHintPair(pair);
     timerRef.current = Math.max(1, timerRef.current - HINT_COST);
     setTimerDisplay(timerRef.current);
@@ -345,20 +433,26 @@ const SortAttack: React.FC = () => {
     trackButtonClick('hint', 'sort-attack');
   };
 
+  const currentTileSize = tiles.length > 0
+    ? getTileSize(tiles.length)
+    : getTileSize(BASE_ARRAY_SIZES[difficulty]);
+
   const getTileClasses = (index: number): string => {
     const isSelected  = selectedIndex === index;
     const isAdjacent  = selectedIndex !== null && Math.abs(selectedIndex - index) === 1;
     const isHinted    = hintPair?.includes(index) ?? false;
     const isSorted    = phase === 'roundEnd';
     const isSwapping  = swapAnimating?.includes(index) ?? false;
+    const isLocked    = lockedIndices.includes(index);
 
-    const base = `flex items-center justify-center rounded-[14px] font-black select-none cursor-pointer transition-all duration-150 border-[2.5px] ${TILE_SIZES[difficulty]}`;
+    const base = `flex items-center justify-center rounded-[14px] font-black select-none transition-all duration-150 border-[2.5px] ${currentTileSize}`;
 
-    if (isSorted)    return `${base} text-[${C.green}] border-[${C.green}] bg-[#1a3a2a]`;
-    if (isSelected)  return `${base} bg-[${C.accent}] border-[#ff6b80] text-white -translate-y-2 scale-110 shadow-[0_12px_32px_rgba(233,69,96,0.45)] z-10`;
-    if (isHinted || isAdjacent) return `${base} bg-[${C.card}] text-white border-[${C.yellow}] shadow-[0_0_16px_rgba(245,166,35,0.35)] animate-pulse`;
-    if (isSwapping)  return `${base} bg-[${C.card}] text-white border-[rgba(79,195,247,0.2)] scale-95 opacity-70`;
-    return `${base} bg-[${C.card}] text-white border-[rgba(79,195,247,0.2)] hover:-translate-y-1 hover:scale-105 hover:border-[${C.blue}] hover:shadow-[0_8px_24px_rgba(79,195,247,0.25)]`;
+    if (isLocked)    return `${base} cursor-not-allowed bg-[#1a1a3a] text-[${C.muted}] border-[rgba(167,139,250,0.4)]`;
+    if (isSorted)    return `${base} cursor-pointer text-[${C.green}] border-[${C.green}] bg-[#1a3a2a]`;
+    if (isSelected)  return `${base} cursor-pointer bg-[${C.accent}] border-[#ff6b80] text-white -translate-y-2 scale-110 shadow-[0_12px_32px_rgba(233,69,96,0.45)] z-10`;
+    if (isHinted || isAdjacent) return `${base} cursor-pointer bg-[${C.card}] text-white border-[${C.yellow}] shadow-[0_0_16px_rgba(245,166,35,0.35)] animate-pulse`;
+    if (isSwapping)  return `${base} cursor-pointer bg-[${C.card}] text-white border-[rgba(79,195,247,0.2)] scale-95 opacity-70`;
+    return `${base} cursor-pointer bg-[${C.card}] text-white border-[rgba(79,195,247,0.2)] hover:-translate-y-1 hover:scale-105 hover:border-[${C.blue}] hover:shadow-[0_8px_24px_rgba(79,195,247,0.25)]`;
   };
 
   const timerColor =
@@ -372,7 +466,9 @@ const SortAttack: React.FC = () => {
       ? Math.round(efficiencies.reduce((a, b) => a + b, 0) / efficiencies.length)
       : 0;
 
-  const remainingSwaps = phase === 'playing' || phase === 'roundEnd' ? countInversions(tiles) : 0;
+  const remainingSwaps = (phase === 'playing' || phase === 'roundEnd')
+    ? countInversions(tiles, sortDirection)
+    : 0;
 
   // Shared page wrapper
   const Page = ({ children }: { children: React.ReactNode }) => (
@@ -411,7 +507,7 @@ const SortAttack: React.FC = () => {
                   : { borderColor: 'rgba(79,195,247,0.15)', color: C.muted, background: C.panel }
                 }
               >
-                {DIFFICULTY_CONFIG[d].label} ({DIFFICULTY_CONFIG[d].arraySize})
+                {DIFFICULTY_LABELS[d]} ({BASE_ARRAY_SIZES[d]}+)
               </button>
             ))}
           </div>
@@ -432,20 +528,27 @@ const SortAttack: React.FC = () => {
                     : { borderColor: 'transparent' }
                   }
                 >
-                  <div className="font-mono text-[0.6rem] uppercase tracking-wider" style={{ color: C.muted }}>{DIFFICULTY_CONFIG[d].label}</div>
+                  <div className="font-mono text-[0.6rem] uppercase tracking-wider" style={{ color: C.muted }}>{DIFFICULTY_LABELS[d]}</div>
                   <div className="text-lg font-black" style={{ color: C.white }}>{highScores[d] || 0}</div>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* Hint bar */}
+          {/* How to play */}
           <div
-            className="rounded-r-xl px-4 py-3 border-l-4 text-xs"
+            className="rounded-r-xl px-4 py-3 border-l-4 text-xs space-y-1.5"
             style={{ background: C.panel, borderLeftColor: C.accent, color: C.muted, fontFamily: 'monospace' }}
           >
-            <span style={{ color: C.white, fontWeight: 700 }}>How to play: </span>
-            Click a number to select it, then click an adjacent neighbor to swap. Sort lowest → highest!
+            <div>
+              <span style={{ color: C.white, fontWeight: 700 }}>How to play: </span>
+              Click a number, then click an adjacent neighbor to swap. Sort lowest → highest!
+            </div>
+            <div>Arrays grow every 3 rounds. Every 5th round sorts <span style={{ color: C.purple }}>HIGH → LOW</span>.</div>
+            {difficulty !== 'easy' && (
+              <div style={{ color: C.purple }}>🔒 Locked tiles appear — route around them.</div>
+            )}
+            <div style={{ color: C.accent }}>Undo −{UNDO_COST}s · Hint −{HINT_COST}s</div>
           </div>
 
           {/* Sound + Start */}
@@ -502,7 +605,7 @@ const SortAttack: React.FC = () => {
           <div className="text-5xl mb-3">⏰</div>
           <h2 className="text-3xl font-black mb-1" style={{ color: C.white }}>Time's Up!</h2>
           <p className="font-mono text-xs uppercase tracking-widest mb-6" style={{ color: C.muted }}>
-            {DIFFICULTY_CONFIG[difficulty].label} · Round {roundNumber}
+            {DIFFICULTY_LABELS[difficulty]} · Round {roundNumber}
           </p>
 
           {isNewHighScore && (
@@ -569,6 +672,8 @@ const SortAttack: React.FC = () => {
   }
 
   // === Playing Screen (+ Round End overlay) ===
+  const isReverseRound = sortDirection === 'desc';
+
   return (
     <div
       className="min-h-screen flex flex-col items-center pt-6 pb-8 px-4 gap-5"
@@ -595,32 +700,44 @@ const SortAttack: React.FC = () => {
               : { borderColor: 'rgba(79,195,247,0.1)', color: C.muted, background: C.panel }
             }
           >
-            {DIFFICULTY_CONFIG[d].label}
+            {DIFFICULTY_LABELS[d]}
           </div>
         ))}
       </div>
 
+      {/* Reverse round badge */}
+      {isReverseRound && (
+        <div
+          className="font-mono text-xs px-4 py-1.5 rounded-full border animate-pulse font-bold uppercase tracking-widest"
+          style={{ borderColor: C.purple, color: C.purple, background: 'rgba(167,139,250,0.1)' }}
+        >
+          REVERSE ↓ HIGH → LOW
+        </div>
+      )}
+
       {/* HUD */}
-      <div className="flex gap-3 justify-center">
+      <div className="flex gap-3 justify-center flex-wrap">
         {/* Timer */}
-        <div className="rounded-xl px-4 py-3 text-center border" style={{ background: C.panel, borderColor: 'rgba(79,195,247,0.15)', minWidth: 90 }}>
+        <div className="rounded-xl px-4 py-3 text-center border" style={{ background: C.panel, borderColor: 'rgba(79,195,247,0.15)', minWidth: 80 }}>
           <div className="font-mono text-[0.6rem] uppercase tracking-widest mb-1" style={{ color: C.muted }}>Time</div>
           <div className={`text-3xl font-black tabular-nums ${timerColor} ${timerPulse}`}>
             {Math.ceil(timerDisplay)}
           </div>
         </div>
         {/* Swaps */}
-        <div className="rounded-xl px-4 py-3 text-center border" style={{ background: C.panel, borderColor: 'rgba(79,195,247,0.15)', minWidth: 90 }}>
-          <div className="font-mono text-[0.6rem] uppercase tracking-widest mb-1" style={{ color: C.muted }}>Your Swaps</div>
+        <div className="rounded-xl px-4 py-3 text-center border" style={{ background: C.panel, borderColor: 'rgba(79,195,247,0.15)', minWidth: 80 }}>
+          <div className="font-mono text-[0.6rem] uppercase tracking-widest mb-1" style={{ color: C.muted }}>Swaps</div>
           <div className="text-3xl font-black" style={{ color: C.yellow }}>{swapsUsed}</div>
         </div>
-        {/* Min left */}
-        <div className="rounded-xl px-4 py-3 text-center border" style={{ background: C.panel, borderColor: 'rgba(79,195,247,0.15)', minWidth: 90 }}>
-          <div className="font-mono text-[0.6rem] uppercase tracking-widest mb-1" style={{ color: C.muted }}>Min Left</div>
-          <div className="text-3xl font-black" style={{ color: C.blue }}>{remainingSwaps}</div>
-        </div>
+        {/* Min Left — only shown on easy to keep medium/hard challenging */}
+        {difficulty === 'easy' && (
+          <div className="rounded-xl px-4 py-3 text-center border" style={{ background: C.panel, borderColor: 'rgba(79,195,247,0.15)', minWidth: 80 }}>
+            <div className="font-mono text-[0.6rem] uppercase tracking-widest mb-1" style={{ color: C.muted }}>Min Left</div>
+            <div className="text-3xl font-black" style={{ color: C.blue }}>{remainingSwaps}</div>
+          </div>
+        )}
         {/* Score */}
-        <div className="rounded-xl px-4 py-3 text-center border" style={{ background: C.panel, borderColor: 'rgba(79,195,247,0.15)', minWidth: 90 }}>
+        <div className="rounded-xl px-4 py-3 text-center border" style={{ background: C.panel, borderColor: 'rgba(79,195,247,0.15)', minWidth: 80 }}>
           <div className="font-mono text-[0.6rem] uppercase tracking-widest mb-1" style={{ color: C.muted }}>Score</div>
           <div className="text-3xl font-black" style={{ color: C.green }}>{score.toLocaleString()}</div>
         </div>
@@ -635,20 +752,42 @@ const SortAttack: React.FC = () => {
       {/* Tiles */}
       <div
         className="flex flex-wrap justify-center gap-3 w-full max-w-lg rounded-2xl p-6 border"
-        style={{ background: C.panel, borderColor: 'rgba(79,195,247,0.1)' }}
+        style={{
+          background: C.panel,
+          borderColor: isReverseRound ? 'rgba(167,139,250,0.25)' : 'rgba(79,195,247,0.1)',
+        }}
       >
-        {tiles.map((value, index) => (
-          <div key={index} className="flex flex-col items-center gap-1">
-            <button
-              onClick={() => handleTileClick(index)}
-              className={getTileClasses(index)}
-              disabled={phase !== 'playing'}
-            >
-              {value}
-            </button>
-            <span className="font-mono text-[0.55rem]" style={{ color: C.muted }}>{index + 1}</span>
-          </div>
-        ))}
+        {tiles.map((value, index) => {
+          const isLocked = lockedIndices.includes(index);
+          return (
+            <div key={index} className="flex flex-col items-center gap-1">
+              <button
+                onClick={() => handleTileClick(index)}
+                className={getTileClasses(index)}
+                disabled={phase !== 'playing'}
+              >
+                {isLocked ? (
+                  <div className="flex flex-col items-center gap-0.5">
+                    <span>{value}</span>
+                    <Lock className="w-2.5 h-2.5" style={{ color: C.purple }} />
+                  </div>
+                ) : value}
+              </button>
+              {/* Position index only on easy */}
+              {difficulty === 'easy' && (
+                <span className="font-mono text-[0.55rem]" style={{ color: C.muted }}>{index + 1}</span>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Sort direction label */}
+      <div className="font-mono text-[0.6rem] uppercase tracking-widest" style={{ color: C.muted }}>
+        {isReverseRound
+          ? <span style={{ color: C.purple }}>Sort: HIGH → LOW</span>
+          : <span>Sort: LOW → HIGH</span>
+        }
       </div>
 
       {/* Controls */}
@@ -688,6 +827,11 @@ const SortAttack: React.FC = () => {
               animation: 'win-pop 0.4s cubic-bezier(0.34,1.56,0.64,1)',
             }}
           >
+            {lastResult.direction === 'desc' && (
+              <div className="font-mono text-[0.6rem] uppercase tracking-widest mb-2" style={{ color: C.purple }}>
+                ↓ Reverse Round
+              </div>
+            )}
             <div className="text-4xl mb-2">
               {lastResult.label === 'Perfect!' ? '🏆' : lastResult.label === 'Nice!' ? '⭐' : '✅'}
             </div>
