@@ -695,8 +695,8 @@ const MirrorDash: React.FC = () => {
     };
   }, [moveShip, startGame]);
 
-  // Touch button handlers
-  const onTouchBtn = useCallback((side: 'left' | 'right', dir: -1 | 1) => (e: React.MouseEvent | React.TouchEvent) => {
+  // Touch/mouse button handler — single onPointerDown avoids double-fire
+  const onTouchBtn = useCallback((side: 'left' | 'right', dir: -1 | 1) => (e: React.PointerEvent) => {
     e.preventDefault();
     if (stateRef.current === 'playing') moveShip(side, dir);
   }, [moveShip]);
@@ -793,13 +793,11 @@ const MirrorDash: React.FC = () => {
           <div style={styles.tapGroup}>
             <button
               style={{ ...styles.tapBtn, ...styles.tapLeft }}
-              onMouseDown={onTouchBtn('left', -1)}
-              onTouchStart={onTouchBtn('left', -1)}
+              onPointerDown={onTouchBtn('left', -1)}
             >&#9664;</button>
             <button
               style={{ ...styles.tapBtn, ...styles.tapRightL }}
-              onMouseDown={onTouchBtn('left', 1)}
-              onTouchStart={onTouchBtn('left', 1)}
+              onPointerDown={onTouchBtn('left', 1)}
             >&#9654;</button>
           </div>
           <div style={styles.tapLabelCenter}>
@@ -810,13 +808,11 @@ const MirrorDash: React.FC = () => {
           <div style={styles.tapGroup}>
             <button
               style={{ ...styles.tapBtn, ...styles.tapLeftR }}
-              onMouseDown={onTouchBtn('right', -1)}
-              onTouchStart={onTouchBtn('right', -1)}
+              onPointerDown={onTouchBtn('right', -1)}
             >&#9664;</button>
             <button
               style={{ ...styles.tapBtn, ...styles.tapRight }}
-              onMouseDown={onTouchBtn('right', 1)}
-              onTouchStart={onTouchBtn('right', 1)}
+              onPointerDown={onTouchBtn('right', 1)}
             >&#9654;</button>
           </div>
         </div>
