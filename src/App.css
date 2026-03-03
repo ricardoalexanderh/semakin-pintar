@@ -1,4 +1,46 @@
-/* Portrait protection overlay for Mathcha Cafe in landscape mode */
+/* ============================================================
+   Math Flip – Card 3D Flip Animation
+   ============================================================ */
+
+.math-flip-card-inner {
+  position: relative;
+  transform-style: preserve-3d;
+  transition: transform 0.45s cubic-bezier(0.4, 0, 0.2, 1);
+  width: 100%;
+  height: 100%;
+}
+
+.math-flip-card-inner.is-flipped {
+  transform: rotateY(180deg);
+}
+
+.math-flip-card-face {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+.math-flip-card-back {
+  transform: rotateY(180deg);
+}
+
+/* Shake animation – applied to the card container on wrong flip */
+@keyframes math-flip-shake {
+  0%, 100% { transform: translateX(0) rotate(0deg); }
+  15%       { transform: translateX(-6px) rotate(-1.5deg); }
+  30%       { transform: translateX(5px)  rotate(1deg); }
+  50%       { transform: translateX(-4px) rotate(-0.5deg); }
+  70%       { transform: translateX(3px); }
+  85%       { transform: translateX(-2px); }
+}
+
+.math-flip-shake {
+  animation: math-flip-shake 0.55s ease-in-out;
+}
+
+/* ============================================================
+   Portrait protection overlay for Mathcha Cafe in landscape mode */
 @media screen and (orientation: landscape) and (max-width: 768px) {
   .mathcha-cafe-container::before {
     content: "Please rotate your device to portrait mode for the best experience";
