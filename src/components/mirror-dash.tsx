@@ -148,11 +148,11 @@ const MirrorDash: React.FC = () => {
 
   // Spawn obstacle — random danger count per side, same pattern when close
   const spawnObstacle = useCallback(() => {
-    const nearby = obstaclesRef.current.filter(o => o.y < 100);
+    const nearby = obstaclesRef.current.filter((o: Obstacle) => o.y < 100);
     let leftDanger: number[];
     let rightDanger: number[];
     if (nearby.length > 0) {
-      const closest = nearby.reduce((a, b) => (a.y < b.y ? a : b));
+      const closest = nearby.reduce((a: Obstacle, b: Obstacle) => (a.y < b.y ? a : b));
       if (closest.y < 70) {
         leftDanger = [...closest.leftDanger];
         rightDanger = [...closest.rightDanger];
@@ -241,7 +241,7 @@ const MirrorDash: React.FC = () => {
     // Spawn obstacles — interval-based, random gap, gets tighter over time
     if (frame - lastSpawnFrameRef.current >= nextSpawnIntervalRef.current) {
       const minGap = Math.max(40, 70 - Math.floor(frame / 900) * 4);
-      const tooClose = obstaclesRef.current.some(o => o.y < minGap - 30);
+      const tooClose = obstaclesRef.current.some((o: Obstacle) => o.y < minGap - 30);
       if (!tooClose) {
         spawnObstacle();
         lastSpawnFrameRef.current = frame;
@@ -407,7 +407,6 @@ const MirrorDash: React.FC = () => {
   // Draw
   const draw = useCallback((ctx: CanvasRenderingContext2D) => {
     const frame = frameRef.current;
-    const speed = speedRef.current;
     ctx.clearRect(0, 0, W, H);
 
     // Backgrounds
