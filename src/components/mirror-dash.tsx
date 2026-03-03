@@ -101,7 +101,8 @@ const MirrorDash: React.FC = () => {
   const pickupsRef = useRef<Pickup[]>([]);
   const flashTimerRef = useRef(0);
   const flashSideRef = useRef<'left' | 'right' | null>(null);
-  const invincibleRef = useRef(0);
+  const invincibleLeftRef = useRef(0);
+  const invincibleRightRef = useRef(0);
   const playerLRef = useRef({ lane: 1 });
   const playerRRef = useRef({ lane: 1 });
 
@@ -192,7 +193,8 @@ const MirrorDash: React.FC = () => {
   // Hit handler
   const hit = useCallback((side: 'left' | 'right') => {
     livesRef.current--;
-    invincibleRef.current = 90;
+    if (side === 'left') invincibleLeftRef.current = 90;
+    else invincibleRightRef.current = 90;
     flashTimerRef.current = 20;
     flashSideRef.current = side;
     // Spawn particles
@@ -230,7 +232,8 @@ const MirrorDash: React.FC = () => {
 
     // Speed ramp — smooth linear, starts 2.5 → maxes 4.5
     speedRef.current = 2.5 + Math.min(2.0, frame * 0.0005);
-    if (invincibleRef.current > 0) invincibleRef.current--;
+    if (invincibleLeftRef.current > 0) invincibleLeftRef.current--;
+    if (invincibleRightRef.current > 0) invincibleRightRef.current--;
 
     const speed = speedRef.current;
 
@@ -361,16 +364,16 @@ const MirrorDash: React.FC = () => {
       }
     }
 
-    // Collision (detect both sides first, then apply — double hit = 2 damage)
-    if (invincibleRef.current === 0) {
+    // Collision (per-side invincibility — each side tracked independently)
+    {
       let hitL = false;
       let hitR = false;
       for (const obs of obstaclesRef.current) {
         if (obs.y > py - 20 && obs.y < py + 20) {
-          if (shieldLeftRef.current <= 0 && obs.leftDanger.includes(playerLRef.current.lane)) {
+          if (invincibleLeftRef.current <= 0 && shieldLeftRef.current <= 0 && obs.leftDanger.includes(playerLRef.current.lane)) {
             hitL = true;
           }
-          if (shieldRightRef.current <= 0 && obs.rightDanger.includes(playerRRef.current.lane)) {
+          if (invincibleRightRef.current <= 0 && shieldRightRef.current <= 0 && obs.rightDanger.includes(playerRRef.current.lane)) {
             hitR = true;
           }
           if (hitL || hitR) break;
@@ -675,8 +678,8 @@ const MirrorDash: React.FC = () => {
       ctx.restore();
     };
 
-    drawPlayer('left', visualLaneLRef.current, invincibleRef.current > 0 && flashSideRef.current === 'left');
-    drawPlayer('right', visualLaneRRef.current, invincibleRef.current > 0 && flashSideRef.current === 'right');
+    drawPlayer('left', visualLaneLRef.current, invincibleLeftRef.current > 0);
+    drawPlayer('right', visualLaneRRef.current, invincibleRightRef.current > 0);
 
     // Particles
     for (const p of particlesRef.current) {
@@ -716,7 +719,8 @@ const MirrorDash: React.FC = () => {
     playerRRef.current.lane = 1;
     visualLaneLRef.current = 1;
     visualLaneRRef.current = 1;
-    invincibleRef.current = 0;
+    invincibleLeftRef.current = 0;
+    invincibleRightRef.current = 0;
     flashTimerRef.current = 0;
     flashSideRef.current = null;
     setUiScore(0);
