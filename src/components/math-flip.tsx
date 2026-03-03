@@ -493,13 +493,13 @@ const MathFlipGame: React.FC = () => {
                   onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleCardClick(card.id); } }}
                   className={`math-flip-card-inner focus:outline-none ${isFlipped ? 'is-flipped' : ''} ${!card.isMatched && !isFlipped ? 'cursor-pointer' : ''}`}
                 >
-                  {/* Face-down */}
-                  <div className="math-flip-card-face math-flip-card-back mf-card-back rounded-xl flex items-center justify-center">
+                  {/* Face-down (default visible – the "?" side) */}
+                  <div className="math-flip-card-face mf-card-back rounded-xl flex items-center justify-center">
                     <span className="mf-font" style={{ fontSize: '1.8rem', color: 'rgba(126,203,126,0.3)' }}>?</span>
                   </div>
 
-                  {/* Face-up */}
-                  <div className={`math-flip-card-face rounded-xl flex flex-col items-center justify-center relative p-1 ${
+                  {/* Face-up (rotated 180° by default, revealed on flip) */}
+                  <div className={`math-flip-card-face math-flip-card-back rounded-xl flex flex-col items-center justify-center relative p-1 ${
                     card.isMatched ? 'mf-card-matched' : card.type === 'equation' ? 'mf-card-eq' : 'mf-card-ans'
                   }`}>
                     {/* Type label */}
