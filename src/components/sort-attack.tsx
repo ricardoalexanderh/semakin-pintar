@@ -79,11 +79,12 @@ const getLockCount = (difficulty: Difficulty, round: number): number => {
 };
 
 // Tile size scales down as arrays grow
-const getTileSize = (arraySize: number): string => {
-  if (arraySize <= 4)  return 'w-16 h-16 text-2xl sm:w-[72px] sm:h-[72px] sm:text-3xl';
-  if (arraySize <= 6)  return 'w-14 h-14 text-xl  sm:w-16   sm:h-16   sm:text-2xl';
-  if (arraySize <= 9)  return 'w-12 h-12 text-lg  sm:w-14   sm:h-14   sm:text-xl';
-  return                      'w-10 h-10 text-base sm:w-12  sm:h-12  sm:text-lg';
+const getTileConfig = (count: number) => {
+  if (count <= 4)  return { gap: 12, pad: 24, fontSize: '1.5rem'   };
+  if (count <= 6)  return { gap: 10, pad: 20, fontSize: '1.2rem'   };
+  if (count <= 8)  return { gap: 8,  pad: 16, fontSize: '1rem'     };
+  if (count <= 10) return { gap: 6,  pad: 12, fontSize: '0.875rem' };
+  return           { gap: 4,  pad: 10, fontSize: '0.75rem'  };
 };
 
 // === Algorithms ===
@@ -162,8 +163,9 @@ const playSound = async (
     if (Tone.getContext().state !== 'running') await Tone.start();
     const makeSynth = () =>
       new Tone.Synth({
-        oscillator: { type: 'triangle' },
-        envelope: { attack: 0.01, decay: 0.1, sustain: 0.3, release: 0.5 },
+        oscillator: { type: 'sine' },
+        envelope: { attack: 0.005, decay: 0.08, sustain: 0, release: 0.1 },
+        volume: -16,
       }).toDestination();
 
     if (type === 'complete') {
@@ -433,9 +435,7 @@ const SortAttack: React.FC = () => {
     trackButtonClick('hint', 'sort-attack');
   };
 
-  const currentTileSize = tiles.length > 0
-    ? getTileSize(tiles.length)
-    : getTileSize(BASE_ARRAY_SIZES[difficulty]);
+  const tileConfig = getTileConfig(tiles.length > 0 ? tiles.length : BASE_ARRAY_SIZES[difficulty]);
 
   const getTileClasses = (index: number): string => {
     const isSelected  = selectedIndex === index;
@@ -445,7 +445,7 @@ const SortAttack: React.FC = () => {
     const isSwapping  = swapAnimating?.includes(index) ?? false;
     const isLocked    = lockedIndices.includes(index);
 
-    const base = `flex items-center justify-center rounded-[14px] font-black select-none transition-all duration-150 border-[2.5px] ${currentTileSize}`;
+    const base = `w-full aspect-square flex items-center justify-center rounded-[14px] font-black select-none transition-all duration-150 border-[2.5px]`;
 
     if (isLocked)    return `${base} cursor-not-allowed bg-[#1a1a3a] text-[${C.muted}] border-[rgba(167,139,250,0.4)]`;
     if (isSorted)    return `${base} cursor-pointer text-[${C.green}] border-[${C.green}] bg-[#1a3a2a]`;
@@ -750,36 +750,54 @@ const SortAttack: React.FC = () => {
       )}
 
       {/* Tiles */}
-      <div
-        className="flex flex-wrap justify-center gap-3 w-full max-w-lg rounded-2xl p-6 border"
-        style={{
-          background: C.panel,
-          borderColor: isReverseRound ? 'rgba(167,139,250,0.25)' : 'rgba(79,195,247,0.1)',
-        }}
-      >
-        {tiles.map((value, index) => {
-          const isLocked = lockedIndices.includes(index);
-          return (
-            <div key={index} className="flex flex-col items-center gap-1">
+      <div className="w-full max-w-lg flex flex-col gap-1">
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: `repeat(${tiles.length}, 1fr)`,
+            gap: `${tileConfig.gap}px`,
+            padding: `${tileConfig.pad}px`,
+            background: C.panel,
+            borderRadius: '16px',
+            border: `1.5px solid ${isReverseRound ? 'rgba(167,139,250,0.25)' : 'rgba(79,195,247,0.1)'}`,
+          }}
+        >
+          {tiles.map((value, index) => {
+            const isLocked = lockedIndices.includes(index);
+            return (
               <button
+                key={index}
                 onClick={() => handleTileClick(index)}
                 className={getTileClasses(index)}
+                style={{ fontSize: tileConfig.fontSize }}
                 disabled={phase !== 'playing'}
               >
                 {isLocked ? (
-                  <div className="flex flex-col items-center gap-0.5">
+                  <div className="flex flex-col items-center justify-center gap-0.5">
                     <span>{value}</span>
-                    <Lock className="w-2.5 h-2.5" style={{ color: C.purple }} />
+                    <Lock className="w-2 h-2" style={{ color: C.purple }} />
                   </div>
                 ) : value}
               </button>
-              {/* Position index only on easy */}
-              {difficulty === 'easy' && (
-                <span className="font-mono text-[0.55rem]" style={{ color: C.muted }}>{index + 1}</span>
-              )}
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
+        {/* Position indices for easy mode */}
+        {difficulty === 'easy' && (
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: `repeat(${tiles.length}, 1fr)`,
+              gap: `${tileConfig.gap}px`,
+              paddingLeft: `${tileConfig.pad}px`,
+              paddingRight: `${tileConfig.pad}px`,
+            }}
+          >
+            {tiles.map((_, index) => (
+              <span key={index} className="text-center font-mono text-[0.5rem]" style={{ color: C.muted }}>{index + 1}</span>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Sort direction label */}
