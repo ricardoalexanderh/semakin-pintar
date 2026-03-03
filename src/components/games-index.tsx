@@ -109,7 +109,7 @@ const GamesIndex: React.FC = () => {
       difficulty: 'Elementary',
       duration: '5-15 minutes'
     },*/
-    {
+    /*{
       id: 'patterns-detective',
       name: 'Patterns Detective',
       description: 'Solve pattern puzzles',
@@ -121,7 +121,7 @@ const GamesIndex: React.FC = () => {
       difficulty: 'Beginner to Expert',
       duration: '5-15 minutes',
       category: 'Cognitive Skills'
-    },
+    },*/
     {
       id: 'rocket-math',
       name: 'Rocket Math',
@@ -148,7 +148,7 @@ const GamesIndex: React.FC = () => {
       duration: '10-25 minutes',
       category: 'Fun Math Games'
     },
-    {
+    /*{
       id: 'math-drop',
       name: 'Math Drop',
       description: 'Puzzle math with falling blocks',
@@ -160,7 +160,7 @@ const GamesIndex: React.FC = () => {
       difficulty: 'Beginner to Expert',
       duration: '10-30 minutes',
       category: 'Fun Math Games'
-    }
+    }*/
   ];
 
   // Group games by category

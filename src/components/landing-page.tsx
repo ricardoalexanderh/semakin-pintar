@@ -52,7 +52,7 @@ const LandingPage: React.FC<LandingPageProps> = () => {
             gradient: 'from-teal-500 to-cyan-500',
             path: '/games/multiplication-table'
         },*/
-        {
+        /*{
             id: 'math-drop',
             name: 'Math Drop',
             description: 'Puzzle math with falling blocks',
@@ -60,7 +60,7 @@ const LandingPage: React.FC<LandingPageProps> = () => {
             available: true,
             gradient: 'from-pink-500 to-purple-500',
             path: '/games/math-drop'
-        },
+        },*/
         {
             id: 'mathcha-cafe',
             name: 'Mathcha Cafe',
@@ -70,7 +70,7 @@ const LandingPage: React.FC<LandingPageProps> = () => {
             gradient: 'from-green-500 to-amber-500',
             path: '/games/mathcha-cafe'
         },
-        {
+        /*{
             id: 'patterns-detective',
             name: 'Patterns Detective',
             description: 'Solve pattern puzzles',
@@ -78,7 +78,7 @@ const LandingPage: React.FC<LandingPageProps> = () => {
             available: true,
             gradient: 'from-purple-500 to-pink-400',
             path: '/games/patterns-detective'
-        },
+        },*/
         {
             id: 'rocket-math',
             name: 'Rocket Math',
@@ -340,23 +340,23 @@ const LandingPage: React.FC<LandingPageProps> = () => {
                     </div>
                     */}
                     
-                    <div className="mt-8 p-4 md:p-6 bg-gradient-to-r from-pink-100 to-purple-100 rounded-2xl border-2 border-pink-200">
+                    <div className="mt-8 p-4 md:p-6 bg-gradient-to-r from-green-100 to-amber-100 rounded-2xl border-2 border-green-200">
                         <div className="flex flex-col md:flex-row items-center md:justify-between gap-4">
                             <div className="flex flex-col sm:flex-row items-center gap-4 text-center sm:text-left">
-                                <div className="bg-gradient-to-r from-pink-500 to-purple-500 text-white w-12 h-12 md:w-16 md:h-16 rounded-2xl flex items-center justify-center shadow-lg flex-shrink-0">
-                                    <MathDropIcon />
+                                <div className="bg-gradient-to-r from-green-500 to-amber-500 text-white w-12 h-12 md:w-16 md:h-16 rounded-2xl flex items-center justify-center shadow-lg flex-shrink-0">
+                                    <span className="text-2xl">🍵</span>
                                 </div>
                                 <div>
-                                    <h3 className="text-lg md:text-xl font-bold text-pink-700">Featured: Math Drop</h3>
-                                    <p className="text-sm md:text-base text-purple-700">Puyo Puyo-style puzzle game with math equations and special power-ups!</p>
+                                    <h3 className="text-lg md:text-xl font-bold text-green-700">Featured: Mathcha Cafe</h3>
+                                    <p className="text-sm md:text-base text-amber-700">Run your own matcha cafe! Serve customers by solving math problems.</p>
                                 </div>
                             </div>
                             <Link
-                                to="/games/math-drop"
+                                to="/games/mathcha-cafe"
                                 onClick={() => {
-                                    trackButtonClick('featured-math-drop', 'featured-section');
+                                    trackButtonClick('featured-mathcha-cafe', 'featured-section');
                                 }}
-                                className="bg-gradient-to-r from-pink-500 to-purple-500 text-white px-6 py-3 rounded-xl font-bold hover:from-pink-600 hover:to-purple-600 transition-all shadow-lg hover:shadow-xl transform hover:scale-105 w-full sm:w-auto text-center block"
+                                className="bg-gradient-to-r from-green-500 to-amber-500 text-white px-6 py-3 rounded-xl font-bold hover:from-green-600 hover:to-amber-600 transition-all shadow-lg hover:shadow-xl transform hover:scale-105 w-full sm:w-auto text-center block"
                             >
                                 Play Now →
                             </Link>

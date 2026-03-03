@@ -4,7 +4,7 @@ import { useGameState } from '../hooks/useGameState';
 
 const BOARD_WIDTH = 6;
 const BOARD_HEIGHT = 12;
-const CELL_SIZE = 45;
+const CELL_SIZE = 50;
 
 interface NumberPuyo {
   value: number;
@@ -83,6 +83,17 @@ const generateUniqueId = (): string => {
   return Math.random().toString(36).substring(2, 11);
 };
 
+const PUYO_COLORS = [
+  '#FF6B6B', // Red
+  '#4ECDC4', // Teal
+  '#45B7D1', // Blue
+  '#96CEB4', // Green
+  '#FFEAA7', // Yellow
+  '#DDA0DD', // Plum
+  '#FFB347', // Orange
+  '#98D8C8'  // Mint
+];
+
 const generatePuyoPair = (): FallingPair => {
   const id1 = generateUniqueId();
   const id2 = generateUniqueId();
@@ -90,8 +101,8 @@ const generatePuyoPair = (): FallingPair => {
   const specialChance1 = Math.random();
   const specialChance2 = Math.random();
   
-  const color1 = `hsl(${Math.random() * 360}, 70%, 70%)`;
-  const color2 = `hsl(${Math.random() * 360}, 70%, 70%)`;
+  const color1 = PUYO_COLORS[Math.floor(Math.random() * PUYO_COLORS.length)];
+  const color2 = PUYO_COLORS[Math.floor(Math.random() * PUYO_COLORS.length)];
   
   const puyo1: NumberPuyo = {
     value: specialChance1 < 0.05 ? (specialChance1 < 0.025 ? -1 : -2) : generateRandomNumber(),
@@ -293,7 +304,7 @@ const MathDropGame: React.FC = () => {
 
   const rotatePair = (pair: FallingPair): FallingPair => {
     const newRotation = (pair.rotation + 90) % 360;
-    let newPuyo2 = { ...pair.puyo2 };
+    const newPuyo2 = { ...pair.puyo2 };
     
     if (newRotation === 0) {
       newPuyo2.x = pair.puyo1.x + 1;
@@ -880,6 +891,7 @@ const MathDropGame: React.FC = () => {
       setGameState(prevState => {
         const newBoard = [...prevState.board.map(row => [...row])];
         let boardChanged = false;
+        const movedPositions: {row: number, col: number}[] = [];
         
         for (let row = BOARD_HEIGHT - 2; row >= 0; row--) {
           for (let col = 0; col < BOARD_WIDTH; col++) {
@@ -893,12 +905,33 @@ const MathDropGame: React.FC = () => {
                 newBoard[fallToRow][col] = newBoard[row][col];
                 newBoard[row][col] = null;
                 boardChanged = true;
+                movedPositions.push({row: fallToRow, col});
               }
             }
           }
         }
         
         if (boardChanged) {
+          // Check for matches after gravity settles
+          setTimeout(() => {
+            if (movedPositions.length > 0) {
+              setGameState(prevState => {
+                const result = processMatches(prevState.board, prevState.equations, prevState.score, movedPositions);
+                
+                return {
+                  ...prevState,
+                  board: result.board,
+                  equations: result.equations,
+                  score: result.score,
+                  level: Math.floor(result.score / 1500) + 1,
+                  matchEffects: [...prevState.matchEffects, ...result.effects],
+                  particles: [...prevState.particles, ...result.particles],
+                  chainCount: result.chainCount
+                };
+              });
+            }
+          }, 100);
+          
           return { ...prevState, board: newBoard };
         }
         
@@ -907,7 +940,7 @@ const MathDropGame: React.FC = () => {
     }, 200);
     
     return () => clearInterval(gravityLoop);
-  }, [gameState.gameOver, gameState.paused, gameState.gameStarted]);
+  }, [gameState.gameOver, gameState.paused, gameState.gameStarted, processMatches]);
 
   useEffect(() => {
     const gameLoop = setInterval(() => {
@@ -1508,175 +1541,185 @@ const MathDropGame: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-200 via-purple-200 to-blue-200 pt-16 sm:pt-20">
-      <div className="max-w-7xl mx-auto p-4">
-        <div className="bg-white rounded-3xl shadow-2xl p-6 border-4 border-pink-300">
-          <div className="text-center mb-6">
-            <div className="relative inline-block mb-6">
-              <h1 className="text-4xl md:text-6xl font-black relative">
-                <span className="absolute inset-0 blur-sm">
-                  🌈 <span className="bg-gradient-to-r from-pink-300 via-purple-300 via-blue-300 to-cyan-300 bg-clip-text text-transparent">Math Drop</span> 🌈
-                </span>
-                <span className="relative">
-                  🌈 <span className="bg-gradient-to-r from-pink-400 via-purple-400 via-blue-400 to-cyan-400 bg-clip-text text-transparent">Math Drop</span> 🌈
-                </span>
-                <div className="absolute -inset-1 bg-gradient-to-r from-pink-200 via-purple-200 via-blue-200 to-cyan-200 rounded-lg blur opacity-50 -z-10"></div>
-              </h1>
-            </div>
-            <div>
-              <p className="text-purple-500 text-lg font-medium bg-white/90 rounded-full px-4 py-2 inline-block shadow-sm border border-purple-200">
-                Match colors, numbers, and solve equations!
-              </p>
-            </div>
+    <div className="min-h-screen bg-gradient-to-br from-pink-200 via-purple-200 to-blue-200 overflow-hidden">
+      <div className="h-screen flex flex-col">
+        {/* Header with title and score */}
+        <div className="flex justify-between items-center p-4 bg-white/20 backdrop-blur-sm">
+          <div className="flex-1">
+            <h1 className="text-2xl md:text-3xl font-black">
+              🌈 <span className="bg-gradient-to-r from-pink-400 via-purple-400 via-blue-400 to-cyan-400 bg-clip-text text-transparent">Math Drop</span> 🌈
+            </h1>
           </div>
+          <div className="text-center">
+            <div className="text-2xl font-bold text-pink-500">🏆 {gameState.score.toLocaleString()}</div>
+            <div className="text-lg text-purple-500">⭐ Level {gameState.level}</div>
+          </div>
+        </div>
 
-          <div className="flex flex-wrap justify-center gap-4 lg:gap-8">
-            <div className="flex flex-col items-center order-1">
+        {/* Main game area */}
+        <div className="flex-1 flex relative">
+          {/* Game board - larger */}
+          <div className="flex-1 flex items-center justify-center p-4">
+            <div className="relative">
               <canvas
                 ref={canvasRef}
                 width={BOARD_WIDTH * CELL_SIZE}
                 height={BOARD_HEIGHT * CELL_SIZE}
-                className="border-4 border-pink-300 rounded-2xl bg-gradient-to-b from-blue-50 to-purple-50"
+                className="rounded-2xl bg-gradient-to-b from-blue-50 to-purple-50 shadow-2xl"
               />
               
-              <div className="mt-2 text-center text-sm text-purple-600">
-                <p>🎮 Use arrow keys to move • ↑ or Space to rotate</p>
-                {gameState.chainCount > 1 && (
-                  <div className="mt-2 text-lg font-bold text-pink-500 animate-bounce">
-                    🌟 {gameState.chainCount}x SUPER COMBO! 🌟
-                  </div>
-                )}
-                {gameState.gameOver && (
-                  <div className="mt-2 p-3 bg-pink-100 rounded-2xl border-2 border-pink-300">
-                    <p className="text-pink-600 font-bold">Game Over!</p>
+              {/* Game overlays */}
+              {gameState.gameOver && (
+                <div className="absolute inset-0 bg-black/50 rounded-2xl flex items-center justify-center backdrop-blur-sm">
+                  <div className="bg-white rounded-2xl p-6 text-center shadow-2xl">
+                    <p className="text-pink-600 font-bold text-2xl mb-4">Game Over!</p>
                     <button 
                       onClick={() => {
                         trackButtonClick('play-again', 'math-drop');
                         resetGame();
                       }}
-                      className="mt-2 px-6 py-2 bg-pink-400 text-white rounded-full hover:bg-pink-500 transition-colors font-bold"
+                      className="px-6 py-3 bg-pink-400 text-white rounded-full hover:bg-pink-500 transition-colors font-bold text-lg"
                     >
                       🎯 Play Again
                     </button>
                   </div>
-                )}
-                {gameState.paused && gameState.gameStarted && (
-                  <div className="mt-2 p-3 bg-yellow-100 rounded-2xl border-2 border-yellow-300">
-                    <p className="text-yellow-600 font-bold">⏸️ Game Paused</p>
+                </div>
+              )}
+              
+              {gameState.paused && gameState.gameStarted && (
+                <div className="absolute inset-0 bg-black/50 rounded-2xl flex items-center justify-center backdrop-blur-sm">
+                  <div className="bg-white rounded-2xl p-6 text-center shadow-2xl">
+                    <p className="text-yellow-600 font-bold text-2xl">⏸️ Game Paused</p>
                   </div>
-                )}
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-3 min-w-[250px] lg:min-w-[280px] order-2 lg:order-3">
-              <div className="bg-gradient-to-r from-pink-100 to-purple-100 rounded-2xl p-4 border-2 border-pink-200">
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-pink-500">🏆 Score: {gameState.score.toLocaleString()}</div>
-                  <div className="text-lg text-purple-500">⭐ Level: {gameState.level}</div>
                 </div>
-              </div>
-
-              <div className="bg-gradient-to-r from-blue-100 to-cyan-100 rounded-2xl p-4 border-2 border-blue-200">
-                <h3 className="text-lg font-bold text-blue-500 mb-3 text-center">🔮 Next Pieces</h3>
-                <div className="flex justify-center gap-3">
-                  {gameState.nextPair && (
-                    <>
-                      <div className="w-12 h-12 rounded-full border-2 border-white shadow-lg overflow-hidden flex items-center justify-center text-white font-bold text-lg" 
-                           style={{backgroundColor: gameState.nextPair.puyo1.color}}>
-                        {gameState.nextPair.puyo1.isSpecial ? 
-                          (gameState.nextPair.puyo1.specialType === 'bomb' ? '💣' : '⚡') : 
-                          gameState.nextPair.puyo1.value
-                        }
-                      </div>
-                      <div className="w-12 h-12 rounded-full border-2 border-white shadow-lg overflow-hidden flex items-center justify-center text-white font-bold text-lg"
-                           style={{backgroundColor: gameState.nextPair.puyo2.color}}>
-                        {gameState.nextPair.puyo2.isSpecial ? 
-                          (gameState.nextPair.puyo2.specialType === 'bomb' ? '💣' : '⚡') : 
-                          gameState.nextPair.puyo2.value
-                        }
-                      </div>
-                    </>
-                  )}
-                </div>
-              </div>
-
-              <div className="bg-gradient-to-r from-yellow-100 to-orange-100 rounded-2xl p-4 border-2 border-yellow-200">
-                <h3 className="text-lg font-bold text-orange-500 mb-3 text-center">🎯 Math Challenges</h3>
-                <div className="space-y-2">
-                  {gameState.equations.map(equation => (
-                    <div 
-                      key={equation.id}
-                      className={`p-3 rounded-xl text-center font-bold transition-all border-2 ${
-                        equation.solved 
-                          ? 'bg-green-100 text-green-600 border-green-300' 
-                          : 'bg-white text-purple-600 shadow-sm border-purple-200'
-                      }`}
-                    >
-                      {equation.solved ? (
-                        <div>
-                          {equation.value1} {equation.operation} {equation.value2} = {equation.result}
-                          <span className="ml-2">🎉</span>
-                        </div>
-                      ) : (
-                        <div>_ {equation.operation} _ = {equation.result}</div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <button 
-                  onClick={() => {
-                    trackButtonClick(gameState.paused ? 'resume' : 'pause', 'math-drop');
-                    togglePause();
-                  }}
-                  disabled={!gameState.gameStarted}
-                  className={`w-full px-4 py-3 text-white rounded-full transition-all font-bold shadow-lg ${
-                    !gameState.gameStarted 
-                      ? 'bg-gray-400 cursor-not-allowed' 
-                      : gameState.paused 
-                        ? 'bg-gradient-to-r from-green-400 to-emerald-400 hover:from-green-500 hover:to-emerald-500' 
-                        : 'bg-gradient-to-r from-purple-400 to-pink-400 hover:from-purple-500 hover:to-pink-500'
-                  }`}
-                >
-                  {!gameState.gameStarted ? '⏳ Starting...' : gameState.paused ? '▶️ Resume Fun' : '⏸️ Take a Break'}
-                </button>
-                <button 
-                  onClick={() => {
-                    trackButtonClick('new-game', 'math-drop');
-                    resetGame();
-                  }}
-                  className="w-full px-4 py-3 bg-gradient-to-r from-blue-400 to-cyan-400 text-white rounded-full hover:from-blue-500 hover:to-cyan-500 transition-all font-bold shadow-lg"
-                >
-                  🎮 New Adventure
-                </button>
-                <button 
-                  onClick={toggleInstructions}
-                  className="w-full px-4 py-2 bg-gradient-to-r from-green-400 to-lime-400 text-white rounded-full hover:from-green-500 hover:to-lime-500 transition-all font-bold shadow-lg"
-                >
-                  {gameState.showInstructions ? '📚 Hide Help' : '📚 Show Help'}
-                </button>
-              </div>
-
-              {gameState.showInstructions && (
-                <div className="bg-gradient-to-r from-green-100 to-lime-100 rounded-2xl p-4 text-sm border-2 border-green-200">
-                  <h4 className="font-bold text-green-600 mb-2">📚 How to Play:</h4>
-                  <ul className="text-green-600 space-y-1">
-                    <li>🎯 Place numbers next to each other to solve math!</li>
-                    <li>💰 Equations = 200 pts, Groups = 100 pts, Special = 150 pts!</li>
-                    <li>⚡ Chain reactions give bonus points!</li>
-                    <li>🔄 Solved equations get replaced automatically!</li>
-                    <li>💣 Connect 2 bomb pieces to clear 5x5 area!</li>
-                    <li>⚡ Connect 2 lightning pieces to clear row+column!</li>
-                    <li>🔢 4+ same numbers connected = clear!</li>
-                    <li>🌈 4+ same colors connected = clear!</li>
-                    <li>⬆️ Don't let the stack reach the top!</li>
-                  </ul>
+              )}
+              
+              {gameState.chainCount > 1 && (
+                <div className="absolute top-4 left-1/2 transform -translate-x-1/2 text-2xl font-bold text-pink-500 animate-bounce bg-white/90 rounded-full px-4 py-2">
+                  🌟 {gameState.chainCount}x SUPER COMBO! 🌟
                 </div>
               )}
             </div>
           </div>
+
+          {/* Right sidebar - vertical next pieces and controls */}
+          <div className="w-64 p-4 space-y-4">
+
+            {/* Next pieces - vertical layout */}
+            <div className="bg-gradient-to-r from-blue-100 to-cyan-100 rounded-2xl p-4 border-2 border-blue-200">
+              <h3 className="text-lg font-bold text-blue-500 mb-3 text-center">🔮 Next</h3>
+              <div className="flex flex-col items-center gap-2">
+                {gameState.nextPair && (
+                  <>
+                    <div className="w-12 h-12 rounded-full border-2 border-white shadow-lg overflow-hidden flex items-center justify-center text-white font-bold text-lg" 
+                         style={{backgroundColor: gameState.nextPair.puyo1.color}}>
+                      {gameState.nextPair.puyo1.isSpecial ? 
+                        (gameState.nextPair.puyo1.specialType === 'bomb' ? '💣' : '⚡') : 
+                        gameState.nextPair.puyo1.value
+                      }
+                    </div>
+                    <div className="w-12 h-12 rounded-full border-2 border-white shadow-lg overflow-hidden flex items-center justify-center text-white font-bold text-lg"
+                         style={{backgroundColor: gameState.nextPair.puyo2.color}}>
+                      {gameState.nextPair.puyo2.isSpecial ? 
+                        (gameState.nextPair.puyo2.specialType === 'bomb' ? '💣' : '⚡') : 
+                        gameState.nextPair.puyo2.value
+                      }
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* Math challenges - integrated */}
+            <div className="bg-gradient-to-r from-yellow-100 to-orange-100 rounded-2xl p-4 border-2 border-yellow-200">
+              <h3 className="text-lg font-bold text-orange-500 mb-3 text-center">🎯 Solve</h3>
+              <div className="space-y-2">
+                {gameState.equations.map(equation => (
+                  <div 
+                    key={equation.id}
+                    className={`p-2 rounded-xl text-center font-bold text-sm transition-all border-2 ${
+                      equation.solved 
+                        ? 'bg-green-100 text-green-600 border-green-300' 
+                        : 'bg-white text-purple-600 shadow-sm border-purple-200'
+                    }`}
+                  >
+                    {equation.solved ? (
+                      <div>
+                        {equation.value1} {equation.operation} {equation.value2} = {equation.result}
+                        <span className="ml-1">🎉</span>
+                      </div>
+                    ) : (
+                      <div>_ {equation.operation} _ = {equation.result}</div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Collapsible menu */}
+            <div className="space-y-2">
+              <details className="bg-gradient-to-r from-purple-100 to-pink-100 rounded-2xl border-2 border-purple-200">
+                <summary className="px-4 py-3 text-purple-600 font-bold cursor-pointer hover:bg-purple-50 rounded-2xl">
+                  ⚙️ Game Menu
+                </summary>
+                <div className="p-4 pt-2 space-y-2">
+                  <button 
+                    onClick={() => {
+                      trackButtonClick(gameState.paused ? 'resume' : 'pause', 'math-drop');
+                      togglePause();
+                    }}
+                    disabled={!gameState.gameStarted}
+                    className={`w-full px-4 py-2 text-white rounded-full transition-all font-bold shadow-lg text-sm ${
+                      !gameState.gameStarted 
+                        ? 'bg-gray-400 cursor-not-allowed' 
+                        : gameState.paused 
+                          ? 'bg-gradient-to-r from-green-400 to-emerald-400 hover:from-green-500 hover:to-emerald-500' 
+                          : 'bg-gradient-to-r from-purple-400 to-pink-400 hover:from-purple-500 hover:to-pink-500'
+                    }`}
+                  >
+                    {!gameState.gameStarted ? '⏳ Starting...' : gameState.paused ? '▶️ Resume' : '⏸️ Pause'}
+                  </button>
+                  <button 
+                    onClick={() => {
+                      trackButtonClick('new-game', 'math-drop');
+                      resetGame();
+                    }}
+                    className="w-full px-4 py-2 bg-gradient-to-r from-blue-400 to-cyan-400 text-white rounded-full hover:from-blue-500 hover:to-cyan-500 transition-all font-bold shadow-lg text-sm"
+                  >
+                    🎮 New Game
+                  </button>
+                  <button 
+                    onClick={toggleInstructions}
+                    className="w-full px-4 py-2 bg-gradient-to-r from-green-400 to-lime-400 text-white rounded-full hover:from-green-500 hover:to-lime-500 transition-all font-bold shadow-lg text-sm"
+                  >
+                    {gameState.showInstructions ? '📚 Hide Help' : '📚 Help'}
+                  </button>
+                </div>
+              </details>
+            </div>
+
+            {gameState.showInstructions && (
+              <div className="bg-gradient-to-r from-green-100 to-lime-100 rounded-2xl p-4 text-sm border-2 border-green-200">
+                <h4 className="font-bold text-green-600 mb-2">📚 How to Play:</h4>
+                <ul className="text-green-600 space-y-1 text-xs">
+                  <li>🎯 Place numbers next to each other to solve math!</li>
+                  <li>💰 Equations = 200 pts, Groups = 100 pts, Special = 150 pts!</li>
+                  <li>⚡ Chain reactions give bonus points!</li>
+                  <li>🔄 Solved equations get replaced automatically!</li>
+                  <li>💣 Connect 2 bomb pieces to clear 5x5 area!</li>
+                  <li>⚡ Connect 2 lightning pieces to clear row+column!</li>
+                  <li>🔢 4+ same numbers connected = clear!</li>
+                  <li>🌈 4+ same colors connected = clear!</li>
+                  <li>⬆️ Don't let the stack reach the top!</li>
+                </ul>
+              </div>
+            )}
+          </div>
+        </div>
+        
+        {/* Bottom controls */}
+        <div className="p-4 bg-white/20 backdrop-blur-sm text-center">
+          <p className="text-purple-600 font-medium">🎮 Use arrow keys to move • ↑ or Space to rotate</p>
         </div>
       </div>
     </div>
