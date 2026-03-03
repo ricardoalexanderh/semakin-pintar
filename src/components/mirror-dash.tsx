@@ -751,8 +751,13 @@ const MirrorDash: React.FC = () => {
               <div style={styles.overlayTitleStart}>MIRROR DASH</div>
               <div style={styles.overlaySub}>
                 Two ships. Two hands.<br />
-                <b style={{ color: C.leftNeonLight }}>A / D</b> controls the left ship.<br />
-                <b style={{ color: C.rightNeonLight }}>&larr; / &rarr;</b> controls the right ship.<br />
+                <span className="md-desktop-only">
+                  <b style={{ color: C.leftNeonLight }}>A / D</b> controls the left ship.<br />
+                  <b style={{ color: C.rightNeonLight }}>&larr; / &rarr;</b> controls the right ship.<br />
+                </span>
+                <span className="md-mobile-only">
+                  Use the <b style={{ color: C.leftNeonLight }}>left buttons</b> and <b style={{ color: C.rightNeonLight }}>right buttons</b> below.<br />
+                </span>
                 Dodge both sides &mdash; at the same time.
               </div>
               <button style={styles.btn} onClick={startGame}>PLAY</button>
@@ -842,8 +847,12 @@ const StarField: React.FC = React.memo(() => {
           100% { opacity: 0.2; transform: translateY(-2px); }
         }
         .md-keyboard-hint { display: flex; }
+        .md-desktop-only { display: inline; }
+        .md-mobile-only { display: none; }
         @media (max-width: 640px) {
           .md-keyboard-hint { display: none; }
+          .md-desktop-only { display: none; }
+          .md-mobile-only { display: inline; }
         }
       `}</style>
       {stars.map((s, i) => (
