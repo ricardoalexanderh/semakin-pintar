@@ -581,6 +581,8 @@ function App() {
           <Route path="/games/sort-attack" element={
             <GamesLayout>
               <SortAttackPage />
+            </GamesLayout>
+          } />
           <Route path="/games/math-flip" element={
             <GamesLayout>
               <MathFlipPage />
