@@ -18,6 +18,7 @@ import PatternsDetectiveGame from './components/patterns-detective';
 import RocketMathGame from './components/rocket-math/rocket-math';
 import { MathchaCafe } from './components/mathcha-cafe';
 import MathDropGame from './components/math-drop';
+import SortAttack from './components/sort-attack';
 import MathFlipGame from './components/math-flip';
 
 // Component to handle page tracking and SEO
@@ -132,6 +133,12 @@ const GamesIndexPage = () => {
           "position": 8,
           "name": "Math Drop Game",
           "url": "https://www.semakinpintar.com/games/math-drop"
+        },
+        {
+          "@type": "Game",
+          "position": 9,
+          "name": "Sort Attack",
+          "url": "https://www.semakinpintar.com/games/sort-attack"
         }
       ]
     }
@@ -469,6 +476,41 @@ const MathDropPage = () => {
   );
 };
 
+// Sort Attack page with SEO
+const SortAttackPage = () => {
+  const gameJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Game",
+    "name": "Sort Attack",
+    "description": "Sort scrambled numbers using only adjacent swaps. Race the clock to complete rounds, minimize your moves, and use hints wisely.",
+    "url": "https://www.semakinpintar.com/games/sort-attack",
+    "genre": "Educational",
+    "gamePlatform": "Web Browser",
+    "applicationCategory": "EducationalApplication",
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD"
+    }
+  };
+
+  return (
+    <>
+      <SEOHead
+        title="Sort Attack - Logic Sorting Puzzle Game | Semakin Pintar"
+        description="Sort scrambled numbers using only adjacent swaps. Race the clock, minimize your moves, and use hints wisely. A fast-paced logic and algorithmic thinking challenge!"
+        keywords="sorting puzzle, logic game, algorithm thinking, brain training, adjacent swaps, number sorting, sorting algorithm, educational games, kids logic, puzzle game"
+        canonicalUrl="https://www.semakinpintar.com/games/sort-attack"
+        ogTitle="Sort Attack - Logic Sorting Puzzle Game"
+        ogDescription="Sort scrambled numbers using only adjacent swaps. Race the clock and keep the timer alive by completing rounds."
+        ogImage="https://www.semakinpintar.com/logo.png"
+        jsonLd={gameJsonLd}
+      />
+      <SortAttack />
+    </>
+  );
+};
+
 function App() {
   useEffect(() => {
     // Initialize Google Analytics    
@@ -536,6 +578,9 @@ function App() {
               <MathDropPage />
             </GamesLayout>
           } />
+          <Route path="/games/sort-attack" element={
+            <GamesLayout>
+              <SortAttackPage />
           <Route path="/games/math-flip" element={
             <GamesLayout>
               <MathFlipPage />
