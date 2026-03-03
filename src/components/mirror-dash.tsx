@@ -772,8 +772,8 @@ const MirrorDash: React.FC = () => {
           )}
         </div>
 
-        {/* Controls hint — hidden on mobile via CSS */}
-        <div className="md-keyboard-hint" style={styles.controlsHint}>
+        {/* Controls hint — hidden on mobile via CSS class (no inline display) */}
+        <div className="md-keyboard-hint" style={styles.controlsHintBase}>
           <div style={styles.ctrl}>
             <span style={{ ...styles.key, color: C.leftNeonLight }}>A</span>
             <span style={{ color: C.muted }}>/</span>
@@ -795,12 +795,12 @@ const MirrorDash: React.FC = () => {
               style={{ ...styles.tapBtn, ...styles.tapLeft }}
               onMouseDown={onTouchBtn('left', -1)}
               onTouchStart={onTouchBtn('left', -1)}
-            >&larr;</button>
+            >&#9664;</button>
             <button
               style={{ ...styles.tapBtn, ...styles.tapRightL }}
               onMouseDown={onTouchBtn('left', 1)}
               onTouchStart={onTouchBtn('left', 1)}
-            >&rarr;</button>
+            >&#9654;</button>
           </div>
           <div style={styles.tapLabelCenter}>
             <span style={{ color: C.leftNeonLight, fontSize: '0.55rem' }}>LEFT</span>
@@ -812,12 +812,12 @@ const MirrorDash: React.FC = () => {
               style={{ ...styles.tapBtn, ...styles.tapLeftR }}
               onMouseDown={onTouchBtn('right', -1)}
               onTouchStart={onTouchBtn('right', -1)}
-            >&larr;</button>
+            >&#9664;</button>
             <button
               style={{ ...styles.tapBtn, ...styles.tapRight }}
               onMouseDown={onTouchBtn('right', 1)}
               onTouchStart={onTouchBtn('right', 1)}
-            >&rarr;</button>
+            >&#9654;</button>
           </div>
         </div>
       </div>
@@ -845,8 +845,9 @@ const StarField: React.FC = React.memo(() => {
           50% { opacity: 1; }
           100% { opacity: 0.2; transform: translateY(-2px); }
         }
+        .md-keyboard-hint { display: flex; }
         @media (max-width: 640px) {
-          .md-keyboard-hint { display: none !important; }
+          .md-keyboard-hint { display: none; }
         }
       `}</style>
       {stars.map((s, i) => (
@@ -999,8 +1000,7 @@ const styles: Record<string, React.CSSProperties> = {
     boxShadow: '0 0 20px rgba(123,47,255,0.4)',
     transition: 'all 0.15s',
   },
-  controlsHint: {
-    display: 'flex',
+  controlsHintBase: {
     gap: 20,
     fontSize: '0.85rem',
     fontWeight: 700,
@@ -1055,7 +1055,7 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: 10,
     border: 'none',
     fontFamily: "'Orbitron', sans-serif",
-    fontSize: '0.6rem',
+    fontSize: '1.2rem',
     fontWeight: 700,
     letterSpacing: 1,
     cursor: 'pointer',
