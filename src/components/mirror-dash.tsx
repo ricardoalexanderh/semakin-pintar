@@ -39,8 +39,11 @@ interface Obstacle {
 }
 
 /** Pick 1 or 2 random danger lanes out of [0,1,2] */
-const randomDangerLanes = (): number[] => {
-  const count = Math.random() < 0.5 ? 1 : 2;
+const randomDangerLanes = (frame: number = 0): number[] => {
+  // At frame 0: 50% chance of 2 danger lanes
+  // Ramps up to 85% by frame 3000, making double-open paths rarer
+  const twoDangerChance = Math.min(0.85, 0.5 + frame * 0.00012);
+  const count = Math.random() < twoDangerChance ? 2 : 1;
   const lanes = [0, 1, 2];
   for (let i = 2; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -160,12 +163,12 @@ const MirrorDash: React.FC = () => {
         leftDanger = [...closest.leftDanger];
         rightDanger = [...closest.rightDanger];
       } else {
-        leftDanger = randomDangerLanes();
-        rightDanger = randomDangerLanes();
+        leftDanger = randomDangerLanes(frameRef.current);
+        rightDanger = randomDangerLanes(frameRef.current);
       }
     } else {
-      leftDanger = randomDangerLanes();
-      rightDanger = randomDangerLanes();
+      leftDanger = randomDangerLanes(frameRef.current);
+      rightDanger = randomDangerLanes(frameRef.current);
     }
     obstaclesRef.current.push({ y: -30, leftDanger, rightDanger, type: 'split' });
   }, []);
