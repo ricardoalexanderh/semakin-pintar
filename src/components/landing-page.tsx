@@ -70,6 +70,14 @@ const LandingPage: React.FC<LandingPageProps> = () => {
             gradient: 'from-cyan-500 to-blue-500',
             path: '/games/sort-attack'
         },
+            id: 'math-flip',
+            name: 'Math Flip',
+            description: 'Card-matching math challenge',
+            icon: <span className="text-3xl">🃏</span>,
+            available: true,
+            gradient: 'from-emerald-600 to-teal-500',
+            path: '/games/math-flip'
+        },
         {
             id: 'mathcha-cafe',
             name: 'Mathcha Cafe',

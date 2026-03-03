@@ -19,6 +19,7 @@ import RocketMathGame from './components/rocket-math/rocket-math';
 import { MathchaCafe } from './components/mathcha-cafe';
 import MathDropGame from './components/math-drop';
 import SortAttack from './components/sort-attack';
+import MathFlipGame from './components/math-flip';
 
 // Component to handle page tracking and SEO
 const PageTracker = () => {
@@ -405,6 +406,41 @@ const MathchaCafePage = () => {
   );
 };
 
+// Math Flip Game page with SEO
+const MathFlipPage = () => {
+  const gameJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Game",
+    "name": "Math Flip Game",
+    "description": "Educational card-matching game where players flip cards to pair math equations with their correct answers. Race against a shared countdown timer across multiple rounds.",
+    "url": "https://www.semakinpintar.com/games/math-flip",
+    "genre": "Educational",
+    "gamePlatform": "Web Browser",
+    "applicationCategory": "EducationalApplication",
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD"
+    }
+  };
+
+  return (
+    <>
+      <SEOHead
+        title="Math Flip Game - Card Matching Math Puzzle | Semakin Pintar"
+        description="Flip cards to match math equations with their answers! Race against a countdown timer across multiple rounds. Progressive difficulty with addition, multiplication, division, and more."
+        keywords="math flip, card matching game, math equations, educational card game, memory game math, math puzzle, kids math game, equation matching"
+        canonicalUrl="https://www.semakinpintar.com/games/math-flip"
+        ogTitle="Math Flip Game - Card Matching Math Puzzle"
+        ogDescription="Flip cards to match math equations with their answers! Race against a countdown timer across multiple rounds."
+        ogImage="https://www.semakinpintar.com/logo.png"
+        jsonLd={gameJsonLd}
+      />
+      <MathFlipGame />
+    </>
+  );
+};
+
 // Math Drop Game page with SEO
 const MathDropPage = () => {
   const gameJsonLd = {
@@ -545,6 +581,9 @@ function App() {
           <Route path="/games/sort-attack" element={
             <GamesLayout>
               <SortAttackPage />
+          <Route path="/games/math-flip" element={
+            <GamesLayout>
+              <MathFlipPage />
             </GamesLayout>
           } />
           <Route path="*" element={

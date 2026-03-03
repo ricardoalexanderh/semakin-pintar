@@ -20,6 +20,7 @@ export default defineConfig({
         '/games/mathcha-cafe',
         '/games/math-drop',
         '/games/sort-attack',
+        '/games/math-flip',
       ],
       lastmod: new Date(),
     }),

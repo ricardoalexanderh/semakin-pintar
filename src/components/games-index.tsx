@@ -161,6 +161,18 @@ const GamesIndex: React.FC = () => {
       duration: '2-10 minutes',
       category: 'Fun Math Games'
     },
+      id: 'math-flip',
+      name: 'Math Flip',
+      description: 'Card-matching math challenge',
+      longDescription: 'Flip cards to match equations with their answers before the timer runs out! Survive as many rounds as possible — correct matches add time, wrong flips cost it. Progressive difficulty with addition, multiplication, division, and squares.',
+      icon: <span className="text-2xl">🃏</span>,
+      available: true,
+      gradient: 'from-emerald-600 to-teal-500',
+      path: '/games/math-flip',
+      difficulty: 'Beginner to Expert',
+      duration: '3-15 minutes',
+      category: 'Fun Math Games'
+    },
     /*{
       id: 'math-drop',
       name: 'Math Drop',

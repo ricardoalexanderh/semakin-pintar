@@ -39,6 +39,7 @@ const Breadcrumb: React.FC = () => {
           'mathcha-cafe': 'Mathcha Cafe',
           'math-drop': 'Math Drop',
           'sort-attack': 'Sort Attack',
+          'math-flip': 'Math Flip',
         };
         
         breadcrumbs.push({
