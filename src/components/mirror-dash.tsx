@@ -92,7 +92,7 @@ const MirrorDash: React.FC = () => {
   const nextShieldCooldownRef = useRef(900);
   const visualLaneLRef = useRef(1);
   const visualLaneRRef = useRef(1);
-  const nextSpawnIntervalRef = useRef(65);
+  const nextSpawnIntervalRef = useRef(85);
   const groundOffsetRef = useRef(0);
   const lastTimeRef = useRef(0);
   const scoreElRef = useRef<HTMLDivElement>(null);
@@ -244,13 +244,13 @@ const MirrorDash: React.FC = () => {
 
     // Spawn obstacles — interval-based, random gap, gets tighter over time
     if (frame - lastSpawnFrameRef.current >= nextSpawnIntervalRef.current) {
-      const minGap = Math.max(40, 70 - Math.floor(frame / 900) * 4);
+      const minGap = Math.max(40, 95 - Math.floor(frame / 800) * 4);
       const tooClose = obstaclesRef.current.some((o: Obstacle) => o.y < minGap - 30);
       if (!tooClose) {
         spawnObstacle();
         lastSpawnFrameRef.current = frame;
         // Next interval: random, base shrinks over time
-        const baseInterval = Math.max(40, Math.floor(65 - frame * 0.004));
+        const baseInterval = Math.max(40, Math.floor(85 - frame * 0.005));
         nextSpawnIntervalRef.current = baseInterval + Math.floor(Math.random() * 20);
         const newObs = obstaclesRef.current[obstaclesRef.current.length - 1];
 
@@ -701,7 +701,7 @@ const MirrorDash: React.FC = () => {
     lastShieldFrameRef.current = 0;
     nextHeartCooldownRef.current = 800;
     nextShieldCooldownRef.current = 1400;
-    nextSpawnIntervalRef.current = 65;
+    nextSpawnIntervalRef.current = 85;
     groundOffsetRef.current = 0;
     lastTimeRef.current = 0;
     obstaclesRef.current = [];
