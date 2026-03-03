@@ -33,9 +33,21 @@ type GameState = 'idle' | 'playing' | 'over';
 
 interface Obstacle {
   y: number;
-  dangerLane: number;
+  leftDanger: number[];   // danger lane indices for left side (1 or 2)
+  rightDanger: number[];  // danger lane indices for right side (1 or 2)
   type: string;
 }
+
+/** Pick 1 or 2 random danger lanes out of [0,1,2] */
+const randomDangerLanes = (): number[] => {
+  const count = Math.random() < 0.5 ? 1 : 2;
+  const lanes = [0, 1, 2];
+  for (let i = 2; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [lanes[i], lanes[j]] = [lanes[j], lanes[i]];
+  }
+  return lanes.slice(0, count).sort((a, b) => a - b);
+};
 
 interface Pickup {
   y: number;
@@ -80,6 +92,8 @@ const MirrorDash: React.FC = () => {
   const nextShieldCooldownRef = useRef(900);
   const visualLaneLRef = useRef(1);
   const visualLaneRRef = useRef(1);
+  const nextSpawnIntervalRef = useRef(65);
+  const groundOffsetRef = useRef(0);
   const obstaclesRef = useRef<Obstacle[]>([]);
   const particlesRef = useRef<Particle[]>([]);
   const pickupsRef = useRef<Pickup[]>([]);
@@ -132,49 +146,45 @@ const MirrorDash: React.FC = () => {
     }
   }, []);
 
-  // Spawn obstacle — min distance enforced, same lane when close
+  // Spawn obstacle — random danger count per side, same pattern when close
   const spawnObstacle = useCallback(() => {
     const nearby = obstaclesRef.current.filter(o => o.y < 100);
-    let dangerLane: number;
+    let leftDanger: number[];
+    let rightDanger: number[];
     if (nearby.length > 0) {
       const closest = nearby.reduce((a, b) => (a.y < b.y ? a : b));
       if (closest.y < 70) {
-        // Too close — keep same danger lane so player doesn't face impossible switch
-        dangerLane = closest.dangerLane;
+        leftDanger = [...closest.leftDanger];
+        rightDanger = [...closest.rightDanger];
       } else {
-        dangerLane = Math.floor(Math.random() * LANES);
+        leftDanger = randomDangerLanes();
+        rightDanger = randomDangerLanes();
       }
     } else {
-      dangerLane = Math.floor(Math.random() * LANES);
+      leftDanger = randomDangerLanes();
+      rightDanger = randomDangerLanes();
     }
-    obstaclesRef.current.push({ y: -30, dangerLane, type: 'split' });
+    obstaclesRef.current.push({ y: -30, leftDanger, rightDanger, type: 'split' });
   }, []);
 
-  // Spawn pickup — place in center safe lane of the given obstacle
+  // Spawn pickup — place in a safe lane of the given obstacle
   const spawnPickup = useCallback((obs: Obstacle) => {
     const side: 'left' | 'right' = Math.random() < 0.5 ? 'left' : 'right';
-    if (side === 'left') {
-      // Prefer center lane (1) if safe, otherwise pick any safe lane
-      const safeLanes = [0, 1, 2].filter(l => l !== obs.dangerLane);
-      const lane = safeLanes.includes(1) ? 1 : safeLanes[0];
-      pickupsRef.current.push({ y: obs.y, side, lane });
-    } else {
-      const lane = 2 - obs.dangerLane;
-      pickupsRef.current.push({ y: obs.y, side, lane });
-    }
+    const dangerArr = side === 'left' ? obs.leftDanger : obs.rightDanger;
+    const safeLanes = [0, 1, 2].filter(l => !dangerArr.includes(l));
+    if (safeLanes.length === 0) return;
+    const lane = safeLanes.includes(1) ? 1 : safeLanes[0];
+    pickupsRef.current.push({ y: obs.y, side, lane });
   }, []);
 
-  // Spawn shield power-up — place in center safe lane of the given obstacle
+  // Spawn shield power-up — place in a safe lane of the given obstacle
   const spawnShieldPowerup = useCallback((obs: Obstacle) => {
     const side: 'left' | 'right' = Math.random() < 0.5 ? 'left' : 'right';
-    if (side === 'left') {
-      const safeLanes = [0, 1, 2].filter(l => l !== obs.dangerLane);
-      const lane = safeLanes.includes(1) ? 1 : safeLanes[0];
-      shieldPowerupsRef.current.push({ y: obs.y, side, lane });
-    } else {
-      const lane = 2 - obs.dangerLane;
-      shieldPowerupsRef.current.push({ y: obs.y, side, lane });
-    }
+    const dangerArr = side === 'left' ? obs.leftDanger : obs.rightDanger;
+    const safeLanes = [0, 1, 2].filter(l => !dangerArr.includes(l));
+    if (safeLanes.length === 0) return;
+    const lane = safeLanes.includes(1) ? 1 : safeLanes[0];
+    shieldPowerupsRef.current.push({ y: obs.y, side, lane });
   }, []);
 
   // Hit handler
@@ -215,41 +225,45 @@ const MirrorDash: React.FC = () => {
     const frame = frameRef.current;
     frameRef.current++;
 
-    // Speed ramp — smooth linear, starts 2.0 → maxes 4.5
-    speedRef.current = 2.0 + Math.min(2.5, frame * 0.0006);
+    // Speed ramp — smooth linear, starts 2.5 → maxes 4.5
+    speedRef.current = 2.5 + Math.min(2.0, frame * 0.0005);
     if (invincibleRef.current > 0) invincibleRef.current--;
 
     const speed = speedRef.current;
 
     // Smooth lane interpolation (visual only — prevents frame-jump feel)
-    const lerpSpeed = 0.3;
-    visualLaneLRef.current += (playerLRef.current.lane - visualLaneLRef.current) * lerpSpeed;
-    visualLaneRRef.current += (playerRRef.current.lane - visualLaneRRef.current) * lerpSpeed;
+    visualLaneLRef.current += (playerLRef.current.lane - visualLaneLRef.current) * 0.3;
+    visualLaneRRef.current += (playerRRef.current.lane - visualLaneRRef.current) * 0.3;
 
-    // Spawn obstacles — interval-based, with min gap enforcement
-    const spawnInterval = Math.max(70, Math.floor(130 - frame * 0.008));
-    if (frame - lastSpawnFrameRef.current >= spawnInterval) {
-      const minGap = Math.max(50, 80 - Math.floor(frame / 900) * 4);
+    // Accumulate ground offset smoothly (avoids frame * speed jump)
+    groundOffsetRef.current = (groundOffsetRef.current + speed) % 40;
+
+    // Spawn obstacles — interval-based, random gap, gets tighter over time
+    if (frame - lastSpawnFrameRef.current >= nextSpawnIntervalRef.current) {
+      const minGap = Math.max(40, 70 - Math.floor(frame / 900) * 4);
       const tooClose = obstaclesRef.current.some(o => o.y < minGap - 30);
       if (!tooClose) {
         spawnObstacle();
         lastSpawnFrameRef.current = frame;
+        // Next interval: random, base shrinks over time
+        const baseInterval = Math.max(40, Math.floor(65 - frame * 0.004));
+        nextSpawnIntervalRef.current = baseInterval + Math.floor(Math.random() * 20);
         const newObs = obstaclesRef.current[obstaclesRef.current.length - 1];
 
-        // Heart pickup — cooldown-based, only when lives < 3
+        // Heart pickup — rare, cooldown 800-1200 frames
         if (livesRef.current < 3 && frame - lastHeartFrameRef.current >= nextHeartCooldownRef.current) {
           spawnPickup(newObs);
           lastHeartFrameRef.current = frame;
-          nextHeartCooldownRef.current = 400 + Math.floor(Math.random() * 300);
+          nextHeartCooldownRef.current = 800 + Math.floor(Math.random() * 400);
         }
 
-        // Shield power-up — cooldown-based, only when neither side is shielded
+        // Shield power-up — very rare, cooldown 1400-2000 frames
         if (shieldLeftRef.current <= 0 && shieldRightRef.current <= 0
-            && frame > 300
+            && frame > 600
             && frame - lastShieldFrameRef.current >= nextShieldCooldownRef.current) {
           spawnShieldPowerup(newObs);
           lastShieldFrameRef.current = frame;
-          nextShieldCooldownRef.current = 800 + Math.floor(Math.random() * 400);
+          nextShieldCooldownRef.current = 1400 + Math.floor(Math.random() * 600);
         }
       }
     }
@@ -349,11 +363,10 @@ const MirrorDash: React.FC = () => {
       let hitR = false;
       for (const obs of obstaclesRef.current) {
         if (obs.y > py - 20 && obs.y < py + 20) {
-          if (shieldLeftRef.current <= 0 && playerLRef.current.lane === obs.dangerLane) {
+          if (shieldLeftRef.current <= 0 && obs.leftDanger.includes(playerLRef.current.lane)) {
             hitL = true;
           }
-          const safeLaneR = 2 - obs.dangerLane;
-          if (shieldRightRef.current <= 0 && playerRRef.current.lane !== safeLaneR) {
+          if (shieldRightRef.current <= 0 && obs.rightDanger.includes(playerRRef.current.lane)) {
             hitR = true;
           }
           if (hitL || hitR) break;
@@ -374,7 +387,7 @@ const MirrorDash: React.FC = () => {
 
     if (flashTimerRef.current > 0) flashTimerRef.current--;
     scoreRef.current++;
-    if (frame % 5 === 0) setUiScore(scoreRef.current);
+    if (frame % 20 === 0) setUiScore(scoreRef.current);
   }, [spawnObstacle, spawnPickup, spawnShieldPowerup, playerY, laneX, hit]);
 
   // roundRect helper on canvas
@@ -450,7 +463,7 @@ const MirrorDash: React.FC = () => {
 
     // Ground lines
     ctx.save();
-    const lineY = (frame * speed) % 40;
+    const lineY = groundOffsetRef.current;
     for (let y = lineY; y < H; y += 40) {
       const alpha = 0.04 + (y / H) * 0.06;
       ctx.strokeStyle = `rgba(123,47,255,${alpha})`;
@@ -485,7 +498,7 @@ const MirrorDash: React.FC = () => {
       // Left side
       for (let l = 0; l < LANES; l++) {
         const x = laneX('left', l);
-        if (l === obs.dangerLane) {
+        if (obs.leftDanger.includes(l)) {
           ctx.save();
           ctx.shadowColor = C.dangerLeft;
           ctx.shadowBlur = 12;
@@ -513,10 +526,9 @@ const MirrorDash: React.FC = () => {
         }
       }
       // Right side
-      const safeLaneR = 2 - obs.dangerLane;
       for (let l = 0; l < LANES; l++) {
         const x = laneX('right', l);
-        if (l === safeLaneR) {
+        if (!obs.rightDanger.includes(l)) {
           ctx.save();
           ctx.strokeStyle = C.safeRight;
           ctx.lineWidth = 2;
@@ -680,12 +692,14 @@ const MirrorDash: React.FC = () => {
     scoreRef.current = 0;
     livesRef.current = 3;
     frameRef.current = 0;
-    speedRef.current = 2.0;
+    speedRef.current = 2.5;
     lastSpawnFrameRef.current = 0;
     lastHeartFrameRef.current = 0;
     lastShieldFrameRef.current = 0;
-    nextHeartCooldownRef.current = 500;
-    nextShieldCooldownRef.current = 900;
+    nextHeartCooldownRef.current = 800;
+    nextShieldCooldownRef.current = 1400;
+    nextSpawnIntervalRef.current = 65;
+    groundOffsetRef.current = 0;
     obstaclesRef.current = [];
     particlesRef.current = [];
     pickupsRef.current = [];
@@ -756,11 +770,11 @@ const MirrorDash: React.FC = () => {
     };
   }, [moveShip, startGame]);
 
-  // Touch/mouse button handler — single onPointerDown avoids double-fire
-  const onTouchBtn = useCallback((side: 'left' | 'right', dir: -1 | 1) => (e: React.PointerEvent) => {
-    e.preventDefault();
-    if (stateRef.current === 'playing') moveShip(side, dir);
-  }, [moveShip]);
+  // Pre-created stable handlers — avoids new function instances on every render
+  const handleLB = useCallback((e: React.PointerEvent) => { e.preventDefault(); if (stateRef.current === 'playing') moveShip('left', -1); }, [moveShip]);
+  const handleLF = useCallback((e: React.PointerEvent) => { e.preventDefault(); if (stateRef.current === 'playing') moveShip('left', 1); }, [moveShip]);
+  const handleRB = useCallback((e: React.PointerEvent) => { e.preventDefault(); if (stateRef.current === 'playing') moveShip('right', -1); }, [moveShip]);
+  const handleRF = useCallback((e: React.PointerEvent) => { e.preventDefault(); if (stateRef.current === 'playing') moveShip('right', 1); }, [moveShip]);
 
   const livesDisplay = '\u2764\uFE0F'.repeat(Math.max(0, uiLives)) + '\uD83D\uDDA4'.repeat(Math.max(0, 3 - uiLives));
 
@@ -857,11 +871,11 @@ const MirrorDash: React.FC = () => {
           <div style={styles.tapGroup}>
             <button
               style={{ ...styles.tapBtn, ...styles.tapLeft }}
-              onPointerDown={onTouchBtn('left', -1)}
+              onPointerDown={handleLB}
             >&#9664;</button>
             <button
               style={{ ...styles.tapBtn, ...styles.tapRightL }}
-              onPointerDown={onTouchBtn('left', 1)}
+              onPointerDown={handleLF}
             >&#9654;</button>
           </div>
           <div style={styles.tapLabelCenter}>
@@ -872,11 +886,11 @@ const MirrorDash: React.FC = () => {
           <div style={styles.tapGroup}>
             <button
               style={{ ...styles.tapBtn, ...styles.tapLeftR }}
-              onPointerDown={onTouchBtn('right', -1)}
+              onPointerDown={handleRB}
             >&#9664;</button>
             <button
               style={{ ...styles.tapBtn, ...styles.tapRight }}
-              onPointerDown={onTouchBtn('right', 1)}
+              onPointerDown={handleRF}
             >&#9654;</button>
           </div>
         </div>
