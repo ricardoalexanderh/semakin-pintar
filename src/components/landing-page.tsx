@@ -62,6 +62,15 @@ const LandingPage: React.FC<LandingPageProps> = () => {
             path: '/games/math-drop'
         },*/
         {
+            id: 'math-flip',
+            name: 'Math Flip',
+            description: 'Card-matching math challenge',
+            icon: <span className="text-3xl">🃏</span>,
+            available: true,
+            gradient: 'from-emerald-600 to-teal-500',
+            path: '/games/math-flip'
+        },
+        {
             id: 'mathcha-cafe',
             name: 'Mathcha Cafe',
             description: 'Serve customers with math skills',
