@@ -177,15 +177,15 @@ const GamesIndex: React.FC = () => {
     {
       id: 'mirror-dash',
       name: 'Mirror Dash',
-      description: 'Split-attention decision-making challenge',
-      longDescription: 'Control two ships simultaneously across mirrored lanes! Make split-second decisions on both sides — dodge obstacles, grab power-ups, and weigh risk vs reward under pressure. Trains decision-making, split-attention, and coordination.',
+      description: 'Train your brain with dual-focus reflexes',
+      longDescription: 'Control two ships at once across mirrored lanes! Navigate both sides simultaneously — dodge obstacles, grab power-ups, and make split-second decisions. Sharpens focus, reaction time, and multitasking.',
       icon: <span className="text-2xl">🪞</span>,
       available: true,
       gradient: 'from-purple-600 to-pink-500',
       path: '/games/mirror-dash',
       difficulty: 'Intermediate to Expert',
       duration: '2-10 minutes',
-      category: 'Reflex & Decision'
+      category: 'Brain Training'
     },
     /*{
       id: 'math-drop',
