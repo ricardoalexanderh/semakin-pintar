@@ -82,10 +82,12 @@ const MirrorDash: React.FC = () => {
   const playerLRef = useRef({ lane: 1 });
   const playerRRef = useRef({ lane: 1 });
 
-  // Shield power-up: grants temporary invincibility
+  // Shield power-up: grants temporary invincibility per side
   const shieldPowerupsRef = useRef<ShieldPowerup[]>([]);
-  const shieldTimerRef = useRef(0);
-  const [uiShield, setUiShield] = useState(false);
+  const shieldLeftRef = useRef(0);
+  const shieldRightRef = useRef(0);
+  const [uiShieldLeft, setUiShieldLeft] = useState(false);
+  const [uiShieldRight, setUiShieldRight] = useState(false);
 
   // Floating button hide
   const { updateGameState } = useGameState();
@@ -125,41 +127,52 @@ const MirrorDash: React.FC = () => {
 
   // Spawn obstacle
   const spawnObstacle = useCallback(() => {
-    const py = playerY();
-    const speed = speedRef.current;
-    const dangerouslyClose = obstaclesRef.current.filter(o => {
-      const existingDistToPlayer = py - o.y;
-      const framesUntilHit = existingDistToPlayer / speed;
-      const newYAtSameFrame = -30 + framesUntilHit * speed;
-      return Math.abs(newYAtSameFrame - py) < 60;
-    });
+    // Only copy danger lane if another obstacle is close enough to overlap
+    // at the player hitbox (both move at the same speed, so relative Y is fixed).
+    const overlapping = obstaclesRef.current.filter(o => Math.abs(o.y - (-30)) < 45);
 
     let dangerLane: number;
-    if (dangerouslyClose.length > 0) {
-      dangerLane = dangerouslyClose[0].dangerLane;
+    if (overlapping.length > 0) {
+      dangerLane = overlapping[0].dangerLane;
     } else {
       dangerLane = Math.floor(Math.random() * LANES);
     }
 
     obstaclesRef.current.push({ y: -30, dangerLane, type: 'split' });
-  }, [playerY]);
-
-  // Spawn pickup — avoid any obstacle row within visual range
-  const spawnPickup = useCallback(() => {
-    const tooClose = obstaclesRef.current.some(o => Math.abs(o.y - (-20)) < 80);
-    if (tooClose) return; // wait for a clear gap
-    const side: 'left' | 'right' = Math.random() < 0.5 ? 'left' : 'right';
-    const lane = Math.floor(Math.random() * LANES);
-    pickupsRef.current.push({ y: -20, side, lane });
   }, []);
 
-  // Spawn shield power-up — avoid any obstacle row within visual range
-  const spawnShieldPowerup = useCallback(() => {
-    const tooClose = obstaclesRef.current.some(o => Math.abs(o.y - (-20)) < 80);
-    if (tooClose) return;
+  // Spawn pickup — place in a safe lane of a nearby obstacle row
+  const spawnPickup = useCallback(() => {
     const side: 'left' | 'right' = Math.random() < 0.5 ? 'left' : 'right';
-    const lane = Math.floor(Math.random() * LANES);
-    shieldPowerupsRef.current.push({ y: -20, side, lane });
+    // Find a recent obstacle row near the top to align the heart with
+    const nearby = obstaclesRef.current.filter(o => o.y >= -40 && o.y <= 10);
+    if (nearby.length === 0) return; // only spawn aligned with an obstacle row
+    const obs = nearby[0];
+    // Pick a safe lane (no danger block)
+    if (side === 'left') {
+      const safeLanes = [0, 1, 2].filter(l => l !== obs.dangerLane);
+      const lane = safeLanes[Math.floor(Math.random() * safeLanes.length)];
+      pickupsRef.current.push({ y: obs.y, side, lane });
+    } else {
+      const lane = 2 - obs.dangerLane; // the one safe lane on right
+      pickupsRef.current.push({ y: obs.y, side, lane });
+    }
+  }, []);
+
+  // Spawn shield power-up — place in a safe lane of a nearby obstacle row
+  const spawnShieldPowerup = useCallback(() => {
+    const side: 'left' | 'right' = Math.random() < 0.5 ? 'left' : 'right';
+    const nearby = obstaclesRef.current.filter(o => o.y >= -40 && o.y <= 10);
+    if (nearby.length === 0) return;
+    const obs = nearby[0];
+    if (side === 'left') {
+      const safeLanes = [0, 1, 2].filter(l => l !== obs.dangerLane);
+      const lane = safeLanes[Math.floor(Math.random() * safeLanes.length)];
+      shieldPowerupsRef.current.push({ y: obs.y, side, lane });
+    } else {
+      const lane = 2 - obs.dangerLane;
+      shieldPowerupsRef.current.push({ y: obs.y, side, lane });
+    }
   }, []);
 
   // Hit handler
@@ -215,20 +228,24 @@ const MirrorDash: React.FC = () => {
       spawnPickup();
     }
 
-    // Shield power-up spawn (~every 800-1200 frames, only when not already shielded)
-    if (shieldTimerRef.current <= 0 && frame > 300 && frame % Math.floor(800 + Math.random() * 400) === 0) {
+    // Shield power-up spawn (~every 800-1200 frames, only when neither side is shielded)
+    if (shieldLeftRef.current <= 0 && shieldRightRef.current <= 0 && frame > 300 && frame % Math.floor(800 + Math.random() * 400) === 0) {
       spawnShieldPowerup();
     }
 
-    // Tick shield timer
-    if (shieldTimerRef.current > 0) {
-      shieldTimerRef.current--;
-      if (shieldTimerRef.current <= 0) setUiShield(false);
+    // Tick per-side shield timers
+    if (shieldLeftRef.current > 0) {
+      shieldLeftRef.current--;
+      if (shieldLeftRef.current <= 0) setUiShieldLeft(false);
+    }
+    if (shieldRightRef.current > 0) {
+      shieldRightRef.current--;
+      if (shieldRightRef.current <= 0) setUiShieldRight(false);
     }
 
     const py = playerY();
 
-    // Move & collect shield power-ups
+    // Move & collect shield power-ups (only the collecting side gets shield)
     for (let i = shieldPowerupsRef.current.length - 1; i >= 0; i--) {
       shieldPowerupsRef.current[i].y += speed;
       if (shieldPowerupsRef.current[i].y > H + 20) {
@@ -242,8 +259,13 @@ const MirrorDash: React.FC = () => {
           ? laneX('left', playerLRef.current.lane)
           : laneX('right', playerRRef.current.lane);
         if (Math.abs(spX - shipX) < LANE_W * 0.7) {
-          shieldTimerRef.current = 300; // ~5 seconds at 60fps
-          setUiShield(true);
+          if (sp.side === 'left') {
+            shieldLeftRef.current = 300;
+            setUiShieldLeft(true);
+          } else {
+            shieldRightRef.current = 300;
+            setUiShieldRight(true);
+          }
           // Cyan/white particle burst
           for (let j = 0; j < 16; j++) {
             particlesRef.current.push({
@@ -300,16 +322,16 @@ const MirrorDash: React.FC = () => {
       }
     }
 
-    // Collision (skip during invincibility frames or shield)
-    if (invincibleRef.current === 0 && shieldTimerRef.current <= 0) {
+    // Collision (check each side independently, respecting per-side shield)
+    if (invincibleRef.current === 0) {
       for (const obs of obstaclesRef.current) {
         if (obs.y > py - 20 && obs.y < py + 20) {
-          if (playerLRef.current.lane === obs.dangerLane) {
+          if (shieldLeftRef.current <= 0 && playerLRef.current.lane === obs.dangerLane) {
             hit('left');
             break;
           }
           const safeLaneR = 2 - obs.dangerLane;
-          if (playerRRef.current.lane !== safeLaneR) {
+          if (shieldRightRef.current <= 0 && playerRRef.current.lane !== safeLaneR) {
             hit('right');
             break;
           }
@@ -328,7 +350,7 @@ const MirrorDash: React.FC = () => {
 
     if (flashTimerRef.current > 0) flashTimerRef.current--;
     scoreRef.current++;
-    setUiScore(scoreRef.current);
+    if (frame % 5 === 0) setUiScore(scoreRef.current);
   }, [spawnObstacle, spawnPickup, spawnShieldPowerup, playerY, laneX, hit]);
 
   // roundRect helper on canvas
@@ -541,14 +563,23 @@ const MirrorDash: React.FC = () => {
       ctx.restore();
     }
 
-    // Shield active — timer bar at bottom of canvas
-    const isShielded = shieldTimerRef.current > 0;
-    if (isShielded) {
-      const frac = shieldTimerRef.current / 300;
-      const barW = (W - 40) * frac;
+    // Shield active — per-side timer bars at bottom of canvas
+    const shieldL = shieldLeftRef.current;
+    const shieldR = shieldRightRef.current;
+    if (shieldL > 0) {
+      const frac = shieldL / 300;
+      const barW = (MID - 30) * frac;
       ctx.save();
       ctx.fillStyle = `rgba(47,255,238,${0.3 + 0.15 * Math.sin(frame * 0.1)})`;
-      ctx.fillRect(20, H - 8, barW, 4);
+      ctx.fillRect(10, H - 8, barW, 4);
+      ctx.restore();
+    }
+    if (shieldR > 0) {
+      const frac = shieldR / 300;
+      const barW = (MID - 30) * frac;
+      ctx.save();
+      ctx.fillStyle = `rgba(47,255,238,${0.3 + 0.15 * Math.sin(frame * 0.1)})`;
+      ctx.fillRect(W - 10 - barW, H - 8, barW, 4);
       ctx.restore();
     }
 
@@ -557,11 +588,12 @@ const MirrorDash: React.FC = () => {
       const x = laneX(side, lane);
       const y = playerY();
       const color = side === 'left' ? C.leftNeonLight : C.rightNeonLight;
+      const sideShielded = side === 'left' ? shieldL > 0 : shieldR > 0;
 
       if (damaged && Math.floor(frame / 6) % 2 === 0) return;
 
-      // Shield bubble when active
-      if (isShielded) {
+      // Shield bubble when this side is shielded
+      if (sideShielded) {
         const pulse = 0.4 + 0.2 * Math.sin(frame * 0.12);
         ctx.save();
         ctx.beginPath();
@@ -629,8 +661,10 @@ const MirrorDash: React.FC = () => {
     particlesRef.current = [];
     pickupsRef.current = [];
     shieldPowerupsRef.current = [];
-    shieldTimerRef.current = 0;
-    setUiShield(false);
+    shieldLeftRef.current = 0;
+    shieldRightRef.current = 0;
+    setUiShieldLeft(false);
+    setUiShieldRight(false);
     playerLRef.current.lane = 1;
     playerRRef.current.lane = 1;
     invincibleRef.current = 0;
@@ -708,16 +742,15 @@ const MirrorDash: React.FC = () => {
         <div style={styles.hud}>
           <div style={styles.lives}>{livesDisplay}</div>
           <div style={styles.title}>MIRROR DASH</div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 100, justifyContent: 'flex-end' }}>
-            {uiShield && (
-              <span style={{
-                fontFamily: "'Orbitron', sans-serif",
-                fontSize: '0.6rem',
-                fontWeight: 700,
-                color: '#2fffee',
-                letterSpacing: 1,
-              }}>
-                SHIELD
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 100, justifyContent: 'flex-end' }}>
+            {uiShieldLeft && (
+              <span style={{ fontFamily: "'Orbitron', sans-serif", fontSize: '0.5rem', fontWeight: 700, color: C.leftNeonLight, letterSpacing: 1 }}>
+                L🛡
+              </span>
+            )}
+            {uiShieldRight && (
+              <span style={{ fontFamily: "'Orbitron', sans-serif", fontSize: '0.5rem', fontWeight: 700, color: C.rightNeonLight, letterSpacing: 1 }}>
+                R🛡
               </span>
             )}
             <div style={styles.scoreDisplay}>{uiScore}</div>
