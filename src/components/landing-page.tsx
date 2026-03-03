@@ -62,6 +62,15 @@ const LandingPage: React.FC<LandingPageProps> = () => {
             path: '/games/math-drop'
         },*/
         {
+            id: 'mirror-dash',
+            name: 'Mirror Dash',
+            description: 'Dual-ship reflex challenge',
+            icon: <span className="text-3xl">🪞</span>,
+            available: true,
+            gradient: 'from-purple-600 to-pink-500',
+            path: '/games/mirror-dash'
+        },
+        {
             id: 'sort-attack',
             name: 'Sort Attack',
             description: 'Sort numbers with adjacent swaps before time runs out',

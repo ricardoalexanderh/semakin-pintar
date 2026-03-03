@@ -20,6 +20,7 @@ import { MathchaCafe } from './components/mathcha-cafe';
 import MathDropGame from './components/math-drop';
 import SortAttack from './components/sort-attack';
 import MathFlipGame from './components/math-flip';
+import MirrorDash from './components/mirror-dash';
 
 // Component to handle page tracking and SEO
 const PageTracker = () => {
@@ -139,6 +140,12 @@ const GamesIndexPage = () => {
           "position": 9,
           "name": "Sort Attack",
           "url": "https://www.semakinpintar.com/games/sort-attack"
+        },
+        {
+          "@type": "Game",
+          "position": 10,
+          "name": "Mirror Dash",
+          "url": "https://www.semakinpintar.com/games/mirror-dash"
         }
       ]
     }
@@ -476,6 +483,41 @@ const MathDropPage = () => {
   );
 };
 
+// Mirror Dash Game page with SEO
+const MirrorDashPage = () => {
+  const gameJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Game",
+    "name": "Mirror Dash Game",
+    "description": "Control two ships simultaneously across mirrored lanes in this neon synthwave reflex game. Dodge obstacles on both sides at the same time.",
+    "url": "https://www.semakinpintar.com/games/mirror-dash",
+    "genre": "Educational",
+    "gamePlatform": "Web Browser",
+    "applicationCategory": "EducationalApplication",
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD"
+    }
+  };
+
+  return (
+    <>
+      <SEOHead
+        title="Mirror Dash - Dual Ship Reflex Game | Semakin Pintar"
+        description="Control two ships simultaneously across mirrored lanes. Dodge obstacles on both sides at the same time in this neon synthwave reflex challenge!"
+        keywords="mirror dash, reflex game, dual control, split attention, brain training, coordination game, neon game, synthwave game, educational games"
+        canonicalUrl="https://www.semakinpintar.com/games/mirror-dash"
+        ogTitle="Mirror Dash - Dual Ship Reflex Game"
+        ogDescription="Control two ships simultaneously across mirrored lanes. Dodge obstacles on both sides at the same time!"
+        ogImage="https://www.semakinpintar.com/logo.png"
+        jsonLd={gameJsonLd}
+      />
+      <MirrorDash />
+    </>
+  );
+};
+
 // Sort Attack page with SEO
 const SortAttackPage = () => {
   const gameJsonLd = {
@@ -586,6 +628,11 @@ function App() {
           <Route path="/games/math-flip" element={
             <GamesLayout>
               <MathFlipPage />
+            </GamesLayout>
+          } />
+          <Route path="/games/mirror-dash" element={
+            <GamesLayout>
+              <MirrorDashPage />
             </GamesLayout>
           } />
           <Route path="*" element={

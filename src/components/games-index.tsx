@@ -174,6 +174,19 @@ const GamesIndex: React.FC = () => {
       duration: '3-15 minutes',
       category: 'Fun Math Games'
     },
+    {
+      id: 'mirror-dash',
+      name: 'Mirror Dash',
+      description: 'Dual-ship reflex challenge',
+      longDescription: 'Control two ships simultaneously across mirrored lanes! Dodge obstacles on both sides at the same time in this neon synthwave reflex game. Train split-attention, coordination, and reaction speed.',
+      icon: <span className="text-2xl">🪞</span>,
+      available: true,
+      gradient: 'from-purple-600 to-pink-500',
+      path: '/games/mirror-dash',
+      difficulty: 'Intermediate to Expert',
+      duration: '2-10 minutes',
+      category: 'Fun Math Games'
+    },
     /*{
       id: 'math-drop',
       name: 'Math Drop',

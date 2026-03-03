@@ -21,6 +21,7 @@ export default defineConfig({
         '/games/math-drop',
         '/games/sort-attack',
         '/games/math-flip',
+        '/games/mirror-dash',
       ],
       lastmod: new Date(),
     }),
