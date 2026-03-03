@@ -35,13 +35,17 @@
   background: #243024;
   border: 1.5px solid rgba(126,203,126,0.15);
   border-radius: 99px;
-  padding: 8px 18px;
+  padding: 6px 12px;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   font-weight: 700;
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   color: #f5f0e8;
+  white-space: nowrap;
+}
+@media (min-width: 640px) {
+  .mf-hud-pill { padding: 8px 18px; gap: 8px; font-size: 0.85rem; }
 }
 .mf-hud-val        { font-family: 'Fredoka One', cursive; font-size: 1.2rem; }
 .mf-hud-val-green  { color: #7ecb7e; }

@@ -474,7 +474,7 @@ const SortAttack: React.FC = () => {
   const Page = ({ children }: { children: React.ReactNode }) => (
     <div
       className="min-h-screen flex flex-col items-center justify-center p-4 sm:p-6"
-      style={{ backgroundColor: C.bg, ...GRID_BG }}
+      style={{ backgroundColor: C.bg, color: C.white, ...GRID_BG }}
     >
       {children}
     </div>
@@ -677,7 +677,7 @@ const SortAttack: React.FC = () => {
   return (
     <div
       className="min-h-screen flex flex-col items-center pt-6 pb-8 px-4 gap-5"
-      style={{ backgroundColor: C.bg, ...GRID_BG }}
+      style={{ backgroundColor: C.bg, color: C.white, ...GRID_BG }}
     >
       {/* Title */}
       <div className="text-center">
@@ -827,6 +827,21 @@ const SortAttack: React.FC = () => {
               animation: 'win-pop 0.4s cubic-bezier(0.34,1.56,0.64,1)',
             }}
           >
+            {/* ── Next round reverse warning ── */}
+            {getSortDirection(roundNumber) === 'desc' && (
+              <div
+                className="rounded-xl px-4 py-3 mb-4 border-2 animate-pulse"
+                style={{ background: 'rgba(167,139,250,0.15)', borderColor: C.purple }}
+              >
+                <div className="text-base font-black tracking-wide" style={{ color: C.purple }}>
+                  ⚠️ NEXT ROUND: HIGH → LOW
+                </div>
+                <div className="font-mono text-[0.65rem] uppercase tracking-widest mt-1" style={{ color: C.muted }}>
+                  Reverse round — sort largest first!
+                </div>
+              </div>
+            )}
+
             {lastResult.direction === 'desc' && (
               <div className="font-mono text-[0.6rem] uppercase tracking-widest mb-2" style={{ color: C.purple }}>
                 ↓ Reverse Round

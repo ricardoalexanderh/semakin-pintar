@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { trackGameEvent, trackButtonClick, trackSettingsChange } from '../utils/analytics';
+import { useGameState } from '../hooks/useGameState';
 
 // ============================================================
 // TYPES
@@ -40,11 +41,20 @@ const MAX_PAIRS             = 10;
 // SOUND EFFECTS  (Web Audio API – no external dependency)
 // ============================================================
 
+let sharedAudioCtx: AudioContext | null = null;
+
+function getAudioCtx(): AudioContext | null {
+  const AudioCtxCtor = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+  if (!AudioCtxCtor) return null;
+  if (!sharedAudioCtx) sharedAudioCtx = new AudioCtxCtor();
+  if (sharedAudioCtx.state === 'suspended') sharedAudioCtx.resume();
+  return sharedAudioCtx;
+}
+
 function playSound(type: 'flip' | 'match' | 'wrong' | 'roundClear' | 'gameOver') {
   try {
-    const AudioCtx = (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext);
-    if (!AudioCtx) return;
-    const ctx = new AudioCtx();
+    const ctx = getAudioCtx();
+    if (!ctx) return;
     const note = (freq: number, dur: number, delay = 0, wave: OscillatorType = 'sine') => {
       const osc  = ctx.createOscillator();
       const gain = ctx.createGain();
@@ -164,6 +174,8 @@ const MathFlipGame: React.FC = () => {
   const [shakeIds,     setShakeIds]     = useState<Set<number>>(new Set());
   const [roundClearInfo, setRoundClearInfo] = useState<{ roundNum: number; pairsCount: number } | null>(null);
 
+  const { updateGameState } = useGameState();
+
   const isProcessingRef = useRef(false);
   const roundRef        = useRef(round);
   const scoreRef        = useRef(score);
@@ -173,6 +185,10 @@ const MathFlipGame: React.FC = () => {
   useEffect(() => { roundRef.current      = round;      }, [round]);
   useEffect(() => { scoreRef.current      = score;      }, [score]);
   useEffect(() => { difficultyRef.current = difficulty; }, [difficulty]);
+
+  useEffect(() => {
+    updateGameState('math-flip', phase === 'playing' || phase === 'round-clear');
+  }, [phase, updateGameState]);
 
   // ── Timer flash via DOM (restarts animation even on rapid repeat) ──
   const flashTimerEl = useCallback((color: 'red' | 'green') => {
@@ -429,6 +445,7 @@ const MathFlipGame: React.FC = () => {
   const gridCols = getGridCols(cards.length);
 
   return (
+    <>
     <div className="mf-root p-3 pb-8 select-none">
       <div className="max-w-2xl mx-auto flex flex-col gap-4">
 
@@ -441,12 +458,12 @@ const MathFlipGame: React.FC = () => {
           <div className="flex gap-2 ml-auto">
             <div className="mf-hud-pill">
               <span>🎯</span>
-              <span>Round</span>
+              <span className="hidden sm:inline">Round</span>
               <span className="mf-hud-val mf-hud-val-green">{round}</span>
             </div>
             <div className="mf-hud-pill">
               <span>⭐</span>
-              <span>Score</span>
+              <span className="hidden sm:inline">Score</span>
               <span className="mf-hud-val mf-hud-val-yellow">{score.toLocaleString()}</span>
             </div>
           </div>
@@ -534,7 +551,9 @@ const MathFlipGame: React.FC = () => {
         </p>
       </div>
 
-      {/* ── Round Clear Overlay ── */}
+    </div>
+
+      {/* ── Round Clear Overlay – outside mf-root to avoid position:fixed override ── */}
       {phase === 'round-clear' && roundClearInfo && (
         <div className="fixed inset-0 flex items-center justify-center z-50 p-4" style={{ background: 'rgba(20,30,20,0.88)', backdropFilter: 'blur(8px)' }}>
           <div className="mf-pop-in mf-surface text-center p-8 max-w-xs w-full" style={{ border: '2px solid #7ecb7e', boxShadow: '0 0 60px rgba(126,203,126,0.2)' }}>
@@ -552,7 +571,7 @@ const MathFlipGame: React.FC = () => {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 };
 
