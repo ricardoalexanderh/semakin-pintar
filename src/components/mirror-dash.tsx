@@ -43,7 +43,7 @@ interface Pickup {
   lane: number;
 }
 
-interface BlindPowerup {
+interface ShieldPowerup {
   y: number;
   side: 'left' | 'right';
   lane: number;
@@ -82,10 +82,10 @@ const MirrorDash: React.FC = () => {
   const playerLRef = useRef({ lane: 1 });
   const playerRRef = useRef({ lane: 1 });
 
-  // Blind power-up: hides safe-gap arrows temporarily
-  const blindPowerupsRef = useRef<BlindPowerup[]>([]);
-  const blindTimerRef = useRef(0);
-  const [uiBlind, setUiBlind] = useState(false);
+  // Shield power-up: grants temporary invincibility
+  const shieldPowerupsRef = useRef<ShieldPowerup[]>([]);
+  const shieldTimerRef = useRef(0);
+  const [uiShield, setUiShield] = useState(false);
 
   // Floating button hide
   const { updateGameState } = useGameState();
@@ -144,40 +144,22 @@ const MirrorDash: React.FC = () => {
     obstaclesRef.current.push({ y: -30, dangerLane, type: 'split' });
   }, [playerY]);
 
-  // Spawn pickup
+  // Spawn pickup — avoid any obstacle row within visual range
   const spawnPickup = useCallback(() => {
-    for (let attempt = 0; attempt < 8; attempt++) {
-      const side: 'left' | 'right' = Math.random() < 0.5 ? 'left' : 'right';
-      const lane = Math.floor(Math.random() * LANES);
-      const blocked = obstaclesRef.current.some(o => {
-        if (Math.abs(o.y - (-20)) > 60) return false;
-        if (side === 'left' && lane === o.dangerLane) return true;
-        if (side === 'right' && lane !== (2 - o.dangerLane)) return true;
-        return false;
-      });
-      if (!blocked) {
-        pickupsRef.current.push({ y: -20, side, lane });
-        return;
-      }
-    }
+    const tooClose = obstaclesRef.current.some(o => Math.abs(o.y - (-20)) < 80);
+    if (tooClose) return; // wait for a clear gap
+    const side: 'left' | 'right' = Math.random() < 0.5 ? 'left' : 'right';
+    const lane = Math.floor(Math.random() * LANES);
+    pickupsRef.current.push({ y: -20, side, lane });
   }, []);
 
-  // Spawn blind power-up
-  const spawnBlindPowerup = useCallback(() => {
-    for (let attempt = 0; attempt < 8; attempt++) {
-      const side: 'left' | 'right' = Math.random() < 0.5 ? 'left' : 'right';
-      const lane = Math.floor(Math.random() * LANES);
-      const blocked = obstaclesRef.current.some(o => {
-        if (Math.abs(o.y - (-20)) > 60) return false;
-        if (side === 'left' && lane === o.dangerLane) return true;
-        if (side === 'right' && lane !== (2 - o.dangerLane)) return true;
-        return false;
-      });
-      if (!blocked) {
-        blindPowerupsRef.current.push({ y: -20, side, lane });
-        return;
-      }
-    }
+  // Spawn shield power-up — avoid any obstacle row within visual range
+  const spawnShieldPowerup = useCallback(() => {
+    const tooClose = obstaclesRef.current.some(o => Math.abs(o.y - (-20)) < 80);
+    if (tooClose) return;
+    const side: 'left' | 'right' = Math.random() < 0.5 ? 'left' : 'right';
+    const lane = Math.floor(Math.random() * LANES);
+    shieldPowerupsRef.current.push({ y: -20, side, lane });
   }, []);
 
   // Hit handler
@@ -233,46 +215,46 @@ const MirrorDash: React.FC = () => {
       spawnPickup();
     }
 
-    // Blind power-up spawn (~every 800-1200 frames, only when not already blinded)
-    if (blindTimerRef.current <= 0 && frame > 300 && frame % Math.floor(800 + Math.random() * 400) === 0) {
-      spawnBlindPowerup();
+    // Shield power-up spawn (~every 800-1200 frames, only when not already shielded)
+    if (shieldTimerRef.current <= 0 && frame > 300 && frame % Math.floor(800 + Math.random() * 400) === 0) {
+      spawnShieldPowerup();
     }
 
-    // Tick blind timer
-    if (blindTimerRef.current > 0) {
-      blindTimerRef.current--;
-      if (blindTimerRef.current <= 0) setUiBlind(false);
+    // Tick shield timer
+    if (shieldTimerRef.current > 0) {
+      shieldTimerRef.current--;
+      if (shieldTimerRef.current <= 0) setUiShield(false);
     }
 
     const py = playerY();
 
-    // Move & collect blind power-ups
-    for (let i = blindPowerupsRef.current.length - 1; i >= 0; i--) {
-      blindPowerupsRef.current[i].y += speed;
-      if (blindPowerupsRef.current[i].y > H + 20) {
-        blindPowerupsRef.current.splice(i, 1);
+    // Move & collect shield power-ups
+    for (let i = shieldPowerupsRef.current.length - 1; i >= 0; i--) {
+      shieldPowerupsRef.current[i].y += speed;
+      if (shieldPowerupsRef.current[i].y > H + 20) {
+        shieldPowerupsRef.current.splice(i, 1);
         continue;
       }
-      const bp = blindPowerupsRef.current[i];
-      if (bp.y > py - 22 && bp.y < py + 22) {
-        const bpX = laneX(bp.side, bp.lane);
-        const shipX = bp.side === 'left'
+      const sp = shieldPowerupsRef.current[i];
+      if (sp.y > py - 22 && sp.y < py + 22) {
+        const spX = laneX(sp.side, sp.lane);
+        const shipX = sp.side === 'left'
           ? laneX('left', playerLRef.current.lane)
           : laneX('right', playerRRef.current.lane);
-        if (Math.abs(bpX - shipX) < LANE_W * 0.7) {
-          blindTimerRef.current = 300; // ~5 seconds at 60fps
-          setUiBlind(true);
-          // Purple/red particle burst
+        if (Math.abs(spX - shipX) < LANE_W * 0.7) {
+          shieldTimerRef.current = 300; // ~5 seconds at 60fps
+          setUiShield(true);
+          // Cyan/white particle burst
           for (let j = 0; j < 16; j++) {
             particlesRef.current.push({
-              x: bpX, y: py,
+              x: spX, y: py,
               vx: (Math.random() - 0.5) * 7,
               vy: (Math.random() - 0.5) * 7,
               life: 40,
-              color: Math.random() < 0.5 ? '#7b2fff' : '#ff2f7b',
+              color: Math.random() < 0.5 ? '#2fffee' : '#ffffff',
             });
           }
-          blindPowerupsRef.current.splice(i, 1);
+          shieldPowerupsRef.current.splice(i, 1);
         }
       }
     }
@@ -318,8 +300,8 @@ const MirrorDash: React.FC = () => {
       }
     }
 
-    // Collision
-    if (invincibleRef.current === 0) {
+    // Collision (skip during invincibility frames or shield)
+    if (invincibleRef.current === 0 && shieldTimerRef.current <= 0) {
       for (const obs of obstaclesRef.current) {
         if (obs.y > py - 20 && obs.y < py + 20) {
           if (playerLRef.current.lane === obs.dangerLane) {
@@ -347,7 +329,7 @@ const MirrorDash: React.FC = () => {
     if (flashTimerRef.current > 0) flashTimerRef.current--;
     scoreRef.current++;
     setUiScore(scoreRef.current);
-  }, [spawnObstacle, spawnPickup, spawnBlindPowerup, playerY, laneX, hit]);
+  }, [spawnObstacle, spawnPickup, spawnShieldPowerup, playerY, laneX, hit]);
 
   // roundRect helper on canvas
   const roundRect = useCallback((ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) => {
@@ -449,10 +431,9 @@ const MirrorDash: React.FC = () => {
     ctx.fillText('WORLD B', MID + MID / 2, 20);
     ctx.restore();
 
-    // Obstacles
+    // Obstacles (safe arrows always visible)
     const obsW = LANE_W - 10;
     const obsH = 18;
-    const isBlind = blindTimerRef.current > 0;
     for (const obs of obstaclesRef.current) {
       const y = obs.y;
       // Left side
@@ -467,7 +448,7 @@ const MirrorDash: React.FC = () => {
           roundRect(ctx, x - obsW / 2, y - obsH / 2, obsW, obsH, 4);
           ctx.fill();
           ctx.restore();
-        } else if (!isBlind) {
+        } else {
           ctx.save();
           ctx.strokeStyle = C.safeLeft;
           ctx.lineWidth = 2;
@@ -490,23 +471,21 @@ const MirrorDash: React.FC = () => {
       for (let l = 0; l < LANES; l++) {
         const x = laneX('right', l);
         if (l === safeLaneR) {
-          if (!isBlind) {
-            ctx.save();
-            ctx.strokeStyle = C.safeRight;
-            ctx.lineWidth = 2;
-            ctx.globalAlpha = 0.75;
-            ctx.shadowColor = C.safeRight;
-            ctx.shadowBlur = 8;
-            ctx.beginPath();
-            roundRect(ctx, x - obsW / 2, y - obsH / 2, obsW, obsH, 4);
-            ctx.stroke();
-            ctx.globalAlpha = 0.5;
-            ctx.fillStyle = C.safeRight;
-            ctx.font = 'bold 10px Rajdhani, sans-serif';
-            ctx.textAlign = 'center';
-            ctx.fillText('\u25BC', x, y - obsH / 2 - 4);
-            ctx.restore();
-          }
+          ctx.save();
+          ctx.strokeStyle = C.safeRight;
+          ctx.lineWidth = 2;
+          ctx.globalAlpha = 0.75;
+          ctx.shadowColor = C.safeRight;
+          ctx.shadowBlur = 8;
+          ctx.beginPath();
+          roundRect(ctx, x - obsW / 2, y - obsH / 2, obsW, obsH, 4);
+          ctx.stroke();
+          ctx.globalAlpha = 0.5;
+          ctx.fillStyle = C.safeRight;
+          ctx.font = 'bold 10px Rajdhani, sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText('\u25BC', x, y - obsH / 2 - 4);
+          ctx.restore();
         } else {
           ctx.save();
           ctx.shadowColor = C.dangerRight;
@@ -541,39 +520,35 @@ const MirrorDash: React.FC = () => {
       ctx.restore();
     }
 
-    // Blind power-ups
-    for (const bp of blindPowerupsRef.current) {
-      const x = laneX(bp.side, bp.lane);
-      const y = bp.y;
+    // Shield power-ups (collectible)
+    for (const sp of shieldPowerupsRef.current) {
+      const x = laneX(sp.side, sp.lane);
+      const y = sp.y;
       const pulse = 0.6 + 0.4 * Math.sin(frame * 0.12);
       ctx.save();
-      // Glowing eye icon
-      ctx.shadowColor = '#aa44ff';
+      ctx.shadowColor = '#2fffee';
       ctx.shadowBlur = 14 * pulse;
       ctx.font = '18px serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.globalAlpha = pulse;
-      ctx.fillText('\uD83D\uDC41\uFE0F', x, y);
-      // Strikethrough line across the eye
-      ctx.strokeStyle = '#ff2f7b';
-      ctx.lineWidth = 2;
-      ctx.globalAlpha = 0.8 * pulse;
+      ctx.fillText('\uD83D\uDEE1\uFE0F', x, y);
       ctx.beginPath();
-      ctx.moveTo(x - 10, y + 6);
-      ctx.lineTo(x + 10, y - 6);
+      ctx.arc(x, y, 16 * pulse, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(47,255,238,0.35)';
+      ctx.lineWidth = 1.5;
       ctx.stroke();
       ctx.restore();
     }
 
-    // Blind effect HUD indicator on canvas
-    if (isBlind) {
-      const blinkAlpha = 0.5 + 0.3 * Math.sin(frame * 0.1);
+    // Shield active — timer bar at bottom of canvas
+    const isShielded = shieldTimerRef.current > 0;
+    if (isShielded) {
+      const frac = shieldTimerRef.current / 300;
+      const barW = (W - 40) * frac;
       ctx.save();
-      ctx.font = '700 11px Orbitron, sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillStyle = `rgba(170,68,255,${blinkAlpha})`;
-      ctx.fillText('ARROWS HIDDEN', W / 2, H - 10);
+      ctx.fillStyle = `rgba(47,255,238,${0.3 + 0.15 * Math.sin(frame * 0.1)})`;
+      ctx.fillRect(20, H - 8, barW, 4);
       ctx.restore();
     }
 
@@ -584,6 +559,20 @@ const MirrorDash: React.FC = () => {
       const color = side === 'left' ? C.leftNeonLight : C.rightNeonLight;
 
       if (damaged && Math.floor(frame / 6) % 2 === 0) return;
+
+      // Shield bubble when active
+      if (isShielded) {
+        const pulse = 0.4 + 0.2 * Math.sin(frame * 0.12);
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(x, y - 4, 22, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(47,255,238,${pulse})`;
+        ctx.lineWidth = 2;
+        ctx.shadowColor = '#2fffee';
+        ctx.shadowBlur = 12;
+        ctx.stroke();
+        ctx.restore();
+      }
 
       ctx.save();
       ctx.shadowColor = color;
@@ -639,9 +628,9 @@ const MirrorDash: React.FC = () => {
     obstaclesRef.current = [];
     particlesRef.current = [];
     pickupsRef.current = [];
-    blindPowerupsRef.current = [];
-    blindTimerRef.current = 0;
-    setUiBlind(false);
+    shieldPowerupsRef.current = [];
+    shieldTimerRef.current = 0;
+    setUiShield(false);
     playerLRef.current.lane = 1;
     playerRRef.current.lane = 1;
     invincibleRef.current = 0;
@@ -719,17 +708,16 @@ const MirrorDash: React.FC = () => {
         <div style={styles.hud}>
           <div style={styles.lives}>{livesDisplay}</div>
           <div style={styles.title}>MIRROR DASH</div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            {uiBlind && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 100, justifyContent: 'flex-end' }}>
+            {uiShield && (
               <span style={{
                 fontFamily: "'Orbitron', sans-serif",
                 fontSize: '0.6rem',
                 fontWeight: 700,
-                color: '#aa44ff',
+                color: '#2fffee',
                 letterSpacing: 1,
-                animation: 'md-twinkle 0.8s linear infinite',
               }}>
-                BLIND
+                SHIELD
               </span>
             )}
             <div style={styles.scoreDisplay}>{uiScore}</div>
