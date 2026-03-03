@@ -935,9 +935,9 @@ const styles: Record<string, React.CSSProperties> = {
     padding: '0 4px 12px',
   },
   lives: {
-    display: 'flex',
-    gap: 5,
     fontSize: '1.1rem',
+    whiteSpace: 'nowrap',
+    flexShrink: 0,
   },
   title: {
     fontFamily: "'Orbitron', sans-serif",
@@ -947,6 +947,9 @@ const styles: Record<string, React.CSSProperties> = {
     background: `linear-gradient(90deg, ${C.leftNeon}, ${C.rightNeon})`,
     WebkitBackgroundClip: 'text',
     WebkitTextFillColor: 'transparent',
+    overflow: 'hidden',
+    whiteSpace: 'nowrap',
+    flexShrink: 1,
   },
   scoreDisplay: {
     fontFamily: "'Orbitron', sans-serif",
