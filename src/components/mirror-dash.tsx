@@ -82,6 +82,7 @@ interface Particle {
 const MirrorDash: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animIdRef = useRef<number>(0);
+  const bgmRef = useRef<HTMLAudioElement | null>(null);
 
   // Game state refs
   const stateRef = useRef<GameState>('idle');
@@ -139,6 +140,19 @@ const MirrorDash: React.FC = () => {
       hiScoreRef.current = val;
       setUiHiScore(val);
     }
+  }, []);
+
+  // Init BGM
+  useEffect(() => {
+    const audio = new Audio('/mirror-dash.mp3');
+    audio.loop = true;
+    audio.volume = 0.4;
+    bgmRef.current = audio;
+    return () => {
+      audio.pause();
+      audio.src = '';
+      bgmRef.current = null;
+    };
   }, []);
 
   // Helpers
@@ -231,6 +245,8 @@ const MirrorDash: React.FC = () => {
         localStorage.setItem('mirror-dash-best', String(sc));
       }
       setUiHiScore(hiScoreRef.current);
+      // Stop BGM
+      if (bgmRef.current) bgmRef.current.pause();
     }
   }, [laneX, playerY]);
 
@@ -734,6 +750,11 @@ const MirrorDash: React.FC = () => {
     flashSideRef.current = null;
     setUiScore(0);
     setUiLives(3);
+    // Play BGM
+    if (bgmRef.current) {
+      bgmRef.current.currentTime = 0;
+      bgmRef.current.play().catch(() => {});
+    }
   }, []);
 
   // Keep latest update/draw in refs so the loop never restarts
