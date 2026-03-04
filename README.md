@@ -20,7 +20,7 @@ Semakin Pintar is a comprehensive educational games platform designed to make le
 
 ### 🎮 Available Games
 
-- **Mental Arithmetic** - Brain training with customizable difficulty levels
+#### Math Games
 - **Multiplication Table** - Interactive 1x1 to 10x10 multiplication practice
 - **Mental Division** - Division practice with speech support
 - **Mental Multiplication** - Advanced multiplication training
@@ -32,6 +32,7 @@ Semakin Pintar is a comprehensive educational games platform designed to make le
 
 #### Cognitive Skills
 - **Sort Attack** - Sort scrambled numbers using only adjacent swaps before time runs out
+- **Pair Shift** - Pick any two adjacent cards and slide them as a pair to sort in minimum moves
 
 #### Brain Training
 - **Mirror Dash** - Control two ships at once across mirrored lanes! Navigate both sides simultaneously — dodge obstacles, grab power-ups, and make split-second decisions
