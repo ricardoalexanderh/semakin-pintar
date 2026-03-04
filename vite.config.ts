@@ -30,6 +30,7 @@ export default defineConfig({
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'logo.png'],
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,mp3,wav,woff2}'],
+        maximumFileSizeToCacheInBytes: 6 * 1024 * 1024, // 6 MB to allow audio files
         // Modern caching strategies
         runtimeCaching: [
           {
