@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Calculator, Shapes, Rocket, X, /*Grid3X3,*/ Lightbulb, Puzzle, Mail, ExternalLink, Layers, Search, Target, Workflow, ArrowUpDown } from 'lucide-react';
+import { Calculator, Shapes, Rocket, /*Grid3X3,*/ Lightbulb, Puzzle, Mail, ExternalLink, Layers, Search, Target, Workflow, ArrowUpDown } from 'lucide-react';
 import { trackButtonClick, trackDonationClick } from '../utils/analytics';
 import FloatingButtons from './floating-buttons';
 
@@ -123,15 +123,6 @@ const LandingPage: React.FC<LandingPageProps> = () => {
             available: true,
             gradient: 'from-purple-500 to-indigo-500',
             path: '/games/mental-arithmetic'
-        },
-        {
-            id: 'mental-multiplication',
-            name: 'Mental Multiplication',
-            description: 'Master multiplication skills',
-            icon: <X className="w-12 h-12" />,
-            available: true,
-            gradient: 'from-yellow-500 to-orange-400',
-            path: '/games/mental-multiplication'
         },
         /*{
             id: 'mental-division',
