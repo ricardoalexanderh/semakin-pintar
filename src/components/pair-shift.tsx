@@ -201,7 +201,6 @@ const PairShift: React.FC = () => {
 
   // --- Gameplay ---
   const [tiles, setTiles] = useState<number[]>([]);
-  const [originalTiles, setOriginalTiles] = useState<number[]>([]);
   // firstSelected: index of the first clicked card (for pair selection)
   const [firstSelected, setFirstSelected] = useState<number | null>(null);
   // pairSelected: [left index, right index] of confirmed adjacent pair
@@ -266,7 +265,6 @@ const PairShift: React.FC = () => {
     const arr = generateRound(size);
     const min = computeMinPairMoves(arr);
     setTiles(arr);
-    setOriginalTiles(arr);
     setMinMoves(min);
     setMovesUsed(0);
     setFirstSelected(null);
@@ -352,18 +350,11 @@ const PairShift: React.FC = () => {
    * We exclude gapIndex === pairIdx (no-op) and gapIndex === pairIdx+2 (no-op).
    */
   const applyPairMove = (currentTiles: number[], pairIdx: number, gapIndex: number): number[] => {
-    const [pi] = [pairIdx];
-    const pair = [currentTiles[pi], currentTiles[pi + 1]];
-    const rest = [...currentTiles.slice(0, pi), ...currentTiles.slice(pi + 2)];
+    const pair = [currentTiles[pairIdx], currentTiles[pairIdx + 1]];
+    const rest = [...currentTiles.slice(0, pairIdx), ...currentTiles.slice(pairIdx + 2)];
 
     // Map gapIndex (in original layout, 0..n) to rest insertion position (0..n-2)
-    let j: number;
-    if (gapIndex <= pi) {
-      j = gapIndex;
-    } else {
-      // gapIndex is after the pair (gapIndex >= pi + 2)
-      j = gapIndex - 2;
-    }
+    const j = gapIndex <= pairIdx ? gapIndex : gapIndex - 2;
 
     return [...rest.slice(0, j), ...pair, ...rest.slice(j)];
   };
