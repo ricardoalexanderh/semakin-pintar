@@ -358,6 +358,7 @@ const LandingPage: React.FC<LandingPageProps> = () => {
                     </div>
                     */}
                     
+                    {/* Previous featured game - Mathcha Cafe
                     <div className="mt-8 p-4 md:p-6 bg-gradient-to-r from-green-100 to-amber-100 rounded-2xl border-2 border-green-200">
                         <div className="flex flex-col md:flex-row items-center md:justify-between gap-4">
                             <div className="flex flex-col sm:flex-row items-center gap-4 text-center sm:text-left">
@@ -375,6 +376,30 @@ const LandingPage: React.FC<LandingPageProps> = () => {
                                     trackButtonClick('featured-mathcha-cafe', 'featured-section');
                                 }}
                                 className="bg-gradient-to-r from-green-500 to-amber-500 text-white px-6 py-3 rounded-xl font-bold hover:from-green-600 hover:to-amber-600 transition-all shadow-lg hover:shadow-xl transform hover:scale-105 w-full sm:w-auto text-center block"
+                            >
+                                Play Now →
+                            </Link>
+                        </div>
+                    </div>
+                    */}
+
+                    <div className="mt-8 p-4 md:p-6 bg-gradient-to-r from-orange-100 to-yellow-100 rounded-2xl border-2 border-orange-200">
+                        <div className="flex flex-col md:flex-row items-center md:justify-between gap-4">
+                            <div className="flex flex-col sm:flex-row items-center gap-4 text-center sm:text-left">
+                                <div className="bg-gradient-to-r from-orange-500 to-yellow-500 text-white w-12 h-12 md:w-16 md:h-16 rounded-2xl flex items-center justify-center shadow-lg flex-shrink-0">
+                                    <span className="text-2xl font-black" style={{ letterSpacing: '-2px' }}>⇌</span>
+                                </div>
+                                <div>
+                                    <h3 className="text-lg md:text-xl font-bold text-orange-700">New: Pair Shift</h3>
+                                    <p className="text-sm md:text-base text-yellow-700">Pick any two adjacent cards, slide them as a pair, and sort in minimum moves!</p>
+                                </div>
+                            </div>
+                            <Link
+                                to="/games/pair-shift"
+                                onClick={() => {
+                                    trackButtonClick('featured-pair-shift', 'featured-section');
+                                }}
+                                className="bg-gradient-to-r from-orange-500 to-yellow-500 text-white px-6 py-3 rounded-xl font-bold hover:from-orange-600 hover:to-yellow-600 transition-all shadow-lg hover:shadow-xl transform hover:scale-105 w-full sm:w-auto text-center block"
                             >
                                 Play Now →
                             </Link>

@@ -162,6 +162,19 @@ const GamesIndex: React.FC = () => {
       category: 'Cognitive Skills'
     },
     {
+      id: 'pair-shift',
+      name: 'Pair Shift',
+      description: 'Slide pairs of cards to sort them',
+      longDescription: 'Pick any two adjacent cards and slide them as a pair to a new position. Sort all cards in the fewest pair moves possible! A fresh twist on sorting puzzles that challenges your spatial thinking.',
+      icon: <span className="text-2xl font-black" style={{ letterSpacing: '-2px' }}>⇌</span>,
+      available: true,
+      gradient: 'from-orange-500 to-yellow-500',
+      path: '/games/pair-shift',
+      difficulty: 'Easy to Hard',
+      duration: '2-10 minutes',
+      category: 'Cognitive Skills'
+    },
+    {
       id: 'math-flip',
       name: 'Math Flip',
       description: 'Card-matching math challenge',

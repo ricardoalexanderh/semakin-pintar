@@ -21,6 +21,7 @@ import MathDropGame from './components/math-drop';
 import SortAttack from './components/sort-attack';
 import MathFlipGame from './components/math-flip';
 import MirrorDash from './components/mirror-dash';
+import PairShift from './components/pair-shift';
 
 // Component to handle page tracking and SEO
 const PageTracker = () => {
@@ -518,6 +519,41 @@ const MirrorDashPage = () => {
   );
 };
 
+// Pair Shift page with SEO
+const PairShiftPage = () => {
+  const gameJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Game",
+    "name": "Pair Shift",
+    "description": "Select any two adjacent cards as a pair and slide them to a new position. Sort all cards in the minimum number of pair moves to score big!",
+    "url": "https://www.semakinpintar.com/games/pair-shift",
+    "genre": "Educational",
+    "gamePlatform": "Web Browser",
+    "applicationCategory": "EducationalApplication",
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD"
+    }
+  };
+
+  return (
+    <>
+      <SEOHead
+        title="Pair Shift - Pair Move Sorting Puzzle | Semakin Pintar"
+        description="Pick any two adjacent cards, then slide them as a pair to a new position. Sort all cards in the fewest pair moves possible. A fresh twist on logic sorting!"
+        keywords="pair shift, sorting puzzle, pair moves, logic game, brain training, number sorting, puzzle game, educational games, cognitive skills"
+        canonicalUrl="https://www.semakinpintar.com/games/pair-shift"
+        ogTitle="Pair Shift - Pair Move Sorting Puzzle"
+        ogDescription="Pick a pair of adjacent cards and slide them to a new spot. Sort the cards in minimum moves!"
+        ogImage="https://www.semakinpintar.com/logo.png"
+        jsonLd={gameJsonLd}
+      />
+      <PairShift />
+    </>
+  );
+};
+
 // Sort Attack page with SEO
 const SortAttackPage = () => {
   const gameJsonLd = {
@@ -623,6 +659,11 @@ function App() {
           <Route path="/games/sort-attack" element={
             <GamesLayout>
               <SortAttackPage />
+            </GamesLayout>
+          } />
+          <Route path="/games/pair-shift" element={
+            <GamesLayout>
+              <PairShiftPage />
             </GamesLayout>
           } />
           <Route path="/games/math-flip" element={
