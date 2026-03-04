@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Shapes, Rocket, /*Grid3X3,*/ Lightbulb, Puzzle, Mail, ExternalLink, Layers, Search, Target, Workflow, ArrowUpDown } from 'lucide-react';
+import { Calculator, Shapes, Rocket, /*Grid3X3,*/ Lightbulb, Puzzle, Mail, ExternalLink, Layers, Search, Target, Workflow, ArrowUpDown } from 'lucide-react';
 import { trackButtonClick, trackDonationClick } from '../utils/analytics';
 import FloatingButtons from './floating-buttons';
 
@@ -115,7 +115,7 @@ const LandingPage: React.FC<LandingPageProps> = () => {
             gradient: 'from-blue-600 to-purple-600',
             path: '/games/rocket-math'
         },
-        /*{
+        {
             id: 'mental-arithmetic-game',
             name: 'Mental Arithmetic',
             description: 'Train your brain with fun calculations',
@@ -123,7 +123,7 @@ const LandingPage: React.FC<LandingPageProps> = () => {
             available: true,
             gradient: 'from-purple-500 to-indigo-500',
             path: '/games/mental-arithmetic'
-        },*/
+        },
         /*{
             id: 'mental-division',
             name: 'Mental Division',
