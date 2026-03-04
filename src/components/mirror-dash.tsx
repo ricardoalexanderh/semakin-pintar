@@ -677,26 +677,53 @@ const MirrorDash: React.FC = () => {
       ctx.shadowColor = color;
       ctx.shadowBlur = 18;
 
-      // Body
+      // Body — neon arrowhead with wing tips
       ctx.fillStyle = color;
       ctx.beginPath();
-      ctx.moveTo(x, y - 18);
-      ctx.lineTo(x - 12, y + 10);
-      ctx.lineTo(x, y + 4);
-      ctx.lineTo(x + 12, y + 10);
+      ctx.moveTo(x, y - 20);
+      ctx.lineTo(x - 8, y + 4);
+      ctx.lineTo(x - 14, y + 12);
+      ctx.lineTo(x - 8, y + 8);
+      ctx.lineTo(x, y + 12);
+      ctx.lineTo(x + 8, y + 8);
+      ctx.lineTo(x + 14, y + 12);
+      ctx.lineTo(x + 8, y + 4);
       ctx.closePath();
       ctx.fill();
 
-      // Engine trail
-      const trailGrad = ctx.createLinearGradient(x, y + 4, x, y + 30);
+      // Cockpit window
+      ctx.fillStyle = side === 'left' ? 'rgba(180,130,255,0.6)' : 'rgba(255,180,220,0.6)';
+      ctx.beginPath();
+      ctx.arc(x, y - 10, 3, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Wing-tip accents
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(x - 14, y + 12);
+      ctx.lineTo(x - 10, y + 14);
+      ctx.moveTo(x + 14, y + 12);
+      ctx.lineTo(x + 10, y + 14);
+      ctx.stroke();
+
+      // Engine trail (twin)
+      const trailGrad = ctx.createLinearGradient(x, y + 12, x, y + 34);
       trailGrad.addColorStop(0, color + 'cc');
       trailGrad.addColorStop(1, color + '00');
       ctx.fillStyle = trailGrad;
       ctx.beginPath();
-      ctx.moveTo(x - 5, y + 4);
-      ctx.lineTo(x + 5, y + 4);
-      ctx.lineTo(x + 2, y + 28);
-      ctx.lineTo(x - 2, y + 28);
+      ctx.moveTo(x - 6, y + 10);
+      ctx.lineTo(x - 3, y + 10);
+      ctx.lineTo(x - 2, y + 32);
+      ctx.lineTo(x - 7, y + 32);
+      ctx.closePath();
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(x + 3, y + 10);
+      ctx.lineTo(x + 6, y + 10);
+      ctx.lineTo(x + 7, y + 32);
+      ctx.lineTo(x + 2, y + 32);
       ctx.closePath();
       ctx.fill();
 
