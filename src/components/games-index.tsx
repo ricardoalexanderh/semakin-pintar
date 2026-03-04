@@ -159,7 +159,7 @@ const GamesIndex: React.FC = () => {
       path: '/games/sort-attack',
       difficulty: 'Easy to Hard',
       duration: '2-10 minutes',
-      category: 'Fun Math Games'
+      category: 'Cognitive Skills'
     },
     {
       id: 'math-flip',
@@ -211,7 +211,7 @@ const GamesIndex: React.FC = () => {
     return acc;
   }, {} as Record<string, Game[]>);
 
-  const categoryOrder = ['Mental Math Games', 'Fun Math Games', 'Math Foundation', 'Reflex & Decision', 'Cognitive Skills', 'Brain Training'];
+  const categoryOrder = ['Mental Math Games', 'Fun Math Games', 'Math Foundation', 'Cognitive Skills', 'Brain Training'];
   const allCategories = ['All', ...categoryOrder];
 
   // Filter games based on selected category
