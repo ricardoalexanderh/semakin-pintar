@@ -238,8 +238,8 @@ const MirrorDash: React.FC = () => {
     if (livesRef.current <= 0) {
       stateRef.current = 'over';
       setUiState('over');
-      setUiScore(scoreRef.current);
-      const sc = scoreRef.current;
+      setUiScore(Math.floor(scoreRef.current));
+      const sc = Math.floor(scoreRef.current);
       if (sc > hiScoreRef.current) {
         hiScoreRef.current = sc;
         localStorage.setItem('mirror-dash-best', String(sc));
@@ -253,12 +253,12 @@ const MirrorDash: React.FC = () => {
   // Update
   const update = useCallback((dt: number) => {
     const frame = frameRef.current;
-    frameRef.current++;
+    frameRef.current += dt;
 
     // Speed ramp — smooth linear, starts 2.5 → maxes 4.5
     speedRef.current = 2.5 + Math.min(2.0, frame * 0.0005);
-    if (invincibleLeftRef.current > 0) invincibleLeftRef.current--;
-    if (invincibleRightRef.current > 0) invincibleRightRef.current--;
+    if (invincibleLeftRef.current > 0) invincibleLeftRef.current -= dt;
+    if (invincibleRightRef.current > 0) invincibleRightRef.current -= dt;
 
     const speed = speedRef.current;
 
@@ -302,11 +302,11 @@ const MirrorDash: React.FC = () => {
 
     // Tick per-side shield timers
     if (shieldLeftRef.current > 0) {
-      shieldLeftRef.current--;
+      shieldLeftRef.current -= dt;
       if (shieldLeftRef.current <= 0) setUiShieldLeft(false);
     }
     if (shieldRightRef.current > 0) {
-      shieldRightRef.current--;
+      shieldRightRef.current -= dt;
       if (shieldRightRef.current <= 0) setUiShieldRight(false);
     }
 
@@ -413,13 +413,13 @@ const MirrorDash: React.FC = () => {
       const p = particlesRef.current[i];
       p.x += p.vx * dt;
       p.y += p.vy * dt;
-      p.life--;
+      p.life -= dt;
       if (p.life <= 0) swapRemove(particlesRef.current, i);
     }
 
-    if (flashTimerRef.current > 0) flashTimerRef.current--;
-    scoreRef.current++;
-    if (scoreElRef.current) scoreElRef.current.textContent = String(scoreRef.current);
+    if (flashTimerRef.current > 0) flashTimerRef.current -= dt;
+    scoreRef.current += dt;
+    if (scoreElRef.current) scoreElRef.current.textContent = String(Math.floor(scoreRef.current));
   }, [spawnObstacle, spawnPickup, spawnShieldPowerup, playerY, laneX, hit]);
 
   // roundRect helper on canvas
