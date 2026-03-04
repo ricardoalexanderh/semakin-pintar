@@ -505,142 +505,112 @@ const MirrorDash: React.FC = () => {
     ctx.fillText('WORLD B', MID + MID / 2, 20);
     ctx.restore();
 
-    // Obstacles (safe arrows always visible) — no shadowBlur for performance
+    // Obstacles (safe arrows always visible)
     const obsW = LANE_W - 10;
     const obsH = 18;
-    // Batch: draw all danger blocks, then all safe outlines
-    // Danger left
-    ctx.save();
-    ctx.fillStyle = C.dangerLeft;
     for (const obs of obstaclesRef.current) {
+      const y = obs.y;
+      // Left side
       for (let l = 0; l < LANES; l++) {
+        const x = laneX('left', l);
         if (obs.leftDanger.includes(l)) {
-          const x = laneX('left', l);
+          ctx.save();
+          ctx.shadowColor = C.dangerLeft;
+          ctx.shadowBlur = 12;
+          ctx.fillStyle = C.dangerLeft;
           ctx.beginPath();
-          roundRect(ctx, x - obsW / 2, obs.y - obsH / 2, obsW, obsH, 4);
+          roundRect(ctx, x - obsW / 2, y - obsH / 2, obsW, obsH, 4);
           ctx.fill();
+          ctx.restore();
+        } else {
+          ctx.save();
+          ctx.strokeStyle = C.safeLeft;
+          ctx.lineWidth = 2;
+          ctx.globalAlpha = 0.75;
+          ctx.shadowColor = C.safeLeft;
+          ctx.shadowBlur = 8;
+          ctx.beginPath();
+          roundRect(ctx, x - obsW / 2, y - obsH / 2, obsW, obsH, 4);
+          ctx.stroke();
+          ctx.globalAlpha = 0.5;
+          ctx.fillStyle = C.safeLeft;
+          ctx.font = 'bold 10px Rajdhani, sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText('\u25BC', x, y - obsH / 2 - 4);
+          ctx.restore();
         }
       }
-    }
-    // Danger right
-    ctx.fillStyle = C.dangerRight;
-    for (const obs of obstaclesRef.current) {
+      // Right side
       for (let l = 0; l < LANES; l++) {
-        if (obs.rightDanger.includes(l)) {
-          const x = laneX('right', l);
+        const x = laneX('right', l);
+        if (!obs.rightDanger.includes(l)) {
+          ctx.save();
+          ctx.strokeStyle = C.safeRight;
+          ctx.lineWidth = 2;
+          ctx.globalAlpha = 0.75;
+          ctx.shadowColor = C.safeRight;
+          ctx.shadowBlur = 8;
           ctx.beginPath();
-          roundRect(ctx, x - obsW / 2, obs.y - obsH / 2, obsW, obsH, 4);
+          roundRect(ctx, x - obsW / 2, y - obsH / 2, obsW, obsH, 4);
+          ctx.stroke();
+          ctx.globalAlpha = 0.5;
+          ctx.fillStyle = C.safeRight;
+          ctx.font = 'bold 10px Rajdhani, sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText('\u25BC', x, y - obsH / 2 - 4);
+          ctx.restore();
+        } else {
+          ctx.save();
+          ctx.shadowColor = C.dangerRight;
+          ctx.shadowBlur = 12;
+          ctx.fillStyle = C.dangerRight;
+          ctx.beginPath();
+          roundRect(ctx, x - obsW / 2, y - obsH / 2, obsW, obsH, 4);
           ctx.fill();
+          ctx.restore();
         }
       }
     }
-    ctx.restore();
 
-    // Safe left outlines
-    ctx.save();
-    ctx.strokeStyle = C.safeLeft;
-    ctx.lineWidth = 2;
-    ctx.globalAlpha = 0.75;
-    for (const obs of obstaclesRef.current) {
-      for (let l = 0; l < LANES; l++) {
-        if (!obs.leftDanger.includes(l)) {
-          const x = laneX('left', l);
-          ctx.beginPath();
-          roundRect(ctx, x - obsW / 2, obs.y - obsH / 2, obsW, obsH, 4);
-          ctx.stroke();
-        }
-      }
-    }
-    ctx.restore();
-    // Safe left arrows
-    ctx.save();
-    ctx.globalAlpha = 0.5;
-    ctx.fillStyle = C.safeLeft;
-    ctx.font = 'bold 10px Rajdhani, sans-serif';
-    ctx.textAlign = 'center';
-    for (const obs of obstaclesRef.current) {
-      for (let l = 0; l < LANES; l++) {
-        if (!obs.leftDanger.includes(l)) {
-          ctx.fillText('\u25BC', laneX('left', l), obs.y - obsH / 2 - 4);
-        }
-      }
-    }
-    ctx.restore();
-
-    // Safe right outlines
-    ctx.save();
-    ctx.strokeStyle = C.safeRight;
-    ctx.lineWidth = 2;
-    ctx.globalAlpha = 0.75;
-    for (const obs of obstaclesRef.current) {
-      for (let l = 0; l < LANES; l++) {
-        if (!obs.rightDanger.includes(l)) {
-          const x = laneX('right', l);
-          ctx.beginPath();
-          roundRect(ctx, x - obsW / 2, obs.y - obsH / 2, obsW, obsH, 4);
-          ctx.stroke();
-        }
-      }
-    }
-    ctx.restore();
-    // Safe right arrows
-    ctx.save();
-    ctx.globalAlpha = 0.5;
-    ctx.fillStyle = C.safeRight;
-    ctx.font = 'bold 10px Rajdhani, sans-serif';
-    ctx.textAlign = 'center';
-    for (const obs of obstaclesRef.current) {
-      for (let l = 0; l < LANES; l++) {
-        if (!obs.rightDanger.includes(l)) {
-          ctx.fillText('\u25BC', laneX('right', l), obs.y - obsH / 2 - 4);
-        }
-      }
-    }
-    ctx.restore();
-
-    // Pickups — no shadowBlur
-    const pickupPulse = 0.7 + 0.3 * Math.sin(frame * 0.15);
-    if (pickupsRef.current.length > 0) {
+    // Pickups
+    for (const pk of pickupsRef.current) {
+      const x = laneX(pk.side, pk.lane);
+      const y = pk.y;
+      const pulse = 0.7 + 0.3 * Math.sin(frame * 0.15);
       ctx.save();
+      ctx.shadowColor = '#ff6eb4';
+      ctx.shadowBlur = 16 * pulse;
       ctx.font = '20px serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.globalAlpha = pickupPulse;
-      for (const pk of pickupsRef.current) {
-        const x = laneX(pk.side, pk.lane);
-        ctx.fillText('\u2764\uFE0F', x, pk.y);
-      }
+      ctx.globalAlpha = pulse;
+      ctx.fillText('\u2764\uFE0F', x, y);
+      ctx.beginPath();
+      ctx.arc(x, y, 18 * pulse, 0, Math.PI * 2);
       ctx.strokeStyle = 'rgba(255,110,180,0.3)';
       ctx.lineWidth = 1.5;
-      for (const pk of pickupsRef.current) {
-        const x = laneX(pk.side, pk.lane);
-        ctx.beginPath();
-        ctx.arc(x, pk.y, 18 * pickupPulse, 0, Math.PI * 2);
-        ctx.stroke();
-      }
+      ctx.stroke();
       ctx.restore();
     }
 
-    // Shield power-ups (collectible) — no shadowBlur
-    if (shieldPowerupsRef.current.length > 0) {
-      const shieldPulse = 0.6 + 0.4 * Math.sin(frame * 0.12);
+    // Shield power-ups (collectible)
+    for (const sp of shieldPowerupsRef.current) {
+      const x = laneX(sp.side, sp.lane);
+      const y = sp.y;
+      const pulse = 0.6 + 0.4 * Math.sin(frame * 0.12);
       ctx.save();
+      ctx.shadowColor = '#2fffee';
+      ctx.shadowBlur = 14 * pulse;
       ctx.font = '18px serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.globalAlpha = shieldPulse;
-      for (const sp of shieldPowerupsRef.current) {
-        const x = laneX(sp.side, sp.lane);
-        ctx.fillText('\uD83D\uDEE1\uFE0F', x, sp.y);
-      }
+      ctx.globalAlpha = pulse;
+      ctx.fillText('\uD83D\uDEE1\uFE0F', x, y);
+      ctx.beginPath();
+      ctx.arc(x, y, 16 * pulse, 0, Math.PI * 2);
       ctx.strokeStyle = 'rgba(47,255,238,0.35)';
       ctx.lineWidth = 1.5;
-      for (const sp of shieldPowerupsRef.current) {
-        const x = laneX(sp.side, sp.lane);
-        ctx.beginPath();
-        ctx.arc(x, sp.y, 16 * shieldPulse, 0, Math.PI * 2);
-        ctx.stroke();
-      }
+      ctx.stroke();
       ctx.restore();
     }
 
@@ -673,25 +643,23 @@ const MirrorDash: React.FC = () => {
 
       if (damaged && Math.floor(frame / 6) % 2 === 0) return;
 
-      // Shield bubble when this side is shielded — no shadowBlur
+      // Shield bubble when this side is shielded
       if (sideShielded) {
         const pulse = 0.4 + 0.2 * Math.sin(frame * 0.12);
         ctx.save();
         ctx.beginPath();
         ctx.arc(x, y - 4, 22, 0, Math.PI * 2);
         ctx.strokeStyle = `rgba(47,255,238,${pulse})`;
-        ctx.lineWidth = 2.5;
-        ctx.stroke();
-        // Inner glow ring
-        ctx.beginPath();
-        ctx.arc(x, y - 4, 20, 0, Math.PI * 2);
-        ctx.strokeStyle = `rgba(47,255,238,${pulse * 0.3})`;
-        ctx.lineWidth = 4;
+        ctx.lineWidth = 2;
+        ctx.shadowColor = '#2fffee';
+        ctx.shadowBlur = 12;
         ctx.stroke();
         ctx.restore();
       }
 
       ctx.save();
+      ctx.shadowColor = color;
+      ctx.shadowBlur = 18;
 
       // Body
       ctx.fillStyle = color;
@@ -722,15 +690,14 @@ const MirrorDash: React.FC = () => {
     drawPlayer('left', visualLaneLRef.current, invincibleLeftRef.current > 0);
     drawPlayer('right', visualLaneRRef.current, invincibleRightRef.current > 0);
 
-    // Particles — use rgba to avoid hex string ops per frame
+    // Particles
     for (const p of particlesRef.current) {
       ctx.beginPath();
       ctx.arc(p.x, p.y, 3, 0, Math.PI * 2);
-      ctx.globalAlpha = p.life / 30;
-      ctx.fillStyle = p.color;
+      const alpha = Math.floor(p.life / 30 * 255).toString(16).padStart(2, '0');
+      ctx.fillStyle = p.color + alpha;
       ctx.fill();
     }
-    ctx.globalAlpha = 1;
   }, [laneX, playerY, roundRect]);
 
   // Start game
