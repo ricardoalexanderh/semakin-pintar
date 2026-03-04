@@ -65,7 +65,7 @@ const LandingPage: React.FC<LandingPageProps> = () => {
             id: 'mirror-dash',
             name: 'Mirror Dash',
             description: 'Train your brain with dual-focus reflexes',
-            icon: <span className="text-3xl">🪞</span>,
+            icon: <svg className="w-12 h-12" viewBox="0 0 32 32" fill="none"><path d="M8 6L4 18L8 14L12 18Z" fill="currentColor" opacity="0.9"/><path d="M24 6L20 18L24 14L28 18Z" fill="currentColor" opacity="0.9"/><line x1="16" y1="2" x2="16" y2="30" stroke="currentColor" opacity="0.3" strokeWidth="1" strokeDasharray="2 2"/></svg>,
             available: true,
             gradient: 'from-purple-600 to-pink-500',
             path: '/games/mirror-dash'

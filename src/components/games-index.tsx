@@ -179,7 +179,7 @@ const GamesIndex: React.FC = () => {
       name: 'Mirror Dash',
       description: 'Train your brain with dual-focus reflexes',
       longDescription: 'Control two ships at once across mirrored lanes! Navigate both sides simultaneously — dodge obstacles, grab power-ups, and make split-second decisions. Sharpens focus, reaction time, and multitasking.',
-      icon: <span className="text-2xl">🪞</span>,
+      icon: <svg className="w-8 h-8" viewBox="0 0 32 32" fill="none"><path d="M8 6L4 18L8 14L12 18Z" fill="currentColor" opacity="0.9"/><path d="M24 6L20 18L24 14L28 18Z" fill="currentColor" opacity="0.9"/><line x1="16" y1="2" x2="16" y2="30" stroke="currentColor" opacity="0.3" strokeWidth="1" strokeDasharray="2 2"/></svg>,
       available: true,
       gradient: 'from-purple-600 to-pink-500',
       path: '/games/mirror-dash',
