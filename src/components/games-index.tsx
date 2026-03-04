@@ -159,7 +159,7 @@ const GamesIndex: React.FC = () => {
       path: '/games/sort-attack',
       difficulty: 'Easy to Hard',
       duration: '2-10 minutes',
-      category: 'Fun Math Games'
+      category: 'Cognitive Skills'
     },
     {
       id: 'math-flip',
@@ -173,6 +173,19 @@ const GamesIndex: React.FC = () => {
       difficulty: 'Beginner to Expert',
       duration: '3-15 minutes',
       category: 'Fun Math Games'
+    },
+    {
+      id: 'mirror-dash',
+      name: 'Mirror Dash',
+      description: 'Train your brain with dual-focus reflexes',
+      longDescription: 'Control two ships at once across mirrored lanes! Navigate both sides simultaneously — dodge obstacles, grab power-ups, and make split-second decisions. Sharpens focus, reaction time, and multitasking.',
+      icon: <svg className="w-8 h-8" viewBox="0 0 32 32" fill="none"><path d="M8 6L4 18L8 14L12 18Z" fill="currentColor" opacity="0.9"/><path d="M24 6L20 18L24 14L28 18Z" fill="currentColor" opacity="0.9"/><line x1="16" y1="2" x2="16" y2="30" stroke="currentColor" opacity="0.3" strokeWidth="1" strokeDasharray="2 2"/></svg>,
+      available: true,
+      gradient: 'from-purple-600 to-pink-500',
+      path: '/games/mirror-dash',
+      difficulty: 'Intermediate to Expert',
+      duration: '2-10 minutes',
+      category: 'Brain Training'
     },
     /*{
       id: 'math-drop',
@@ -198,7 +211,7 @@ const GamesIndex: React.FC = () => {
     return acc;
   }, {} as Record<string, Game[]>);
 
-  const categoryOrder = ['Mental Math Games', 'Fun Math Games', 'Math Foundation', 'Cognitive Skills'];
+  const categoryOrder = ['Mental Math Games', 'Fun Math Games', 'Math Foundation', 'Cognitive Skills', 'Brain Training'];
   const allCategories = ['All', ...categoryOrder];
 
   // Filter games based on selected category

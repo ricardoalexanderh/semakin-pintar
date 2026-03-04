@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Calculator, Shapes, Rocket, X, /*Grid3X3,*/ Lightbulb, Puzzle, Mail, ExternalLink, Layers, Search, Target, Workflow, ArrowUpDown } from 'lucide-react';
+import { Calculator, Shapes, Rocket, /*Grid3X3,*/ Lightbulb, Puzzle, Mail, ExternalLink, Layers, Search, Target, Workflow, ArrowUpDown } from 'lucide-react';
 import { trackButtonClick, trackDonationClick } from '../utils/analytics';
 import FloatingButtons from './floating-buttons';
 
@@ -62,6 +62,15 @@ const LandingPage: React.FC<LandingPageProps> = () => {
             path: '/games/math-drop'
         },*/
         {
+            id: 'mirror-dash',
+            name: 'Mirror Dash',
+            description: 'Train your brain with dual-focus reflexes',
+            icon: <svg className="w-12 h-12" viewBox="0 0 32 32" fill="none"><path d="M8 6L4 18L8 14L12 18Z" fill="currentColor" opacity="0.9"/><path d="M24 6L20 18L24 14L28 18Z" fill="currentColor" opacity="0.9"/><line x1="16" y1="2" x2="16" y2="30" stroke="currentColor" opacity="0.3" strokeWidth="1" strokeDasharray="2 2"/></svg>,
+            available: true,
+            gradient: 'from-purple-600 to-pink-500',
+            path: '/games/mirror-dash'
+        },
+        {
             id: 'sort-attack',
             name: 'Sort Attack',
             description: 'Sort numbers with adjacent swaps before time runs out',
@@ -114,15 +123,6 @@ const LandingPage: React.FC<LandingPageProps> = () => {
             available: true,
             gradient: 'from-purple-500 to-indigo-500',
             path: '/games/mental-arithmetic'
-        },
-        {
-            id: 'mental-multiplication',
-            name: 'Mental Multiplication',
-            description: 'Master multiplication skills',
-            icon: <X className="w-12 h-12" />,
-            available: true,
-            gradient: 'from-yellow-500 to-orange-400',
-            path: '/games/mental-multiplication'
         },
         /*{
             id: 'mental-division',

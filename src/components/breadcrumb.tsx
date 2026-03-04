@@ -40,6 +40,7 @@ const Breadcrumb: React.FC = () => {
           'math-drop': 'Math Drop',
           'sort-attack': 'Sort Attack',
           'math-flip': 'Math Flip',
+          'mirror-dash': 'Mirror Dash',
         };
         
         breadcrumbs.push({
