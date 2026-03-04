@@ -245,11 +245,21 @@ const PairShift: React.FC = () => {
   const [lastResult, setLastResult] = useState<RoundResult | null>(null);
   const [efficiencies, setEfficiencies] = useState<number[]>([]);
 
+  const [windowWidth, setWindowWidth] = useState(() =>
+    typeof window !== 'undefined' ? window.innerWidth : 768,
+  );
+
   const { updateGameState } = useGameState();
 
   useEffect(() => {
     updateGameState('pair-shift', phase === 'playing' || phase === 'countdown' || phase === 'roundEnd');
   }, [phase, updateGameState]);
+
+  useEffect(() => {
+    const onResize = () => setWindowWidth(window.innerWidth);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
 
   useEffect(() => { localStorage.setItem(LS_DIFFICULTY, difficulty); }, [difficulty]);
   useEffect(() => { localStorage.setItem(LS_SOUND, String(soundEnabled)); }, [soundEnabled]);
@@ -485,8 +495,19 @@ const PairShift: React.FC = () => {
       ? Math.round(efficiencies.reduce((a, b) => a + b, 0) / efficiencies.length)
       : 0;
 
-  const tileSize = tiles.length <= 5 ? 64 : tiles.length <= 7 ? 54 : 44;
-  const fontSize  = tiles.length <= 5 ? '1.4rem' : tiles.length <= 7 ? '1.1rem' : '0.9rem';
+  // Responsive tile sizing: compute how much space is available for tiles
+  // Page: px-3 sm:px-4 (24px mobile, 32px desktop). Tile container: p-4 (32px).
+  const tileCount = tiles.length;
+  const pageHorizPad = windowWidth < 640 ? 24 : 32;
+  const containerHorizPad = 32;
+  const availWidth = Math.min(windowWidth - pageHorizPad, 568) - containerHorizPad;
+  // Worst-case gap space (pair selected): (n-2) valid gaps at 36px + 2 noop gaps at 8px
+  const validGapW = 36;
+  const worstGapSpace = tileCount > 2 ? (tileCount - 2) * validGapW + 16 : (tileCount + 1) * 8;
+  const fittedTile = tileCount > 0 ? Math.floor((availWidth - worstGapSpace) / tileCount) : 64;
+  const preferredTile = tileCount <= 5 ? 64 : tileCount <= 7 ? 54 : 44;
+  const tileSize = Math.max(40, Math.min(preferredTile, fittedTile));
+  const fontSize = tileSize >= 56 ? '1.4rem' : tileSize >= 46 ? '1.1rem' : tileSize >= 40 ? '0.9rem' : '0.8rem';
 
   const Page = ({ children }: { children: React.ReactNode }) => (
     <div
@@ -718,20 +739,30 @@ const PairShift: React.FC = () => {
             onClick={() => isValidDrop ? handleGapClick(i) : undefined}
             className="flex items-center justify-center transition-all duration-150"
             style={{
-              width: isValidDrop ? 24 : 8,
-              minWidth: isValidDrop ? 24 : 8,
-              height: tileSize,
+              // Layout width stays compact; extra padding extends the touch target beyond
+              // the visual bounds without pushing tiles apart.
+              width: isValidDrop ? validGapW : 8,
+              minWidth: isValidDrop ? validGapW : 8,
+              height: tileSize + 8, // slightly taller for easier tapping
+              // Extend touch area 8px on each side via padding + negative margin
+              ...(isValidDrop ? {
+                boxSizing: 'content-box' as const,
+                paddingLeft: 8,
+                paddingRight: 8,
+                marginLeft: -8,
+                marginRight: -8,
+                position: 'relative' as const,
+                zIndex: 5,
+              } : {}),
               cursor: isValidDrop ? 'pointer' : 'default',
-              borderRadius: 6,
-              background: isValidDrop
-                ? 'rgba(78,203,113,0.15)'
-                : 'transparent',
-              border: isValidDrop ? `1.5px dashed ${C.green}` : 'none',
+              borderRadius: 8,
+              background: isValidDrop ? 'rgba(78,203,113,0.18)' : 'transparent',
+              border: isValidDrop ? `2px solid ${C.green}` : 'none',
               flexShrink: 0,
             }}
           >
             {isValidDrop && (
-              <span style={{ color: C.green, fontSize: '0.7rem', fontWeight: 900, lineHeight: 1 }}>▼</span>
+              <span style={{ color: C.green, fontSize: '0.9rem', fontWeight: 900, lineHeight: 1 }}>▼</span>
             )}
           </button>
         );
@@ -751,7 +782,7 @@ const PairShift: React.FC = () => {
       let textColor: string = C.white;
       let transform: string = '';
       let shadow: string = '';
-      let cursor: string = 'pointer';
+      const cursor: string = 'pointer';
 
       if (isSorted) {
         bg = '#1a3a2a'; border = C.green; textColor = C.green;
@@ -799,7 +830,7 @@ const PairShift: React.FC = () => {
 
   return (
     <div
-      className="min-h-screen flex flex-col items-center pt-6 pb-8 px-4 gap-5"
+      className="min-h-screen flex flex-col items-center pt-3 pb-4 px-3 gap-3 sm:pt-6 sm:pb-8 sm:px-4 sm:gap-5"
       style={{ backgroundColor: C.bg, color: C.white, ...GRID_BG }}
     >
       {/* Title */}
@@ -881,8 +912,8 @@ const PairShift: React.FC = () => {
 
       {/* Tiles + Gaps */}
       <div
-        className="w-full flex justify-center"
-        style={{ padding: '16px', background: C.panel, borderRadius: 16, border: `1.5px solid rgba(255,152,0,0.12)`, maxWidth: 600 }}
+        className="w-full flex justify-center overflow-x-auto"
+        style={{ padding: '16px', background: C.panel, borderRadius: 16, border: `1.5px solid rgba(255,152,0,0.12)`, maxWidth: 600, WebkitOverflowScrolling: 'touch' }}
       >
         <div className="flex items-center" style={{ gap: 0 }}>
           {renderTiles()}
