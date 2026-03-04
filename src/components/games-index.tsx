@@ -211,7 +211,7 @@ const GamesIndex: React.FC = () => {
     return acc;
   }, {} as Record<string, Game[]>);
 
-  const categoryOrder = ['Mental Math Games', 'Fun Math Games', 'Math Foundation', 'Reflex & Decision', 'Cognitive Skills'];
+  const categoryOrder = ['Mental Math Games', 'Fun Math Games', 'Math Foundation', 'Reflex & Decision', 'Cognitive Skills', 'Brain Training'];
   const allCategories = ['All', ...categoryOrder];
 
   // Filter games based on selected category
