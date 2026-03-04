@@ -66,6 +66,20 @@ const getCurrentTimeBonus = (difficulty: Difficulty, round: number): number =>
 const isArraySorted = (arr: number[]): boolean =>
   arr.every((v, i) => i === 0 || arr[i - 1] <= v);
 
+/**
+ * Pair moves preserve permutation parity: every pair move changes the
+ * inversion count by an even number, so only even-parity permutations
+ * can be reached from the sorted (0-inversion) state.
+ * We use inversion count mod 2 to check parity.
+ */
+const inversionsModTwo = (arr: number[]): 0 | 1 => {
+  let count = 0;
+  for (let i = 0; i < arr.length - 1; i++)
+    for (let j = i + 1; j < arr.length; j++)
+      if (arr[i] > arr[j]) count++;
+  return (count % 2) as 0 | 1;
+};
+
 const shuffleArray = <T,>(arr: T[]): T[] => {
   const a = [...arr];
   for (let i = a.length - 1; i > 0; i--) {
@@ -78,7 +92,15 @@ const shuffleArray = <T,>(arr: T[]): T[] => {
 const generateRound = (size: number): number[] => {
   const base = Array.from({ length: size }, (_, i) => i + 1);
   let arr: number[];
-  do { arr = shuffleArray(base); } while (isArraySorted(arr));
+  do {
+    arr = shuffleArray(base);
+    // Pair moves only connect permutations of the same parity.
+    // Fix odd-parity arrays by swapping the last two elements (changes
+    // parity by 1, guaranteed not to produce the sorted order for n >= 3).
+    if (inversionsModTwo(arr) !== 0) {
+      [arr[size - 2], arr[size - 1]] = [arr[size - 1], arr[size - 2]];
+    }
+  } while (isArraySorted(arr));
   return arr;
 };
 
@@ -116,7 +138,7 @@ const computeMinPairMoves = (start: number[]): number => {
       }
     }
   }
-  return 0;
+  return 1; // unreachable in practice (parity fix in generateRound guarantees a solution)
 };
 
 /**
