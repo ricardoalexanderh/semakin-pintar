@@ -23,7 +23,7 @@ const CAM_LERP = 5.0; // soft camera follow speed (same for all difficulties)
 interface Rule { icon: string; text: string; eg: string; ok: (v: number) => boolean; }
 interface Block { x: number; y: number; w: number; h: number; val: number; valid: boolean; colIdx: number; flash: number; hit: boolean; }
 interface Particle { x: number; y: number; vx: number; vy: number; r: number; life: number; color: string; }
-interface HeartPickup { x: number; worldY: number; bobT: number; }
+interface HeartPickup { x: number; worldY: number; bobT: number; lifetime: number; }
 
 // Earthy block palette
 const BC = [
@@ -162,6 +162,7 @@ const StackClimber: React.FC = () => {
   const jumpQRef          = useRef(false);
   const keysRef           = useRef({ l: false, r: false });
   const heartPickupRef    = useRef<HeartPickup | null>(null);
+  const nextHeartHRef     = useRef(40); // next height milestone (m) to try spawning a heart
 
   // Keep showHint ref in sync
   useEffect(() => { showHintRef.current = showHint; }, [showHint]);
@@ -170,7 +171,7 @@ const StackClimber: React.FC = () => {
   useEffect(() => {
     const audio = new Audio('/stack-climber.mp3');
     audio.loop = true;
-    audio.volume = 0.4;
+    audio.volume = 0.7;
     bgmRef.current = audio;
     const onVisibility = () => {
       if (!bgmRef.current) return;
@@ -421,7 +422,9 @@ const StackClimber: React.FC = () => {
       if (!hp) return;
       const sy = hp.worldY - camYRef.current + Math.sin(hp.bobT * 3) * 6;
       if (sy < -40 || sy > gc!.height + 20) return;
+      const alpha = hp.lifetime < 2 ? hp.lifetime / 2 : 1;
       ctx.save();
+      ctx.globalAlpha = alpha;
       ctx.shadowColor = '#e05c5c';
       ctx.shadowBlur = 18 + Math.sin(hp.bobT * 3) * 6;
       ctx.font = '26px serif';
@@ -505,8 +508,6 @@ const StackClimber: React.FC = () => {
           livesRef.current--; shakeTRef.current = 0.1;
           spawnParts(p.x, p.y, '#e05c5c', 8); updateHUD();
           if (livesRef.current <= 0) { endGame(); return; }
-          if (livesRef.current < 3 && !heartPickupRef.current)
-            heartPickupRef.current = { x: ri(44, gc!.width - 44), worldY: p.y - gc!.height * 0.6, bobT: 0 };
           spawnNextRow(p.y, bv);
           break;
         } else {
@@ -545,17 +546,23 @@ const StackClimber: React.FC = () => {
       camYRef.current = Math.min(camYRef.current, p.y - gc!.height * 0.05);
       // Death: fell off bottom
       if (p.y - camYRef.current > gc!.height + 20) { endGame(); return; }
-      // Heart pickup
+      // Heart pickup — spawn at every 40m milestone when lives < 3
+      if (livesRef.current < 3 && !heartPickupRef.current && heightMRef.current >= nextHeartHRef.current) {
+        const spawnWorldY = groundYRef.current - nextHeartHRef.current * 10 - 40;
+        heartPickupRef.current = { x: ri(44, gc!.width - 44), worldY: spawnWorldY, bobT: 0, lifetime: 7 };
+        nextHeartHRef.current += 40;
+      }
       if (heartPickupRef.current) {
         const hp = heartPickupRef.current;
         hp.bobT += dt;
+        hp.lifetime = Math.max(0, hp.lifetime - dt);
         const dx = p.x - hp.x, dy = (p.y - 18) - hp.worldY;
         if (Math.abs(dx) < 28 && Math.abs(dy) < 28) {
           livesRef.current = Math.min(3, livesRef.current + 1);
           heartPickupRef.current = null;
           spawnParts(hp.x, hp.worldY, '#e05c5c', 14);
           updateHUD();
-        } else if (hp.worldY < camYRef.current - 60) {
+        } else if (hp.lifetime <= 0) {
           heartPickupRef.current = null;
         }
       }
@@ -588,7 +595,7 @@ const StackClimber: React.FC = () => {
     diffRef.current = d;
     livesRef.current = 3; heightMRef.current = 0;
     platformsRef.current = []; particlesRef.current = [];
-    shakeTRef.current = 0; fastCamRef.current = 0; hasJumpedRef.current = false; waitingForApexRef.current = false; heartPickupRef.current = null;
+    shakeTRef.current = 0; fastCamRef.current = 0; hasJumpedRef.current = false; waitingForApexRef.current = false; heartPickupRef.current = null; nextHeartHRef.current = 40;
     setHasJumped(false);
     P.current = { x: gc.width/2, y: groundYRef.current, vx: 0, vy: 0, w: 26, h: 36, onGround: true, flashT: 0, hurtCD: 0, launchT: 0 };
     camYRef.current = groundYRef.current - gc.height * 0.85;
