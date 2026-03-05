@@ -209,8 +209,8 @@ const StackClimber: React.FC = () => {
 
   // ── Hide floating buttons ──
   useEffect(() => {
-    updateGameState({ isPlaying: true });
-    return () => updateGameState({ isPlaying: false });
+    updateGameState('stack-climber', true);
+    return () => updateGameState('stack-climber', false);
   }, [updateGameState]);
 
   // ── Input handlers ──
