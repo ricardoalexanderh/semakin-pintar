@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Calculator, Shapes, Rocket, /*Grid3X3,*/ Lightbulb, Puzzle, Mail, ExternalLink, Layers, Search, Target, Workflow, ArrowUpDown } from 'lucide-react';
+import { Shapes, Rocket, /*Grid3X3,*/ Lightbulb, Puzzle, Mail, ExternalLink, Layers, Search, Target, Workflow, ArrowUpDown } from 'lucide-react';
 import { trackButtonClick, trackDonationClick } from '../utils/analytics';
 import FloatingButtons from './floating-buttons';
 
