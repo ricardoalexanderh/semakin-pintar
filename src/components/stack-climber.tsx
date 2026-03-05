@@ -112,7 +112,9 @@ const StackClimber: React.FC = () => {
   const lastTsRef    = useRef(0);
   const jumpQRef          = useRef(false);
   const keysRef           = useRef({ l: false, r: false });
-  const waitingForApexRef = useRef(false);
+  const waitingForApexRef    = useRef(false);
+  const pendingSpawnYRef     = useRef<number>(0);
+  const spawnWhenLaunchDone  = useRef(false);
 
   // Keep showHint ref in sync
   useEffect(() => { showHintRef.current = showHint; }, [showHint]);
@@ -205,10 +207,16 @@ const StackClimber: React.FC = () => {
         val, valid: ruleRef.current.ok(val), colIdx: ci[i % ci.length], flash: 0, hit: false,
       }));
     }
-    function spawnRow(worldY: number) { platformsRef.current.push(...makeRow(worldY)); }
-    function spawnNextRow() {
-      if (platformsRef.current.length > 0) return;
-      spawnRow(camYRef.current + gc!.height - PH);
+    // Pre-calculate where the block should land in world space based on predicted apex.
+    // This ensures the block is at 84% screen height when the player reaches the apex,
+    // regardless of when during the rise the block actually spawns.
+    function calcBlockWorldY(bounceV: number): number {
+      const cfg = DIFF[diffRef.current];
+      const grav = getGrav();
+      const tApex = -bounceV / grav;
+      const apexY = P.current.y + bounceV * tApex + 0.5 * grav * tApex * tApex;
+      const camAtApex = apexY - gc!.height * cfg.camTarget;
+      return camAtApex + gc!.height * 0.84 - PH;
     }
     function spawnParts(x: number, y: number, color: string, count: number) {
       for (let i = 0; i < count; i++) {
@@ -405,31 +413,46 @@ const StackClimber: React.FC = () => {
         if (p.x + p.w*.4 <= b.x || p.x - p.w*.4 >= b.x + b.w) continue;
         if (!(p.vy > 0 && oldY <= b.y + 1 && p.y >= b.y)) continue;
         if (b.valid) {
-          b.hit = true; p.y = b.y; p.vy = getBounceV();
+          const bv = getBounceV();
+          b.hit = true; p.y = b.y; p.vy = bv;
           p.onGround = false; p.launchT = 0.6;
           spawnParts(b.x+b.w/2, b.y, '#7ec8a0', 10);
           shakeTRef.current = 0.04; platformsRef.current = [];
+          pendingSpawnYRef.current = calcBlockWorldY(bv);
+          spawnWhenLaunchDone.current = true;
           waitingForApexRef.current = true;
           break;
         } else if (p.hurtCD <= 0) {
-          b.hit = true; b.flash = 0.5; p.y = b.y; p.vy = getBounceV() * 0.82;
+          const bv = getBounceV() * 0.82;
+          b.hit = true; b.flash = 0.5; p.y = b.y; p.vy = bv;
           p.onGround = false; p.hurtCD = 1.5; p.flashT = 1.5;
           livesRef.current--; shakeTRef.current = 0.1;
           spawnParts(p.x, p.y, '#e05c5c', 8); updateHUD();
           if (livesRef.current <= 0) { endGame(); return; }
           platformsRef.current = [];
+          pendingSpawnYRef.current = calcBlockWorldY(bv);
+          spawnWhenLaunchDone.current = false;
           waitingForApexRef.current = true;
           break;
         } else {
-          p.y = b.y; p.vy = getBounceV() * 0.7; platformsRef.current = [];
+          const bv = getBounceV() * 0.7;
+          p.y = b.y; p.vy = bv; platformsRef.current = [];
+          pendingSpawnYRef.current = calcBlockWorldY(bv);
+          spawnWhenLaunchDone.current = false;
           waitingForApexRef.current = true;
           break;
         }
       }
-      // Spawn next row at apex (first frame player starts falling after a bounce)
-      if (waitingForApexRef.current && p.vy >= 0) {
-        waitingForApexRef.current = false;
-        spawnNextRow();
+      // Spawn next row: valid hit → after launch animation ends (~0.3s into rise);
+      // wrong/immune hit → at apex (vy >= 0) to ensure block is in the right position.
+      if (waitingForApexRef.current) {
+        const ready = spawnWhenLaunchDone.current ? p.launchT <= 0 : p.vy >= 0;
+        if (ready) {
+          waitingForApexRef.current = false;
+          if (platformsRef.current.length === 0) {
+            platformsRef.current.push(...makeRow(pendingSpawnYRef.current));
+          }
+        }
       }
       // Ground
       if (p.y >= groundYRef.current) { p.y = groundYRef.current; p.vy = 0; p.onGround = true; }
@@ -477,6 +500,7 @@ const StackClimber: React.FC = () => {
     livesRef.current = 3; heightMRef.current = 0;
     platformsRef.current = []; particlesRef.current = [];
     shakeTRef.current = 0; hasJumpedRef.current = false; waitingForApexRef.current = false;
+    pendingSpawnYRef.current = 0; spawnWhenLaunchDone.current = false;
     setHasJumped(false);
     P.current = { x: gc.width/2, y: groundYRef.current, vx: 0, vy: 0, w: 26, h: 36, onGround: true, flashT: 0, hurtCD: 0, launchT: 0 };
     camYRef.current = groundYRef.current - gc.height * 0.85;
