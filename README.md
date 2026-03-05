@@ -36,6 +36,7 @@ Semakin Pintar is a comprehensive educational games platform designed to make le
 
 #### Brain Training
 - **Mirror Dash** - Control two ships at once across mirrored lanes! Navigate both sides simultaneously — dodge obstacles, grab power-ups, and make split-second decisions
+- **Stack Climber** - Jump on blocks that follow the current number rule to launch yourself higher; wrong blocks cost a life while fall speed increases as you climb
 
 ## ✨ Features
 
