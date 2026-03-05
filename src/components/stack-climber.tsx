@@ -772,7 +772,7 @@ const StackClimber: React.FC = () => {
 
       {/* ── Start overlay ── */}
       {screen === 'start' && (
-        <div style={{ display: 'flex', position: 'fixed', inset: 0, zIndex: 500, background: 'rgba(6,6,18,.93)', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 14, padding: 24, textAlign: 'center' }}>
+        <div style={{ display: 'flex', position: 'fixed', inset: 0, zIndex: 40, background: 'rgba(6,6,18,.93)', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 14, padding: 24, textAlign: 'center' }}>
           <div style={{ fontSize: '3.5rem', lineHeight: 1 }}>🏔️</div>
           <div style={{ fontFamily: "'Cabin Sketch', cursive", fontSize: '2.8rem', color: '#f0e8d8', lineHeight: 1, textShadow: '0 4px 20px rgba(0,0,0,.5)' }}>Stack Climber</div>
           <div style={{ fontSize: '.88rem', fontWeight: 700, color: '#8899aa', lineHeight: 1.8, maxWidth: 290 }}>
@@ -806,7 +806,7 @@ const StackClimber: React.FC = () => {
 
       {/* ── Game over overlay ── */}
       {screen === 'dead' && (
-        <div style={{ display: 'flex', position: 'fixed', inset: 0, zIndex: 500, background: 'rgba(6,6,18,.93)', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 14, padding: 24, textAlign: 'center' }}>
+        <div style={{ display: 'flex', position: 'fixed', inset: 0, zIndex: 40, background: 'rgba(6,6,18,.93)', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 14, padding: 24, textAlign: 'center' }}>
           <div style={{ fontSize: '3.5rem', lineHeight: 1 }}>{endIco}</div>
           <div style={{ fontFamily: "'Cabin Sketch', cursive", fontSize: '2.8rem', color: '#f0e8d8', lineHeight: 1 }}>{endTitle}</div>
           <div style={{ fontSize: '.82rem', fontWeight: 700, color: '#8899aa', maxWidth: 270, lineHeight: 1.7 }}>
