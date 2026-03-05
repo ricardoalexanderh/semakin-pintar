@@ -11,9 +11,9 @@ interface DiffConfig {
   gravInc: number; numRange: [number, number]; cols: number;
 }
 const DIFF: Record<Difficulty, DiffConfig> = {
-  easy:   { grav: 700,  jumpV: -700, bouncePct: 1.6, gravInc: 2, numRange: [1, 20], cols: 3 },
-  medium: { grav: 900,  jumpV: -700, bouncePct: 1.3, gravInc: 3, numRange: [1, 30], cols: 4 },
-  hard:   { grav: 1100, jumpV: -700, bouncePct: 1.0, gravInc: 5, numRange: [1, 40], cols: 4 },
+  easy:   { grav: 700,  jumpV: -700, bouncePct: 2.2, gravInc: 2, numRange: [1, 20], cols: 3 },
+  medium: { grav: 900,  jumpV: -700, bouncePct: 1.6, gravInc: 3, numRange: [1, 30], cols: 4 },
+  hard:   { grav: 1100, jumpV: -700, bouncePct: 1.1, gravInc: 5, numRange: [1, 40], cols: 4 },
 };
 
 interface Rule { icon: string; text: string; eg: string; ok: (v: number) => boolean; }
@@ -106,8 +106,9 @@ const StackClimber: React.FC = () => {
   const particlesRef = useRef<Particle[]>([]);
   const shakeTRef    = useRef(0);
   const lastTsRef    = useRef(0);
-  const jumpQRef     = useRef(false);
-  const keysRef      = useRef({ l: false, r: false });
+  const jumpQRef          = useRef(false);
+  const keysRef           = useRef({ l: false, r: false });
+  const waitingForApexRef = useRef(false);
 
   // Keep showHint ref in sync
   useEffect(() => { showHintRef.current = showHint; }, [showHint]);
@@ -405,7 +406,7 @@ const StackClimber: React.FC = () => {
           p.onGround = false; p.launchT = 0.6;
           spawnParts(b.x+b.w/2, b.y, '#7ec8a0', 10);
           shakeTRef.current = 0.04; platformsRef.current = [];
-          setTimeout(() => { if (gStateRef.current === 'playing') spawnNextRow(); }, 400);
+          waitingForApexRef.current = true;
           break;
         } else if (p.hurtCD <= 0) {
           b.hit = true; b.flash = 0.5; p.y = b.y; p.vy = getBounceV() * 0.82;
@@ -414,13 +415,18 @@ const StackClimber: React.FC = () => {
           spawnParts(p.x, p.y, '#e05c5c', 8); updateHUD();
           if (livesRef.current <= 0) { endGame(); return; }
           platformsRef.current = [];
-          setTimeout(() => { if (gStateRef.current === 'playing') spawnNextRow(); }, 400);
+          waitingForApexRef.current = true;
           break;
         } else {
           p.y = b.y; p.vy = getBounceV() * 0.7; platformsRef.current = [];
-          setTimeout(() => { if (gStateRef.current === 'playing') spawnNextRow(); }, 400);
+          waitingForApexRef.current = true;
           break;
         }
+      }
+      // Spawn next row at apex (first frame player starts falling after a bounce)
+      if (waitingForApexRef.current && p.vy >= 0) {
+        waitingForApexRef.current = false;
+        spawnNextRow();
       }
       // Ground
       if (p.y >= groundYRef.current) { p.y = groundYRef.current; p.vy = 0; p.onGround = true; }
@@ -461,7 +467,7 @@ const StackClimber: React.FC = () => {
     diffRef.current = d;
     livesRef.current = 3; heightMRef.current = 0;
     platformsRef.current = []; particlesRef.current = [];
-    shakeTRef.current = 0; hasJumpedRef.current = false;
+    shakeTRef.current = 0; hasJumpedRef.current = false; waitingForApexRef.current = false;
     setHasJumped(false);
     P.current = { x: gc.width/2, y: groundYRef.current, vx: 0, vy: 0, w: 26, h: 36, onGround: true, flashT: 0, hurtCD: 0, launchT: 0 };
     camYRef.current = groundYRef.current - gc.height * 0.85;
