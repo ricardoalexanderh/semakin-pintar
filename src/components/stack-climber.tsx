@@ -17,7 +17,7 @@ const DIFF: Record<Difficulty, DiffConfig> = {
   hard:   { grav: 1100, jumpV: -700, bouncePct: 0.65, numRange: [1, 40], cols: 4, camTarget: 0.40 },
 };
 // Gravity increases the same way for all difficulties: +2 px/s² per metre climbed
-const GRAV_INC = 2;
+const GRAV_INC = 1;
 const CAM_LERP = 5.0; // soft camera follow speed (same for all difficulties)
 
 interface Rule { icon: string; text: string; eg: string; ok: (v: number) => boolean; }
@@ -457,13 +457,14 @@ const StackClimber: React.FC = () => {
           break;
         }
       }
-      // Spawn next row at apex (vy >= 0): position is always camera-relative so the
-      // block appears at a consistent screen height regardless of bounce magnitude.
+      // Spawn next row at apex (vy >= 0).
+      // Use player world-position (not camera) so camera lag never shifts the block.
+      // When camera settles to apexY - camTarget*h, block screen Y = exactly h - PH (bottom).
       if (waitingForApexRef.current && p.vy >= 0) {
         waitingForApexRef.current = false;
         if (platformsRef.current.length === 0) {
-          // block bottom flush with screen bottom — fully visible, never cut
-          platformsRef.current.push(...makeRow(camYRef.current + gc!.height - PH));
+          const cfg = DIFF[diffRef.current];
+          platformsRef.current.push(...makeRow(p.y + (1 - cfg.camTarget) * gc!.height - PH));
         }
       }
       // Ground
