@@ -119,7 +119,7 @@ const LandingPage: React.FC<LandingPageProps> = () => {
             id: 'stack-climber',
             name: 'Stack Climber',
             description: 'Jump on correct blocks to climb higher',
-            icon: <Layers className="w-12 h-12" />,
+            icon: <span className="text-5xl">🧗</span>,
             available: true,
             gradient: 'from-violet-600 to-indigo-500',
             path: '/games/stack-climber'
@@ -387,7 +387,7 @@ const LandingPage: React.FC<LandingPageProps> = () => {
                         <div className="flex flex-col md:flex-row items-center md:justify-between gap-4">
                             <div className="flex flex-col sm:flex-row items-center gap-4 text-center sm:text-left">
                                 <div className="bg-gradient-to-r from-violet-600 to-indigo-500 text-white w-12 h-12 md:w-16 md:h-16 rounded-2xl flex items-center justify-center shadow-lg flex-shrink-0">
-                                    <Layers className="w-6 h-6 md:w-8 md:h-8" />
+                                    <span className="text-2xl md:text-3xl">🧗</span>
                                 </div>
                                 <div>
                                     <h3 className="text-lg md:text-xl font-bold text-violet-700">New: Stack Climber</h3>
