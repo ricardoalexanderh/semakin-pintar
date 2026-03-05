@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, Home } from 'lucide-react';
 import Breadcrumb from './breadcrumb';
@@ -9,6 +9,14 @@ interface GamesLayoutProps {
 }
 
 const GamesLayout: React.FC<GamesLayoutProps> = ({ children }) => {
+  useEffect(() => {
+    // Scroll to bottom on game entry to hide mobile browser address bar
+    const timer = setTimeout(() => {
+      window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+    }, 150);
+    return () => clearTimeout(timer);
+  }, []);
+
   return (
     <div className="min-h-screen relative">
       {/* Top Navigation Bar - Enhanced */}
