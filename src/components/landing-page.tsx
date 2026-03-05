@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Calculator, Shapes, Rocket, /*Grid3X3,*/ Lightbulb, Puzzle, Mail, ExternalLink, Layers, Search, Target, Workflow, ArrowUpDown } from 'lucide-react';
+import { Shapes, Rocket, /*Grid3X3,*/ Lightbulb, Puzzle, Mail, ExternalLink, Layers, Search, Target, Workflow, ArrowUpDown } from 'lucide-react';
 import { trackButtonClick, trackDonationClick } from '../utils/analytics';
 import FloatingButtons from './floating-buttons';
 
@@ -116,13 +116,13 @@ const LandingPage: React.FC<LandingPageProps> = () => {
             path: '/games/rocket-math'
         },
         {
-            id: 'mental-arithmetic-game',
-            name: 'Mental Arithmetic',
-            description: 'Train your brain with fun calculations',
-            icon: <Calculator className="w-12 h-12" />,
+            id: 'pair-shift',
+            name: 'Pair Shift',
+            description: 'Slide pairs of cards to sort them',
+            icon: <span className="text-3xl font-black" style={{ letterSpacing: '-2px' }}>⇌</span>,
             available: true,
-            gradient: 'from-purple-500 to-indigo-500',
-            path: '/games/mental-arithmetic'
+            gradient: 'from-orange-500 to-yellow-500',
+            path: '/games/pair-shift'
         },
         /*{
             id: 'mental-division',
@@ -383,23 +383,23 @@ const LandingPage: React.FC<LandingPageProps> = () => {
                     </div>
                     */}
 
-                    <div className="mt-8 p-4 md:p-6 bg-gradient-to-r from-orange-100 to-yellow-100 rounded-2xl border-2 border-orange-200">
+                    <div className="mt-8 p-4 md:p-6 bg-gradient-to-r from-violet-100 to-indigo-100 rounded-2xl border-2 border-violet-200">
                         <div className="flex flex-col md:flex-row items-center md:justify-between gap-4">
                             <div className="flex flex-col sm:flex-row items-center gap-4 text-center sm:text-left">
-                                <div className="bg-gradient-to-r from-orange-500 to-yellow-500 text-white w-12 h-12 md:w-16 md:h-16 rounded-2xl flex items-center justify-center shadow-lg flex-shrink-0">
-                                    <span className="text-2xl font-black" style={{ letterSpacing: '-2px' }}>⇌</span>
+                                <div className="bg-gradient-to-r from-violet-600 to-indigo-500 text-white w-12 h-12 md:w-16 md:h-16 rounded-2xl flex items-center justify-center shadow-lg flex-shrink-0">
+                                    <span className="text-2xl md:text-3xl">🧗</span>
                                 </div>
                                 <div>
-                                    <h3 className="text-lg md:text-xl font-bold text-orange-700">New: Pair Shift</h3>
-                                    <p className="text-sm md:text-base text-yellow-700">Pick any two adjacent cards, slide them as a pair, and sort in minimum moves!</p>
+                                    <h3 className="text-lg md:text-xl font-bold text-violet-700">New: Stack Climber</h3>
+                                    <p className="text-sm md:text-base text-indigo-700">Jump on the correct blocks to launch yourself higher and higher! Apply number rules to survive.</p>
                                 </div>
                             </div>
                             <Link
-                                to="/games/pair-shift"
+                                to="/games/stack-climber"
                                 onClick={() => {
-                                    trackButtonClick('featured-pair-shift', 'featured-section');
+                                    trackButtonClick('featured-stack-climber', 'featured-section');
                                 }}
-                                className="bg-gradient-to-r from-orange-500 to-yellow-500 text-white px-6 py-3 rounded-xl font-bold hover:from-orange-600 hover:to-yellow-600 transition-all shadow-lg hover:shadow-xl transform hover:scale-105 w-full sm:w-auto text-center block"
+                                className="bg-gradient-to-r from-violet-600 to-indigo-500 text-white px-6 py-3 rounded-xl font-bold hover:from-violet-700 hover:to-indigo-600 transition-all shadow-lg hover:shadow-xl transform hover:scale-105 w-full sm:w-auto text-center block"
                             >
                                 Play Now →
                             </Link>

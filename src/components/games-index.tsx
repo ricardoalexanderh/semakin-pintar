@@ -200,6 +200,19 @@ const GamesIndex: React.FC = () => {
       duration: '2-10 minutes',
       category: 'Brain Training'
     },
+    {
+      id: 'stack-climber',
+      name: 'Stack Climber',
+      description: 'Jump on correct blocks to climb higher',
+      longDescription: 'Launch yourself skyward by landing on blocks that follow the rule! Identify correct platforms using number rules — less than, multiples, even/odd — while bouncing higher and higher. Survive 3 lives across Easy, Medium, and Hard modes.',
+      icon: <span className="text-2xl">🧗</span>,
+      available: true,
+      gradient: 'from-violet-600 to-indigo-500',
+      path: '/games/stack-climber',
+      difficulty: 'Easy to Hard',
+      duration: '2-10 minutes',
+      category: 'Fun Math Games'
+    },
     /*{
       id: 'math-drop',
       name: 'Math Drop',

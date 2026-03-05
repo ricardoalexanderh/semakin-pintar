@@ -148,7 +148,17 @@ const MirrorDash: React.FC = () => {
     audio.loop = true;
     audio.volume = 0.4;
     bgmRef.current = audio;
+    const onVisibility = () => {
+      if (!bgmRef.current) return;
+      if (document.hidden) {
+        bgmRef.current.pause();
+      } else if (stateRef.current === 'playing') {
+        bgmRef.current.play().catch(() => {});
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibility);
     return () => {
+      document.removeEventListener('visibilitychange', onVisibility);
       audio.pause();
       audio.src = '';
       bgmRef.current = null;
