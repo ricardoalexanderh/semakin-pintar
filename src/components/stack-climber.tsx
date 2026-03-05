@@ -458,13 +458,16 @@ const StackClimber: React.FC = () => {
         }
       }
       // Spawn next row at apex (vy >= 0).
-      // Use player world-position (not camera) so camera lag never shifts the block.
-      // When camera settles to apexY - camTarget*h, block screen Y = exactly h - PH (bottom).
+      // For valid bounces the camera lags below the target (camYRef > targetCam), so
+      // Math.min picks targetCam → player-relative → block at screen bottom, no lag cut.
+      // For wrong-block bounces the camera is stuck above the new (lower) target
+      // (camYRef < targetCam), so Math.min picks camYRef → camera-relative → still correct.
       if (waitingForApexRef.current && p.vy >= 0) {
         waitingForApexRef.current = false;
         if (platformsRef.current.length === 0) {
           const cfg = DIFF[diffRef.current];
-          platformsRef.current.push(...makeRow(p.y + (1 - cfg.camTarget) * gc!.height - PH));
+          const refCam = Math.min(camYRef.current, p.y - cfg.camTarget * gc!.height);
+          platformsRef.current.push(...makeRow(refCam + gc!.height - PH));
         }
       }
       // Ground
