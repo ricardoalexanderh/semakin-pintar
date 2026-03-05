@@ -62,6 +62,51 @@ function buildRule(d: Difficulty): Rule {
   return { icon: `×${m}`, text: `Multiples of ${m}`, eg: `${m}, ${m*2}, ${m*3} …`, ok: v => v % m === 0 };
 }
 
+// Build a row with exactly 1 or 2 correct blocks, never 0, never all correct.
+function buildRow(worldY: number, canvasWidth: number, cfg: DiffConfig, rule: Rule): Block[] {
+  const cols = cfg.cols;
+  const pw = Math.floor((canvasWidth - 32 - (cols - 1) * PGAP) / cols);
+  const sx = Math.floor((canvasWidth - (cols * pw + (cols - 1) * PGAP)) / 2);
+
+  // Decide how many correct: 1 or 2, but never all cols
+  const maxCorrect = Math.min(2, cols - 1);
+  const numCorrect = ri(1, maxCorrect);
+
+  // Gather valid numbers
+  const validNums: number[] = [];
+  for (let t = 0; validNums.length < numCorrect && t < 400; t++) {
+    const n = ri(cfg.numRange[0], cfg.numRange[1]);
+    if (rule.ok(n)) validNums.push(n);
+  }
+  const actualCorrect = validNums.length; // may be <numCorrect if rule has very few matches
+
+  // Gather invalid numbers
+  const invalidNums: number[] = [];
+  for (let t = 0; invalidNums.length < cols - actualCorrect && t < 400; t++) {
+    const n = ri(cfg.numRange[0], cfg.numRange[1]);
+    if (!rule.ok(n)) invalidNums.push(n);
+  }
+  // Fallback if couldn't find enough invalids (pathological case)
+  while (invalidNums.length < cols - actualCorrect)
+    invalidNums.push(ri(cfg.numRange[0], cfg.numRange[1]));
+
+  // Shuffle which positions get valid/invalid
+  const positions = Array.from({ length: cols }, (_, i) => i);
+  for (let i = positions.length - 1; i > 0; i--) {
+    const j = ri(0, i); [positions[i], positions[j]] = [positions[j], positions[i]];
+  }
+  const finalNums = new Array<number>(cols);
+  for (let i = 0; i < actualCorrect; i++) finalNums[positions[i]] = validNums[i];
+  for (let i = actualCorrect; i < cols; i++) finalNums[positions[i]] = invalidNums[i - actualCorrect];
+
+  const ci = BC.map((_, i) => i);
+  for (let i = ci.length - 1; i > 0; i--) { const j = ri(0, i); [ci[i], ci[j]] = [ci[j], ci[i]]; }
+  return finalNums.map((val, i): Block => ({
+    x: sx + i * (pw + PGAP), y: worldY, w: pw, h: PH,
+    val, valid: rule.ok(val), colIdx: ci[i % ci.length], flash: 0, hit: false,
+  }));
+}
+
 // Static stars (deterministic)
 const STARS = Array.from({ length: 90 }, (_, i) => ({
   id: i,
@@ -190,22 +235,7 @@ const StackClimber: React.FC = () => {
       return Math.min(DIFF[diffRef.current].grav + heightMRef.current * GRAV_INC, 3000);
     }
     function makeRow(worldY: number): Block[] {
-      const cfg = DIFF[diffRef.current], cols = cfg.cols;
-      const pw = Math.floor((gc!.width - 32 - (cols - 1) * PGAP) / cols);
-      const sx = Math.floor((gc!.width - (cols * pw + (cols - 1) * PGAP)) / 2);
-      const nums = Array.from({ length: cols }, () => ri(cfg.numRange[0], cfg.numRange[1]));
-      if (!nums.some(n => ruleRef.current.ok(n))) {
-        for (let t = 0; t < 80; t++) {
-          const n = ri(cfg.numRange[0], cfg.numRange[1]);
-          if (ruleRef.current.ok(n)) { nums[ri(0, cols - 1)] = n; break; }
-        }
-      }
-      const ci = BC.map((_, i) => i);
-      for (let i = ci.length - 1; i > 0; i--) { const j = ri(0, i); [ci[i], ci[j]] = [ci[j], ci[i]]; }
-      return nums.map((val, i): Block => ({
-        x: sx + i * (pw + PGAP), y: worldY, w: pw, h: PH,
-        val, valid: ruleRef.current.ok(val), colIdx: ci[i % ci.length], flash: 0, hit: false,
-      }));
+      return buildRow(worldY, gc!.width, DIFF[diffRef.current], ruleRef.current);
     }
     // Pre-calculate where the block should land in world space based on predicted apex.
     // This ensures the block is at 84% screen height when the player reaches the apex,
@@ -252,6 +282,19 @@ const StackClimber: React.FC = () => {
       const c = BC[b.colIdx % BC.length], r = 6;
       const sx = b.x, sy = b.y - camYRef.current;
       if (sy > gc!.height + 60 || sy + b.h < -20) return;
+      // ── Pillar: connect block to bottom of screen ──
+      const pillarTop = sy + b.h;
+      const pillarBot = gc!.height + 20;
+      if (pillarBot > pillarTop) {
+        const pw = Math.max(8, Math.round(b.w * 0.28));
+        const px = sx + Math.round((b.w - pw) / 2);
+        ctx.fillStyle = 'rgba(0,0,0,0.28)';
+        ctx.fillRect(px + 3, pillarTop, pw, pillarBot - pillarTop);
+        ctx.fillStyle = c.bg;
+        ctx.fillRect(px, pillarTop, pw, pillarBot - pillarTop);
+        ctx.fillStyle = 'rgba(255,255,255,0.07)';
+        ctx.fillRect(px, pillarTop, Math.max(2, Math.round(pw * 0.35)), pillarBot - pillarTop);
+      }
       ctx.fillStyle = 'rgba(0,0,0,.28)'; rrect(sx+3,sy+4,b.w,b.h,r); ctx.fill();
       ctx.fillStyle = b.flash > 0 ? '#c0392b' : c.bg; rrect(sx,sy,b.w,b.h,r); ctx.fill();
       ctx.fillStyle = c.top; rrect(sx+3,sy+3,b.w-6,b.h*.38,r-2); ctx.fill();
@@ -504,20 +547,8 @@ const StackClimber: React.FC = () => {
     setHasJumped(false);
     P.current = { x: gc.width/2, y: groundYRef.current, vx: 0, vy: 0, w: 26, h: 36, onGround: true, flashT: 0, hurtCD: 0, launchT: 0 };
     camYRef.current = groundYRef.current - gc.height * 0.85;
-    // First row on ground
-    const cfg = DIFF[d], cols = cfg.cols;
-    const pw = Math.floor((gc.width - 32 - (cols-1)*PGAP) / cols);
-    const sx = Math.floor((gc.width - (cols*pw + (cols-1)*PGAP)) / 2);
-    const nums = Array.from({ length: cols }, () => ri(cfg.numRange[0], cfg.numRange[1]));
-    if (!nums.some(n => ruleRef.current.ok(n))) {
-      for (let t = 0; t < 80; t++) { const n = ri(cfg.numRange[0], cfg.numRange[1]); if (ruleRef.current.ok(n)) { nums[ri(0,cols-1)] = n; break; } }
-    }
-    const ci = BC.map((_, i) => i);
-    for (let i = ci.length-1; i > 0; i--) { const j = ri(0,i); [ci[i],ci[j]] = [ci[j],ci[i]]; }
-    platformsRef.current = nums.map((val, i): Block => ({
-      x: sx+i*(pw+PGAP), y: groundYRef.current - PH, w: pw, h: PH,
-      val, valid: ruleRef.current.ok(val), colIdx: ci[i%ci.length], flash: 0, hit: false,
-    }));
+    // First row sitting on the ground
+    platformsRef.current = buildRow(groundYRef.current - PH, gc.width, DIFF[d], ruleRef.current);
     if (hScoreEl.current)    hScoreEl.current.textContent = '0m';
     if (hLivesEl.current)    hLivesEl.current.innerHTML = '❤️❤️❤️';
     if (speedFillEl.current) { speedFillEl.current.style.width = '0%'; speedFillEl.current.style.background = '#7ec8a0'; }
