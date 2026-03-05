@@ -162,7 +162,7 @@ const StackClimber: React.FC = () => {
   const jumpQRef          = useRef(false);
   const keysRef           = useRef({ l: false, r: false });
   const heartPickupRef    = useRef<HeartPickup | null>(null);
-  const nextHeartHRef     = useRef(40); // next height milestone (m) to try spawning a heart
+  const nextHeartHRef     = useRef(150); // next height milestone (m) to try spawning a heart
 
   // Keep showHint ref in sync
   useEffect(() => { showHintRef.current = showHint; }, [showHint]);
@@ -237,6 +237,7 @@ const StackClimber: React.FC = () => {
   useEffect(() => {
     const resize = () => {
       const gc = gcRef.current; if (!gc || !gc.parentElement) return;
+      if (gStateRef.current === 'playing') return; // mobile scroll fires resize; don't break mid-game
       gc.width  = gc.parentElement.clientWidth;
       gc.height = gc.parentElement.clientHeight;
       groundYRef.current = gc.height * 0.88;
@@ -549,8 +550,8 @@ const StackClimber: React.FC = () => {
       // Heart pickup — spawn at every 40m milestone when lives < 3
       if (livesRef.current < 3 && !heartPickupRef.current && heightMRef.current >= nextHeartHRef.current) {
         const spawnWorldY = groundYRef.current - nextHeartHRef.current * 10 - 40;
-        heartPickupRef.current = { x: ri(44, gc!.width - 44), worldY: spawnWorldY, bobT: 0, lifetime: 7 };
-        nextHeartHRef.current += 40;
+        heartPickupRef.current = { x: ri(44, gc!.width - 44), worldY: spawnWorldY, bobT: 0, lifetime: 5 };
+        nextHeartHRef.current += 150;
       }
       if (heartPickupRef.current) {
         const hp = heartPickupRef.current;
@@ -595,7 +596,7 @@ const StackClimber: React.FC = () => {
     diffRef.current = d;
     livesRef.current = 3; heightMRef.current = 0;
     platformsRef.current = []; particlesRef.current = [];
-    shakeTRef.current = 0; fastCamRef.current = 0; hasJumpedRef.current = false; waitingForApexRef.current = false; heartPickupRef.current = null; nextHeartHRef.current = 40;
+    shakeTRef.current = 0; fastCamRef.current = 0; hasJumpedRef.current = false; waitingForApexRef.current = false; heartPickupRef.current = null; nextHeartHRef.current = 150;
     setHasJumped(false);
     P.current = { x: gc.width/2, y: groundYRef.current, vx: 0, vy: 0, w: 26, h: 36, onGround: true, flashT: 0, hurtCD: 0, launchT: 0 };
     camYRef.current = groundYRef.current - gc.height * 0.85;
