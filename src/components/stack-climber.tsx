@@ -170,7 +170,20 @@ const StackClimber: React.FC = () => {
     audio.loop = true;
     audio.volume = 0.4;
     bgmRef.current = audio;
-    return () => { audio.pause(); bgmRef.current = null; };
+    const onVisibility = () => {
+      if (!bgmRef.current) return;
+      if (document.hidden) {
+        bgmRef.current.pause();
+      } else if (gStateRef.current === 'playing') {
+        bgmRef.current.play().catch(() => {});
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility);
+      audio.pause();
+      bgmRef.current = null;
+    };
   }, []);
 
   // ── Hide floating buttons ──
