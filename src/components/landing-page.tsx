@@ -124,15 +124,6 @@ const LandingPage: React.FC<LandingPageProps> = () => {
             gradient: 'from-orange-500 to-yellow-500',
             path: '/games/pair-shift'
         },
-        {
-            id: 'stack-climber',
-            name: 'Stack Climber',
-            description: 'Jump on correct blocks to climb higher',
-            icon: <span className="text-5xl">🧗</span>,
-            available: true,
-            gradient: 'from-violet-600 to-indigo-500',
-            path: '/games/stack-climber'
-        },
         /*{
             id: 'mental-division',
             name: 'Mental Division',
