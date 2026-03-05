@@ -462,7 +462,7 @@ const StackClimber: React.FC = () => {
       // Math.min picks targetCam → player-relative → block at screen bottom, no lag cut.
       // For wrong-block bounces the camera is stuck above the new (lower) target
       // (camYRef < targetCam), so Math.min picks camYRef → camera-relative → still correct.
-      if (waitingForApexRef.current && p.vy >= 0) {
+      if (waitingForApexRef.current && p.vy >= -200) {
         waitingForApexRef.current = false;
         if (platformsRef.current.length === 0) {
           const cfg = DIFF[diffRef.current];
