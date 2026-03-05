@@ -615,10 +615,10 @@ const StackClimber: React.FC = () => {
     platformsRef.current = []; particlesRef.current = [];
     shakeTRef.current = 0; fastCamRef.current = 0; hasJumpedRef.current = false; waitingForApexRef.current = false; heartPickupRef.current = null; nextHeartHRef.current = 150;
     setHasJumped(false);
-    P.current = { x: gc.width/2, y: groundYRef.current, vx: 0, vy: 0, w: 26, h: 36, onGround: true, flashT: 0, hurtCD: 0, launchT: 0 };
-    camYRef.current = groundYRef.current - gc.height * 0.85;
+    P.current = { x: cssW/2, y: groundYRef.current, vx: 0, vy: 0, w: 26, h: 36, onGround: true, flashT: 0, hurtCD: 0, launchT: 0 };
+    camYRef.current = groundYRef.current - cssH * 0.85;
     // First row sitting on the ground
-    platformsRef.current = buildRow(groundYRef.current - PH, gc.width, DIFF[d], ruleRef.current);
+    platformsRef.current = buildRow(groundYRef.current - PH, cssW, DIFF[d], ruleRef.current);
     if (hScoreEl.current)    hScoreEl.current.textContent = '0m';
     if (hLivesEl.current)    hLivesEl.current.innerHTML = '❤️❤️❤️';
     if (speedFillEl.current) { speedFillEl.current.style.width = '0%'; speedFillEl.current.style.background = '#7ec8a0'; }
