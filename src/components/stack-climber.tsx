@@ -269,9 +269,6 @@ const StackClimber: React.FC = () => {
       const c = BC[b.colIdx % BC.length], r = 6;
       const sx = b.x, sy = b.y - camYRef.current;
       if (sy > gc!.height + 60 || sy + b.h < -20) return;
-      // soil strip anchors block visually to the ground below it
-      ctx.fillStyle = '#2a1a08'; ctx.fillRect(sx+4, sy+b.h, b.w-8, 6);
-      ctx.fillStyle = '#3a2a10'; ctx.fillRect(sx+4, sy+b.h, b.w-8, 3);
       ctx.fillStyle = 'rgba(0,0,0,.28)'; rrect(sx+3,sy+4,b.w,b.h,r); ctx.fill();
       ctx.fillStyle = b.flash > 0 ? '#c0392b' : c.bg; rrect(sx,sy,b.w,b.h,r); ctx.fill();
       ctx.fillStyle = c.top; rrect(sx+3,sy+3,b.w-6,b.h*.38,r-2); ctx.fill();
@@ -465,7 +462,8 @@ const StackClimber: React.FC = () => {
       if (waitingForApexRef.current && p.vy >= 0) {
         waitingForApexRef.current = false;
         if (platformsRef.current.length === 0) {
-          platformsRef.current.push(...makeRow(camYRef.current + gc!.height * 0.92 - PH));
+          // block bottom flush with screen bottom — fully visible, never cut
+          platformsRef.current.push(...makeRow(camYRef.current + gc!.height - PH));
         }
       }
       // Ground
