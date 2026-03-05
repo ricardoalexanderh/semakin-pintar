@@ -163,6 +163,9 @@ const StackClimber: React.FC = () => {
   const keysRef           = useRef({ l: false, r: false });
   const heartPickupRef    = useRef<HeartPickup | null>(null);
   const nextHeartHRef     = useRef(150); // next height milestone (m) to try spawning a heart
+  const dprRef  = useRef(typeof window !== 'undefined' ? (window.devicePixelRatio || 1) : 1);
+  const gcWRef  = useRef(0); // logical CSS width used for game coords
+  const gcHRef  = useRef(0); // logical CSS height used for game coords
 
   // Keep showHint ref in sync
   useEffect(() => { showHintRef.current = showHint; }, [showHint]);
@@ -238,9 +241,15 @@ const StackClimber: React.FC = () => {
     const resize = () => {
       const gc = gcRef.current; if (!gc || !gc.parentElement) return;
       if (gStateRef.current === 'playing') return; // mobile scroll fires resize; don't break mid-game
-      gc.width  = gc.parentElement.clientWidth;
-      gc.height = gc.parentElement.clientHeight;
-      groundYRef.current = gc.height * 0.88;
+      const dpr = window.devicePixelRatio || 1;
+      const cssW = gc.parentElement.clientWidth;
+      const cssH = gc.parentElement.clientHeight;
+      gc.width  = cssW * dpr;
+      gc.height = cssH * dpr;
+      dprRef.current = dpr;
+      gcWRef.current = cssW;
+      gcHRef.current = cssH;
+      groundYRef.current = cssH * 0.88;
     };
     resize();
     window.addEventListener('resize', resize);
@@ -255,13 +264,13 @@ const StackClimber: React.FC = () => {
 
     function getBounceV() {
       const cfg = DIFF[diffRef.current];
-      return -Math.sqrt(2 * cfg.grav * Math.max(gc!.height, 400) * cfg.bouncePct);
+      return -Math.sqrt(2 * cfg.grav * Math.max(gcHRef.current, 400) * cfg.bouncePct);
     }
     function getGrav() {
       return Math.min(DIFF[diffRef.current].grav + heightMRef.current * GRAV_INC, 3000);
     }
     function makeRow(worldY: number): Block[] {
-      return buildRow(worldY, gc!.width, DIFF[diffRef.current], ruleRef.current);
+      return buildRow(worldY, gcWRef.current, DIFF[diffRef.current], ruleRef.current);
     }
     // Spawn the next row immediately, using predicted apex so the block is
     // visible the same frame the player bounces — no waiting-for-apex loop needed.
@@ -272,8 +281,8 @@ const StackClimber: React.FC = () => {
       const grav = getGrav();
       const apex = bounceFromY - (bv * bv) / (2 * grav);
       const cfg = DIFF[diffRef.current];
-      const refCam = Math.min(camYRef.current, apex - cfg.camTarget * gc!.height);
-      platformsRef.current = makeRow(refCam + gc!.height - PH);
+      const refCam = Math.min(camYRef.current, apex - cfg.camTarget * gcHRef.current);
+      platformsRef.current = makeRow(refCam + gcHRef.current - PH);
     }
     function spawnParts(x: number, y: number, color: string, count: number) {
       for (let i = 0; i < count; i++) {
@@ -308,7 +317,7 @@ const StackClimber: React.FC = () => {
     function drawBlock(b: Block) {
       const c = BC[b.colIdx % BC.length], r = 6;
       const sx = b.x, sy = b.y - camYRef.current;
-      if (sy > gc!.height + 60 || sy + b.h < -20) return;
+      if (sy > gcHRef.current + 60 || sy + b.h < -20) return;
       ctx.fillStyle = 'rgba(0,0,0,.28)'; rrect(sx+3,sy+4,b.w,b.h,r); ctx.fill();
       ctx.fillStyle = b.flash > 0 ? '#c0392b' : c.bg; rrect(sx,sy,b.w,b.h,r); ctx.fill();
       ctx.fillStyle = c.top; rrect(sx+3,sy+3,b.w-6,b.h*.38,r-2); ctx.fill();
@@ -326,23 +335,23 @@ const StackClimber: React.FC = () => {
     }
     function drawGround() {
       const sy = groundYRef.current - camYRef.current;
-      if (sy > gc!.height + 10) return;
-      ctx.fillStyle = '#2a1f14'; ctx.fillRect(0,sy,gc!.width,gc!.height-sy+10);
-      ctx.fillStyle = '#4a3520'; ctx.fillRect(0,sy,gc!.width,6);
+      if (sy > gcHRef.current + 10) return;
+      ctx.fillStyle = '#2a1f14'; ctx.fillRect(0,sy,gcWRef.current,gcHRef.current-sy+10);
+      ctx.fillStyle = '#4a3520'; ctx.fillRect(0,sy,gcWRef.current,6);
       ctx.fillStyle = '#3d6b3d';
-      for (let x = 0; x < gc!.width; x += 18) {
+      for (let x = 0; x < gcWRef.current; x += 18) {
         const bl = 4 + Math.sin(x*.3)*2; ctx.fillRect(x, sy-bl, 5, bl);
       }
     }
     function drawHeightMarkers() {
       const interval = 150, base = Math.floor(camYRef.current / interval) * interval;
-      for (let wy = base; wy < camYRef.current + gc!.height + interval; wy += interval) {
+      for (let wy = base; wy < camYRef.current + gcHRef.current + interval; wy += interval) {
         const sy = wy - camYRef.current;
-        if (sy < 0 || sy > gc!.height) continue;
+        if (sy < 0 || sy > gcHRef.current) continue;
         const m = Math.max(0, Math.round((groundYRef.current - wy) / 10));
         ctx.save();
         ctx.globalAlpha=.06; ctx.strokeStyle='white'; ctx.lineWidth=1; ctx.setLineDash([4,8]);
-        ctx.beginPath(); ctx.moveTo(0,sy); ctx.lineTo(gc!.width,sy); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(0,sy); ctx.lineTo(gcWRef.current,sy); ctx.stroke();
         ctx.setLineDash([]); ctx.globalAlpha=.11; ctx.fillStyle='white';
         ctx.font='700 10px Nunito'; ctx.textAlign='left'; ctx.fillText(`${m}m`,6,sy-3);
         ctx.restore();
@@ -422,7 +431,7 @@ const StackClimber: React.FC = () => {
       const hp = heartPickupRef.current;
       if (!hp) return;
       const sy = hp.worldY - camYRef.current + Math.sin(hp.bobT * 3) * 6;
-      if (sy < -40 || sy > gc!.height + 20) return;
+      if (sy < -40 || sy > gcHRef.current + 20) return;
       const alpha = hp.lifetime < 2 ? hp.lifetime / 2 : 1;
       ctx.save();
       ctx.globalAlpha = alpha;
@@ -435,13 +444,15 @@ const StackClimber: React.FC = () => {
       ctx.restore();
     }
     function draw() {
-      ctx.clearRect(0,0,gc!.width,gc!.height);
+      const dpr = dprRef.current;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0,0,gcWRef.current,gcHRef.current);
       const ox = shakeTRef.current > 0 ? (Math.random()-.5)*shakeTRef.current*12 : 0;
       const oy = shakeTRef.current > 0 ? (Math.random()-.5)*shakeTRef.current*12 : 0;
       ctx.save(); ctx.translate(Math.round(ox),Math.round(oy));
-      const g = ctx.createLinearGradient(0,0,0,gc!.height);
+      const g = ctx.createLinearGradient(0,0,0,gcHRef.current);
       g.addColorStop(0,'#0a0a1a'); g.addColorStop(.6,'#0f1a2e'); g.addColorStop(1,'#0a1a10');
-      ctx.fillStyle=g; ctx.fillRect(0,0,gc!.width,gc!.height);
+      ctx.fillStyle=g; ctx.fillRect(0,0,gcWRef.current,gcHRef.current);
       if (gStateRef.current === 'playing' || gStateRef.current === 'dying') {
         drawHeightMarkers(); drawGround();
         for (const b of platformsRef.current) drawBlock(b);
@@ -480,7 +491,7 @@ const StackClimber: React.FC = () => {
       p.vy = Math.min(p.vy + getGrav() * dt, 1200);
       const oldY = p.y;
       p.x += p.vx * dt; p.y += p.vy * dt;
-      p.x = Math.max(p.w/2, Math.min(gc!.width - p.w/2, p.x));
+      p.x = Math.max(p.w/2, Math.min(gcWRef.current - p.w/2, p.x));
       p.onGround = false;
       // Block collision
       for (let i = platformsRef.current.length - 1; i >= 0; i--) {
@@ -498,7 +509,7 @@ const StackClimber: React.FC = () => {
           // Spawn block immediately at current screen bottom; track it there
           // each frame while ascending so it stays visually locked to bottom.
           // When player hits apex the camera has caught up and the block freezes.
-          platformsRef.current = makeRow(camYRef.current + gc!.height - PH);
+          platformsRef.current = makeRow(camYRef.current + gcHRef.current - PH);
           fastCamRef.current = 1;
           waitingForApexRef.current = true;
           break;
@@ -523,7 +534,7 @@ const StackClimber: React.FC = () => {
       // the block's world Y is frozen in the right place.
       if (waitingForApexRef.current) {
         if (p.vy < 0) {
-          const y = camYRef.current + gc!.height - PH;
+          const y = camYRef.current + gcHRef.current - PH;
           for (const b of platformsRef.current) b.y = y;
         } else {
           waitingForApexRef.current = false;
@@ -537,20 +548,20 @@ const StackClimber: React.FC = () => {
       if (h > heightMRef.current) heightMRef.current = h;
       // Camera: only scrolls up, soft-follow so player visibly arcs upward.
       // camTarget per difficulty → easy 70% / medium 60% / hard 50% screen travel.
-      const targetCam = p.y - gc!.height * DIFF[diffRef.current].camTarget;
+      const targetCam = p.y - gcHRef.current * DIFF[diffRef.current].camTarget;
       if (targetCam < camYRef.current) {
         const lerp = fastCamRef.current > 0 ? 30 : CAM_LERP;
         const factor = 1 - Math.exp(-lerp * dt);
         camYRef.current += (targetCam - camYRef.current) * factor;
       }
       // Safety: player must never appear above 5% from top of screen
-      camYRef.current = Math.min(camYRef.current, p.y - gc!.height * 0.05);
+      camYRef.current = Math.min(camYRef.current, p.y - gcHRef.current * 0.05);
       // Death: fell off bottom
-      if (p.y - camYRef.current > gc!.height + 20) { endGame(); return; }
+      if (p.y - camYRef.current > gcHRef.current + 20) { endGame(); return; }
       // Heart pickup — spawn at every 40m milestone when lives < 3
       if (livesRef.current < 3 && !heartPickupRef.current && heightMRef.current >= nextHeartHRef.current) {
         const spawnWorldY = groundYRef.current - nextHeartHRef.current * 10 - 40;
-        heartPickupRef.current = { x: ri(44, gc!.width - 44), worldY: spawnWorldY, bobT: 0, lifetime: 5 };
+        heartPickupRef.current = { x: ri(44, gcWRef.current - 44), worldY: spawnWorldY, bobT: 0, lifetime: 5 };
         nextHeartHRef.current += 150;
       }
       if (heartPickupRef.current) {
@@ -590,9 +601,15 @@ const StackClimber: React.FC = () => {
   // ── Launch game (called after countdown) ──
   const launch = useCallback((d: Difficulty) => {
     const gc = gcRef.current; if (!gc) return;
-    gc.width  = gc.parentElement?.clientWidth  || 480;
-    gc.height = gc.parentElement?.clientHeight || 400;
-    groundYRef.current = gc.height * 0.88;
+    const dpr = window.devicePixelRatio || 1;
+    const cssW = gc.parentElement?.clientWidth  || 480;
+    const cssH = gc.parentElement?.clientHeight || 400;
+    gc.width  = cssW * dpr;
+    gc.height = cssH * dpr;
+    dprRef.current = dpr;
+    gcWRef.current = cssW;
+    gcHRef.current = cssH;
+    groundYRef.current = cssH * 0.88;
     diffRef.current = d;
     livesRef.current = 3; heightMRef.current = 0;
     platformsRef.current = []; particlesRef.current = [];
@@ -671,32 +688,32 @@ const StackClimber: React.FC = () => {
       <div style={{ position: 'relative', zIndex: 5, width: '100%', maxWidth: 480, height: '100%', margin: '0 auto', display: 'flex', flexDirection: 'column' }}>
 
         {/* HUD top */}
-        <div style={{ flexShrink: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: '14px 16px 0' }}>
+        <div style={{ flexShrink: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: '6px 12px 0' }}>
           <div>
-            <div style={{ fontFamily: "'Cabin Sketch', cursive", fontSize: '1.6rem', lineHeight: 1, textShadow: '0 2px 8px rgba(0,0,0,.6)' }}>Stack Climber</div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '.72rem', fontWeight: 800, color: '#8899aa', textTransform: 'uppercase', letterSpacing: '1.5px', marginTop: 4 }}>
-              HEIGHT&nbsp;<span ref={hScoreEl} style={{ fontFamily: "'Cabin Sketch', cursive", fontSize: '1.1rem', color: '#f4c542' }}>0m</span>
+            <div style={{ fontFamily: "'Cabin Sketch', cursive", fontSize: '1.2rem', lineHeight: 1, textShadow: '0 2px 8px rgba(0,0,0,.6)' }}>Stack Climber</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '.6rem', fontWeight: 800, color: '#8899aa', textTransform: 'uppercase', letterSpacing: '1.5px', marginTop: 2 }}>
+              HEIGHT&nbsp;<span ref={hScoreEl} style={{ fontFamily: "'Cabin Sketch', cursive", fontSize: '.9rem', color: '#f4c542' }}>0m</span>
             </div>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2 }}>
-            <div ref={hLivesEl} style={{ display: 'flex', gap: 5 }}>❤️❤️❤️</div>
+            <div ref={hLivesEl} style={{ display: 'flex', gap: 3 }}>❤️❤️❤️</div>
           </div>
         </div>
 
         {/* Rule banner */}
-        <div style={{ flexShrink: 0, margin: '10px 16px 0', background: '#111827', border: '2px solid rgba(244,197,66,.5)', borderRadius: 14, padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ fontSize: '1.4rem', flexShrink: 0, color: '#f4c542' }}>{ruleDisp.icon}</div>
+        <div style={{ flexShrink: 0, margin: '4px 10px 0', background: '#111827', border: '2px solid rgba(244,197,66,.5)', borderRadius: 10, padding: '5px 10px', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ fontSize: '1.1rem', flexShrink: 0, color: '#f4c542' }}>{ruleDisp.icon}</div>
           <div>
-            <div style={{ fontSize: '.6rem', fontWeight: 800, color: '#8899aa', textTransform: 'uppercase', letterSpacing: '2px' }}>Current Rule</div>
-            <div style={{ fontFamily: "'Cabin Sketch', cursive", fontSize: '1.15rem', color: '#f0e8d8', lineHeight: 1.2 }}>{ruleDisp.text || '—'}</div>
-            {ruleDisp.eg && <div style={{ fontSize: '.7rem', fontWeight: 700, color: '#7ec8a0', marginTop: 1 }}>e.g. {ruleDisp.eg}</div>}
+            <div style={{ fontSize: '.55rem', fontWeight: 800, color: '#8899aa', textTransform: 'uppercase', letterSpacing: '2px' }}>Current Rule</div>
+            <div style={{ fontFamily: "'Cabin Sketch', cursive", fontSize: '.95rem', color: '#f0e8d8', lineHeight: 1.15 }}>{ruleDisp.text || '—'}</div>
+            {ruleDisp.eg && <div style={{ fontSize: '.65rem', fontWeight: 700, color: '#7ec8a0', marginTop: 1 }}>e.g. {ruleDisp.eg}</div>}
           </div>
         </div>
 
         {/* Speed bar */}
-        <div style={{ flexShrink: 0, margin: '6px 16px 0', display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div style={{ fontSize: '.6rem', fontWeight: 800, color: '#8899aa', textTransform: 'uppercase', letterSpacing: '1.5px', whiteSpace: 'nowrap' }}>Fall speed</div>
-          <div style={{ flex: 1, height: 5, background: 'rgba(255,255,255,.1)', borderRadius: 99, overflow: 'hidden' }}>
+        <div style={{ flexShrink: 0, margin: '3px 10px 0', display: 'flex', alignItems: 'center', gap: 6 }}>
+          <div style={{ fontSize: '.55rem', fontWeight: 800, color: '#8899aa', textTransform: 'uppercase', letterSpacing: '1.5px', whiteSpace: 'nowrap' }}>Fall speed</div>
+          <div style={{ flex: 1, height: 4, background: 'rgba(255,255,255,.1)', borderRadius: 99, overflow: 'hidden' }}>
             <div ref={speedFillEl} style={{ height: '100%', width: '0%', borderRadius: 99, background: '#7ec8a0', transition: 'width .3s, background .3s' }} />
           </div>
         </div>
