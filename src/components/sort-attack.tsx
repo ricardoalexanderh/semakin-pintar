@@ -449,7 +449,7 @@ const SortAttack: React.FC = () => {
 
     if (isLocked)    return `${base} cursor-not-allowed bg-[#1a1a3a] text-[${C.muted}] border-[rgba(167,139,250,0.4)]`;
     if (isSorted)    return `${base} cursor-pointer text-[${C.green}] border-[${C.green}] bg-[#1a3a2a]`;
-    if (isSelected)  return `${base} cursor-pointer bg-[${C.accent}] border-[#ff6b80] text-white -translate-y-2 scale-110 shadow-[0_12px_32px_rgba(233,69,96,0.45)] z-10`;
+    if (isSelected)  return `${base} cursor-pointer bg-[${C.blue}] border-[#80d8f7] text-white -translate-y-2 scale-110 shadow-[0_12px_32px_rgba(79,195,247,0.45)] z-10`;
     if (isHinted || isAdjacent) return `${base} cursor-pointer bg-[${C.card}] text-white border-[${C.yellow}] shadow-[0_0_16px_rgba(245,166,35,0.35)] animate-pulse`;
     if (isSwapping)  return `${base} cursor-pointer bg-[${C.card}] text-white border-[rgba(79,195,247,0.2)] scale-95 opacity-70`;
     return `${base} cursor-pointer bg-[${C.card}] text-white border-[rgba(79,195,247,0.2)] hover:-translate-y-1 hover:scale-105 hover:border-[${C.blue}] hover:shadow-[0_8px_24px_rgba(79,195,247,0.25)]`;
