@@ -123,6 +123,7 @@ const StackClimber: React.FC = () => {
   const mtnRef  = useRef<HTMLCanvasElement>(null);
   const animRef = useRef<number>(0);
   const mountedRef = useRef(true);
+  const bgmRef  = useRef<HTMLAudioElement | null>(null);
   const { updateGameState } = useGameState();
 
   // ── UI state ──
@@ -162,6 +163,15 @@ const StackClimber: React.FC = () => {
 
   // Keep showHint ref in sync
   useEffect(() => { showHintRef.current = showHint; }, [showHint]);
+
+  // ── BGM setup ──
+  useEffect(() => {
+    const audio = new Audio('/stack-climber.mp3');
+    audio.loop = true;
+    audio.volume = 0.4;
+    bgmRef.current = audio;
+    return () => { audio.pause(); bgmRef.current = null; };
+  }, []);
 
   // ── Hide floating buttons ──
   useEffect(() => {
@@ -411,6 +421,7 @@ const StackClimber: React.FC = () => {
     function endGame() {
       if (gStateRef.current === 'idle') return;
       gStateRef.current = 'dying';
+      bgmRef.current?.pause();
       const h = heightMRef.current;
       if (h > hiScoreRef.current) hiScoreRef.current = h;
       if (mountedRef.current) {
@@ -543,6 +554,7 @@ const StackClimber: React.FC = () => {
     if (speedFillEl.current) { speedFillEl.current.style.width = '0%'; speedFillEl.current.style.background = '#7ec8a0'; }
     lastTsRef.current = performance.now();
     gStateRef.current = 'playing';
+    if (bgmRef.current) { bgmRef.current.currentTime = 0; bgmRef.current.play().catch(() => {}); }
     setScreen('playing');
   }, []);
 
