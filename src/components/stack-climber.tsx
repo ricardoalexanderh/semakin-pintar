@@ -154,6 +154,7 @@ const StackClimber: React.FC = () => {
   const platformsRef = useRef<Block[]>([]);
   const particlesRef = useRef<Particle[]>([]);
   const shakeTRef    = useRef(0);
+  const fastCamRef   = useRef(0);       // seconds remaining of boosted camera speed
   const lastTsRef    = useRef(0);
   const jumpQRef          = useRef(false);
   const keysRef           = useRef({ l: false, r: false });
@@ -449,6 +450,7 @@ const StackClimber: React.FC = () => {
           p.onGround = false; p.launchT = 0.6;
           spawnParts(b.x+b.w/2, b.y, '#7ec8a0', 10);
           shakeTRef.current = 0.04;
+          fastCamRef.current = 0.5;   // snap camera quickly so block lands at screen bottom
           spawnNextRow(p.y, bv);
           break;
         } else if (p.hurtCD <= 0) {
@@ -476,7 +478,9 @@ const StackClimber: React.FC = () => {
       // camTarget per difficulty → easy 70% / medium 60% / hard 50% screen travel.
       const targetCam = p.y - gc!.height * DIFF[diffRef.current].camTarget;
       if (targetCam < camYRef.current) {
-        const factor = 1 - Math.exp(-CAM_LERP * dt);
+        const lerp = fastCamRef.current > 0 ? 30 : CAM_LERP;
+        fastCamRef.current = Math.max(0, fastCamRef.current - dt);
+        const factor = 1 - Math.exp(-lerp * dt);
         camYRef.current += (targetCam - camYRef.current) * factor;
       }
       // Safety: player must never appear above 5% from top of screen
@@ -512,7 +516,7 @@ const StackClimber: React.FC = () => {
     diffRef.current = d;
     livesRef.current = 3; heightMRef.current = 0;
     platformsRef.current = []; particlesRef.current = [];
-    shakeTRef.current = 0; hasJumpedRef.current = false;
+    shakeTRef.current = 0; fastCamRef.current = 0; hasJumpedRef.current = false;
     setHasJumped(false);
     P.current = { x: gc.width/2, y: groundYRef.current, vx: 0, vy: 0, w: 26, h: 36, onGround: true, flashT: 0, hurtCD: 0, launchT: 0 };
     camYRef.current = groundYRef.current - gc.height * 0.85;
