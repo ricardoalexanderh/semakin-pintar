@@ -192,11 +192,15 @@ const StackClimber: React.FC = () => {
     };
   }, []);
 
-  // ── Hide floating buttons ──
+  // ── Hide floating buttons only during active gameplay ──
   useEffect(() => {
-    updateGameState('stack-climber', true);
+    updateGameState('stack-climber', screen === 'playing' || screen === 'reveal');
+  }, [screen, updateGameState]);
+
+  useEffect(() => {
     return () => { mountedRef.current = false; updateGameState('stack-climber', false); };
-  }, [updateGameState]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // ── Keyboard ──
   useEffect(() => {
