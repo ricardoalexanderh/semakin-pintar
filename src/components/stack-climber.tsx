@@ -269,6 +269,9 @@ const StackClimber: React.FC = () => {
       const c = BC[b.colIdx % BC.length], r = 6;
       const sx = b.x, sy = b.y - camYRef.current;
       if (sy > gc!.height + 60 || sy + b.h < -20) return;
+      // soil strip anchors block visually to the ground below it
+      ctx.fillStyle = '#2a1a08'; ctx.fillRect(sx+4, sy+b.h, b.w-8, 6);
+      ctx.fillStyle = '#3a2a10'; ctx.fillRect(sx+4, sy+b.h, b.w-8, 3);
       ctx.fillStyle = 'rgba(0,0,0,.28)'; rrect(sx+3,sy+4,b.w,b.h,r); ctx.fill();
       ctx.fillStyle = b.flash > 0 ? '#c0392b' : c.bg; rrect(sx,sy,b.w,b.h,r); ctx.fill();
       ctx.fillStyle = c.top; rrect(sx+3,sy+3,b.w-6,b.h*.38,r-2); ctx.fill();
@@ -317,7 +320,10 @@ const StackClimber: React.FC = () => {
       const ls = inAir ? 0 : Math.sin(t * 9) * .3;
       const rising = inAir && p.vy <= -50;
       const falling = inAir && p.vy > 50;
-      const as = rising ? 1.2 : falling ? 0.1 : inAir ? 0.3 : Math.sin(t*9+Math.PI)*.25;
+      // armL/armR: positive = clockwise = outward for left arm, inward for right arm
+      // rising → both arms raised up (~137°); falling → arms wide to sides (~86°)
+      const armL = rising ? 2.4 : falling ? 1.5 : inAir ? 0.7 : -Math.sin(t*9) * 0.3;
+      const armR = rising ? -2.4 : falling ? -1.5 : inAir ? -0.7 : Math.sin(t*9) * 0.3;
       ctx.save(); ctx.translate(cx, sy);
       if (!inAir) {
         ctx.save(); ctx.globalAlpha=.2; ctx.fillStyle='#000';
@@ -338,10 +344,10 @@ const StackClimber: React.FC = () => {
       (ctx as CanvasRenderingContext2D & { roundRect: (...a: number[]) => void }).roundRect(4,-22,8,13,3);
       ctx.fill();
       // arms
-      ctx.save(); ctx.translate(-10,-20); ctx.rotate(-as);
+      ctx.save(); ctx.translate(-10,-20); ctx.rotate(armL);
       ctx.fillStyle='#3a7bd5'; ctx.fillRect(-2,0,5,11);
       ctx.fillStyle='#f4c542'; ctx.beginPath(); ctx.arc(0,12,4,0,Math.PI*2); ctx.fill(); ctx.restore();
-      ctx.save(); ctx.translate(10,-20); ctx.rotate(as);
+      ctx.save(); ctx.translate(10,-20); ctx.rotate(armR);
       ctx.fillStyle='#3a7bd5'; ctx.fillRect(-3,0,5,11);
       ctx.fillStyle='#f4c542'; ctx.beginPath(); ctx.arc(0,12,4,0,Math.PI*2); ctx.fill(); ctx.restore();
       // head
@@ -459,7 +465,7 @@ const StackClimber: React.FC = () => {
       if (waitingForApexRef.current && p.vy >= 0) {
         waitingForApexRef.current = false;
         if (platformsRef.current.length === 0) {
-          platformsRef.current.push(...makeRow(camYRef.current + gc!.height * 0.82 - PH));
+          platformsRef.current.push(...makeRow(camYRef.current + gc!.height * 0.92 - PH));
         }
       }
       // Ground
