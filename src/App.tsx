@@ -22,6 +22,7 @@ import SortAttack from './components/sort-attack';
 import MathFlipGame from './components/math-flip';
 import MirrorDash from './components/mirror-dash';
 import PairShift from './components/pair-shift';
+import StackClimber from './components/stack-climber';
 
 // Component to handle page tracking and SEO
 const PageTracker = () => {
@@ -589,6 +590,41 @@ const SortAttackPage = () => {
   );
 };
 
+// Stack Climber page with SEO
+const StackClimberPage = () => {
+  const gameJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Game",
+    "name": "Stack Climber",
+    "description": "Jump on the correct blocks to launch yourself higher and higher! Avoid wrong blocks, survive with 3 lives, and climb as high as you can.",
+    "url": "https://www.semakinpintar.com/games/stack-climber",
+    "genre": "Educational",
+    "gamePlatform": "Web Browser",
+    "applicationCategory": "EducationalApplication",
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD"
+    }
+  };
+
+  return (
+    <>
+      <SEOHead
+        title="Stack Climber - Number Rules Platformer | Semakin Pintar"
+        description="Launch yourself skyward by landing on the correct blocks! Apply number rules to identify safe platforms. A fast-paced math platformer with Easy, Medium, and Hard difficulty."
+        keywords="stack climber, number rules game, math platformer, jumping game, educational game, number patterns, kids math, brain training"
+        canonicalUrl="https://www.semakinpintar.com/games/stack-climber"
+        ogTitle="Stack Climber - Number Rules Platformer"
+        ogDescription="Jump on the right blocks to climb higher! Apply number rules to identify correct platforms."
+        ogImage="https://www.semakinpintar.com/logo.png"
+        jsonLd={gameJsonLd}
+      />
+      <StackClimber />
+    </>
+  );
+};
+
 function App() {
   useEffect(() => {
     // Initialize Google Analytics    
@@ -674,6 +710,11 @@ function App() {
           <Route path="/games/mirror-dash" element={
             <GamesLayout>
               <MirrorDashPage />
+            </GamesLayout>
+          } />
+          <Route path="/games/stack-climber" element={
+            <GamesLayout>
+              <StackClimberPage />
             </GamesLayout>
           } />
           <Route path="*" element={
