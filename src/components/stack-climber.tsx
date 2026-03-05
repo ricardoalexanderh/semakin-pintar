@@ -9,11 +9,12 @@ type GState = 'idle' | 'playing' | 'dying';
 interface DiffConfig {
   grav: number; jumpV: number; bouncePct: number;
   gravInc: number; numRange: [number, number]; cols: number;
+  camLerp: number; // camera follow speed — lower = more visual arc
 }
 const DIFF: Record<Difficulty, DiffConfig> = {
-  easy:   { grav: 700,  jumpV: -700, bouncePct: 2.2, gravInc: 2, numRange: [1, 20], cols: 3 },
-  medium: { grav: 900,  jumpV: -700, bouncePct: 1.6, gravInc: 3, numRange: [1, 30], cols: 4 },
-  hard:   { grav: 1100, jumpV: -700, bouncePct: 1.1, gravInc: 5, numRange: [1, 40], cols: 4 },
+  easy:   { grav: 700,  jumpV: -700, bouncePct: 2.2, gravInc: 2, numRange: [1, 20], cols: 3, camLerp: 1.5 },
+  medium: { grav: 900,  jumpV: -700, bouncePct: 1.6, gravInc: 3, numRange: [1, 30], cols: 4, camLerp: 3.0 },
+  hard:   { grav: 1100, jumpV: -700, bouncePct: 1.1, gravInc: 5, numRange: [1, 40], cols: 4, camLerp: 5.0 },
 };
 
 interface Rule { icon: string; text: string; eg: string; ok: (v: number) => boolean; }
@@ -433,9 +434,13 @@ const StackClimber: React.FC = () => {
       // Height
       const h = Math.max(0, Math.round((groundYRef.current - p.y) / 10));
       if (h > heightMRef.current) heightMRef.current = h;
-      // Camera (only scrolls up)
-      const targetCam = p.y - gc!.height * 0.65;
-      if (targetCam < camYRef.current) camYRef.current = targetCam;
+      // Camera: only scrolls up, soft-follow so player visibly arcs upward.
+      // Target keeps player at 30% from top — gives 60%+ of screen to fall through.
+      const targetCam = p.y - gc!.height * 0.30;
+      if (targetCam < camYRef.current) {
+        const factor = 1 - Math.exp(-DIFF[diffRef.current].camLerp * dt);
+        camYRef.current += (targetCam - camYRef.current) * factor;
+      }
       // Death: fell off bottom
       if (p.y - camYRef.current > gc!.height + 20) { endGame(); return; }
       // Particles
