@@ -12,13 +12,13 @@ interface DiffConfig {
   camTarget: number; // player screen position (fraction from top) at bounce apex
 }
 const DIFF: Record<Difficulty, DiffConfig> = {
-  easy:   { grav: 700,  jumpV: -700, bouncePct: 2.2, numRange: [1, 20], cols: 3, camTarget: 0.20 },
-  medium: { grav: 900,  jumpV: -700, bouncePct: 1.6, numRange: [1, 30], cols: 4, camTarget: 0.30 },
-  hard:   { grav: 1100, jumpV: -700, bouncePct: 1.1, numRange: [1, 40], cols: 4, camTarget: 0.40 },
+  easy:   { grav: 700,  jumpV: -700, bouncePct: 1.2,  numRange: [1, 20], cols: 3, camTarget: 0.20 },
+  medium: { grav: 900,  jumpV: -700, bouncePct: 0.9,  numRange: [1, 30], cols: 4, camTarget: 0.30 },
+  hard:   { grav: 1100, jumpV: -700, bouncePct: 0.65, numRange: [1, 40], cols: 4, camTarget: 0.40 },
 };
 // Gravity increases the same way for all difficulties: +2 px/s² per metre climbed
 const GRAV_INC = 2;
-const CAM_LERP = 3.0; // soft camera follow speed (same for all difficulties)
+const CAM_LERP = 5.0; // soft camera follow speed (same for all difficulties)
 
 interface Rule { icon: string; text: string; eg: string; ok: (v: number) => boolean; }
 interface Block { x: number; y: number; w: number; h: number; val: number; valid: boolean; colIdx: number; flash: number; hit: boolean; }
@@ -443,6 +443,8 @@ const StackClimber: React.FC = () => {
         const factor = 1 - Math.exp(-CAM_LERP * dt);
         camYRef.current += (targetCam - camYRef.current) * factor;
       }
+      // Safety: player must never appear above 5% from top of screen
+      camYRef.current = Math.min(camYRef.current, p.y - gc!.height * 0.05);
       // Death: fell off bottom
       if (p.y - camYRef.current > gc!.height + 20) { endGame(); return; }
       // Particles
