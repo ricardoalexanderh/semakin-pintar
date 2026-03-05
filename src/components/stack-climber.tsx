@@ -8,14 +8,17 @@ type GState = 'idle' | 'playing' | 'dying';
 
 interface DiffConfig {
   grav: number; jumpV: number; bouncePct: number;
-  gravInc: number; numRange: [number, number]; cols: number;
-  camLerp: number; // camera follow speed — lower = more visual arc
+  numRange: [number, number]; cols: number;
+  camTarget: number; // player screen position (fraction from top) at bounce apex
 }
 const DIFF: Record<Difficulty, DiffConfig> = {
-  easy:   { grav: 700,  jumpV: -700, bouncePct: 2.2, gravInc: 2, numRange: [1, 20], cols: 3, camLerp: 1.5 },
-  medium: { grav: 900,  jumpV: -700, bouncePct: 1.6, gravInc: 3, numRange: [1, 30], cols: 4, camLerp: 3.0 },
-  hard:   { grav: 1100, jumpV: -700, bouncePct: 1.1, gravInc: 5, numRange: [1, 40], cols: 4, camLerp: 5.0 },
+  easy:   { grav: 700,  jumpV: -700, bouncePct: 2.2, numRange: [1, 20], cols: 3, camTarget: 0.20 },
+  medium: { grav: 900,  jumpV: -700, bouncePct: 1.6, numRange: [1, 30], cols: 4, camTarget: 0.30 },
+  hard:   { grav: 1100, jumpV: -700, bouncePct: 1.1, numRange: [1, 40], cols: 4, camTarget: 0.40 },
 };
+// Gravity increases the same way for all difficulties: +2 px/s² per metre climbed
+const GRAV_INC = 2;
+const CAM_LERP = 3.0; // soft camera follow speed (same for all difficulties)
 
 interface Rule { icon: string; text: string; eg: string; ok: (v: number) => boolean; }
 interface Block { x: number; y: number; w: number; h: number; val: number; valid: boolean; colIdx: number; flash: number; hit: boolean; }
@@ -182,8 +185,7 @@ const StackClimber: React.FC = () => {
       return -Math.sqrt(2 * cfg.grav * Math.max(gc!.height, 400) * cfg.bouncePct);
     }
     function getGrav() {
-      const cfg = DIFF[diffRef.current];
-      return Math.min(cfg.grav + heightMRef.current * cfg.gravInc, 3000);
+      return Math.min(DIFF[diffRef.current].grav + heightMRef.current * GRAV_INC, 3000);
     }
     function makeRow(worldY: number): Block[] {
       const cfg = DIFF[diffRef.current], cols = cfg.cols;
@@ -435,10 +437,10 @@ const StackClimber: React.FC = () => {
       const h = Math.max(0, Math.round((groundYRef.current - p.y) / 10));
       if (h > heightMRef.current) heightMRef.current = h;
       // Camera: only scrolls up, soft-follow so player visibly arcs upward.
-      // Target keeps player at 30% from top — gives 60%+ of screen to fall through.
-      const targetCam = p.y - gc!.height * 0.30;
+      // camTarget per difficulty → easy 70% / medium 60% / hard 50% screen travel.
+      const targetCam = p.y - gc!.height * DIFF[diffRef.current].camTarget;
       if (targetCam < camYRef.current) {
-        const factor = 1 - Math.exp(-DIFF[diffRef.current].camLerp * dt);
+        const factor = 1 - Math.exp(-CAM_LERP * dt);
         camYRef.current += (targetCam - camYRef.current) * factor;
       }
       // Death: fell off bottom
