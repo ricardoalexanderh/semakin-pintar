@@ -157,7 +157,6 @@ const StackClimber: React.FC = () => {
   const lastTsRef    = useRef(0);
   const jumpQRef          = useRef(false);
   const keysRef           = useRef({ l: false, r: false });
-  const waitingForApexRef    = useRef(false);
 
   // Keep showHint ref in sync
   useEffect(() => { showHintRef.current = showHint; }, [showHint]);
@@ -234,6 +233,18 @@ const StackClimber: React.FC = () => {
     }
     function makeRow(worldY: number): Block[] {
       return buildRow(worldY, gc!.width, DIFF[diffRef.current], ruleRef.current);
+    }
+    // Spawn the next row immediately, using predicted apex so the block is
+    // visible the same frame the player bounces — no waiting-for-apex loop needed.
+    // refCam = min(camera, predictedTarget) handles both cases:
+    //   valid bounce  → camera lags below target → picks target → block at screen bottom ✓
+    //   wrong bounce  → camera stuck above target → picks camera → also at screen bottom ✓
+    function spawnNextRow(bounceFromY: number, bv: number) {
+      const grav = getGrav();
+      const apex = bounceFromY - (bv * bv) / (2 * grav);
+      const cfg = DIFF[diffRef.current];
+      const refCam = Math.min(camYRef.current, apex - cfg.camTarget * gc!.height);
+      platformsRef.current = makeRow(refCam + gc!.height - PH);
     }
     function spawnParts(x: number, y: number, color: string, count: number) {
       for (let i = 0; i < count; i++) {
@@ -437,8 +448,8 @@ const StackClimber: React.FC = () => {
           b.hit = true; p.y = b.y; p.vy = bv;
           p.onGround = false; p.launchT = 0.6;
           spawnParts(b.x+b.w/2, b.y, '#7ec8a0', 10);
-          shakeTRef.current = 0.04; platformsRef.current = [];
-          waitingForApexRef.current = true;
+          shakeTRef.current = 0.04;
+          spawnNextRow(p.y, bv);
           break;
         } else if (p.hurtCD <= 0) {
           const bv = getBounceV() * 0.82;
@@ -447,27 +458,13 @@ const StackClimber: React.FC = () => {
           livesRef.current--; shakeTRef.current = 0.1;
           spawnParts(p.x, p.y, '#e05c5c', 8); updateHUD();
           if (livesRef.current <= 0) { endGame(); return; }
-          platformsRef.current = [];
-          waitingForApexRef.current = true;
+          spawnNextRow(p.y, bv);
           break;
         } else {
           const bv = getBounceV() * 0.7;
-          p.y = b.y; p.vy = bv; platformsRef.current = [];
-          waitingForApexRef.current = true;
+          p.y = b.y; p.vy = bv;
+          spawnNextRow(p.y, bv);
           break;
-        }
-      }
-      // Spawn next row at apex (vy >= 0).
-      // For valid bounces the camera lags below the target (camYRef > targetCam), so
-      // Math.min picks targetCam → player-relative → block at screen bottom, no lag cut.
-      // For wrong-block bounces the camera is stuck above the new (lower) target
-      // (camYRef < targetCam), so Math.min picks camYRef → camera-relative → still correct.
-      if (waitingForApexRef.current && p.vy >= -200) {
-        waitingForApexRef.current = false;
-        if (platformsRef.current.length === 0) {
-          const cfg = DIFF[diffRef.current];
-          const refCam = Math.min(camYRef.current, p.y - cfg.camTarget * gc!.height);
-          platformsRef.current.push(...makeRow(refCam + gc!.height - PH));
         }
       }
       // Ground
@@ -515,7 +512,7 @@ const StackClimber: React.FC = () => {
     diffRef.current = d;
     livesRef.current = 3; heightMRef.current = 0;
     platformsRef.current = []; particlesRef.current = [];
-    shakeTRef.current = 0; hasJumpedRef.current = false; waitingForApexRef.current = false;
+    shakeTRef.current = 0; hasJumpedRef.current = false;
     setHasJumped(false);
     P.current = { x: gc.width/2, y: groundYRef.current, vx: 0, vy: 0, w: 26, h: 36, onGround: true, flashT: 0, hurtCD: 0, launchT: 0 };
     camYRef.current = groundYRef.current - gc.height * 0.85;
