@@ -8,13 +8,13 @@ type GState = 'idle' | 'playing' | 'dying';
 
 interface DiffConfig {
   grav: number; jumpV: number; bouncePct: number;
-  numRange: [number, number]; cols: number;
+  numRange: [number, number]; cols: number; maxCorrect: number;
   camTarget: number; // player screen position (fraction from top) at bounce apex
 }
 const DIFF: Record<Difficulty, DiffConfig> = {
-  easy:   { grav: 700,  jumpV: -700, bouncePct: 1.2,  numRange: [1, 20], cols: 3, camTarget: 0.20 },
-  medium: { grav: 900,  jumpV: -700, bouncePct: 0.9,  numRange: [1, 30], cols: 4, camTarget: 0.30 },
-  hard:   { grav: 1100, jumpV: -700, bouncePct: 0.65, numRange: [1, 40], cols: 4, camTarget: 0.40 },
+  easy:   { grav: 700,  jumpV: -700, bouncePct: 1.2,  numRange: [1, 20], cols: 3, maxCorrect: 2, camTarget: 0.20 },
+  medium: { grav: 900,  jumpV: -700, bouncePct: 0.9,  numRange: [1, 30], cols: 4, maxCorrect: 3, camTarget: 0.30 },
+  hard:   { grav: 1100, jumpV: -700, bouncePct: 0.65, numRange: [1, 40], cols: 4, maxCorrect: 2, camTarget: 0.40 },
 };
 // Gravity increases the same way for all difficulties: +2 px/s² per metre climbed
 const GRAV_INC = 1;
@@ -68,8 +68,8 @@ function buildRow(worldY: number, canvasWidth: number, cfg: DiffConfig, rule: Ru
   const pw = Math.floor((canvasWidth - 32 - (cols - 1) * PGAP) / cols);
   const sx = Math.floor((canvasWidth - (cols * pw + (cols - 1) * PGAP)) / 2);
 
-  // Decide how many correct: 1 or 2, but never all cols
-  const maxCorrect = Math.min(2, cols - 1);
+  // Decide how many correct: 1 up to cfg.maxCorrect, but never all cols
+  const maxCorrect = Math.min(cfg.maxCorrect, cols - 1);
   const numCorrect = ri(1, maxCorrect);
 
   // Gather valid numbers
