@@ -116,6 +116,15 @@ const LandingPage: React.FC<LandingPageProps> = () => {
             path: '/games/rocket-math'
         },
         {
+            id: 'pair-shift',
+            name: 'Pair Shift',
+            description: 'Slide pairs of cards to sort them',
+            icon: <span className="text-3xl font-black" style={{ letterSpacing: '-2px' }}>⇌</span>,
+            available: true,
+            gradient: 'from-orange-500 to-yellow-500',
+            path: '/games/pair-shift'
+        },
+        {
             id: 'stack-climber',
             name: 'Stack Climber',
             description: 'Jump on correct blocks to climb higher',
