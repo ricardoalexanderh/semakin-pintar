@@ -699,12 +699,25 @@ const StackClimber: React.FC = () => {
         <div style={{ display: 'flex', position: 'fixed', inset: 0, zIndex: 500, background: 'rgba(6,6,18,.93)', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 14, padding: 24, textAlign: 'center' }}>
           <div style={{ fontSize: '3.5rem', lineHeight: 1 }}>🏔️</div>
           <div style={{ fontFamily: "'Cabin Sketch', cursive", fontSize: '2.8rem', color: '#f0e8d8', lineHeight: 1, textShadow: '0 4px 20px rgba(0,0,0,.5)' }}>Stack Climber</div>
-          <div style={{ fontSize: '.88rem', fontWeight: 700, color: '#8899aa', lineHeight: 1.8, maxWidth: 290 }}>
-            Start on the ground and jump.<br />
-            <b style={{ color: '#f0e8d8' }}>Only land on blocks that follow the rule.</b><br />
-            Correct block launches you higher!<br />
-            Wrong block = bounce off, lose a life.<br />
-            Fall speed increases as you climb!
+          <div style={{ fontSize: '.82rem', fontWeight: 700, color: '#8899aa', lineHeight: 1.7, maxWidth: 310, textAlign: 'left' }}>
+            <div style={{ marginBottom: 6 }}>
+              🧗 Jump from the ground and <b style={{ color: '#f0e8d8' }}>land only on blocks that match the rule.</b>
+            </div>
+            <div>✅ <b style={{ color: '#7ec8a0' }}>Correct block</b> — launches you higher!</div>
+            <div>❌ <b style={{ color: '#e05c5c' }}>Wrong block</b> — bounce off &amp; lose a life.</div>
+            <div style={{ marginTop: 6, marginBottom: 6, borderTop: '1px solid rgba(255,255,255,.08)', paddingTop: 6 }}>
+              Each level has <b style={{ color: '#f0e8d8' }}>1–2 correct blocks randomly placed</b> among the others — stay sharp!
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '4px 8px', fontSize: '.74rem', color: '#667788' }}>
+              <div style={{ color: '#f4c542', fontWeight: 900 }}>Easy</div>
+              <div style={{ color: '#f4c542', fontWeight: 900 }}>Medium</div>
+              <div style={{ color: '#f4c542', fontWeight: 900 }}>Hard</div>
+              <div>3 blocks</div><div>4 blocks</div><div>4 blocks</div>
+              <div>nums 1–20</div><div>nums 1–30</div><div>nums 1–40</div>
+            </div>
+            <div style={{ marginTop: 6, borderTop: '1px solid rgba(255,255,255,.08)', paddingTop: 6 }}>
+              ⚡ Fall speed increases as you climb. You have <b style={{ color: '#f0e8d8' }}>3 lives.</b>
+            </div>
           </div>
           {/* Difficulty */}
           <div style={{ display: 'flex', gap: 8 }}>
