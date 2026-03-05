@@ -282,7 +282,9 @@ const StackClimber: React.FC = () => {
       const apex = bounceFromY - (bv * bv) / (2 * grav);
       const cfg = DIFF[diffRef.current];
       const refCam = Math.min(camYRef.current, apex - cfg.camTarget * gcHRef.current);
-      platformsRef.current = makeRow(refCam + gcHRef.current - PH);
+      // Clamp so the row never ends up below the ground surface
+      const rowY = Math.min(refCam + gcHRef.current - PH, groundYRef.current - PH);
+      platformsRef.current = makeRow(rowY);
     }
     function spawnParts(x: number, y: number, color: string, count: number) {
       for (let i = 0; i < count; i++) {
