@@ -451,9 +451,10 @@ const StackClimber: React.FC = () => {
           p.onGround = false; p.launchT = 0.6;
           spawnParts(b.x+b.w/2, b.y, '#7ec8a0', 10);
           shakeTRef.current = 0.04;
-          // Clear existing row and use fast camera throughout the ascent.
-          // Block spawns at apex (when p.vy >= 0) so camera has fully caught up.
-          platformsRef.current = [];
+          // Spawn block immediately at current screen bottom; track it there
+          // each frame while ascending so it stays visually locked to bottom.
+          // When player hits apex the camera has caught up and the block freezes.
+          platformsRef.current = makeRow(camYRef.current + gc!.height - PH);
           fastCamRef.current = 1;
           waitingForApexRef.current = true;
           break;
@@ -473,13 +474,17 @@ const StackClimber: React.FC = () => {
           break;
         }
       }
-      // Spawn block at apex after valid bounce (camera has fully caught up by then)
-      if (waitingForApexRef.current && p.vy >= 0) {
-        waitingForApexRef.current = false;
-        fastCamRef.current = 0;
-        const cfg = DIFF[diffRef.current];
-        const refCam = Math.min(camYRef.current, p.y - cfg.camTarget * gc!.height);
-        platformsRef.current = makeRow(refCam + gc!.height - PH);
+      // While ascending after valid bounce: keep block locked to screen bottom
+      // so it appears instantly correct. At apex the camera has caught up and
+      // the block's world Y is frozen in the right place.
+      if (waitingForApexRef.current) {
+        if (p.vy < 0) {
+          const y = camYRef.current + gc!.height - PH;
+          for (const b of platformsRef.current) b.y = y;
+        } else {
+          waitingForApexRef.current = false;
+          fastCamRef.current = 0;
+        }
       }
       // Ground
       if (p.y >= groundYRef.current) { p.y = groundYRef.current; p.vy = 0; p.onGround = true; }
