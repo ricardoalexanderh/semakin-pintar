@@ -2,1388 +2,693 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { useGameState } from '../hooks/useGameState';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-type Screen = 'start' | 'reveal' | 'playing' | 'dead';
 type Difficulty = 'easy' | 'medium' | 'hard';
+type Screen = 'start' | 'reveal' | 'playing' | 'dead';
+type GState = 'idle' | 'playing' | 'dying';
 
 interface DiffConfig {
-  baseGrav: number;
-  jumpV: number;
-  bouncePct: number;
-  gravInc: number;
-  numRange: [number, number];
-  cols: number;
+  grav: number; jumpV: number; bouncePct: number;
+  gravInc: number; numRange: [number, number]; cols: number;
 }
-
 const DIFF: Record<Difficulty, DiffConfig> = {
-  easy:   { baseGrav: 600, jumpV: -550, bouncePct: 0.85, gravInc: 1, numRange: [1, 20], cols: 3 },
-  medium: { baseGrav: 750, jumpV: -550, bouncePct: 0.70, gravInc: 2, numRange: [1, 30], cols: 4 },
-  hard:   { baseGrav: 900, jumpV: -550, bouncePct: 0.55, gravInc: 3, numRange: [1, 40], cols: 4 },
+  easy:   { grav: 700,  jumpV: -700, bouncePct: 1.6, gravInc: 2, numRange: [1, 20], cols: 3 },
+  medium: { grav: 900,  jumpV: -700, bouncePct: 1.3, gravInc: 3, numRange: [1, 30], cols: 4 },
+  hard:   { grav: 1100, jumpV: -700, bouncePct: 1.0, gravInc: 5, numRange: [1, 40], cols: 4 },
 };
 
-interface Rule {
-  name: string;
-  icon: string;
-  example: string;
-  test: (n: number) => boolean;
-}
+interface Rule { icon: string; text: string; eg: string; ok: (v: number) => boolean; }
+interface Block { x: number; y: number; w: number; h: number; val: number; valid: boolean; colIdx: number; flash: number; hit: boolean; }
+interface Particle { x: number; y: number; vx: number; vy: number; r: number; life: number; color: string; }
 
-interface Block {
-  x: number;
-  y: number;   // world Y (top-left)
-  w: number;
-  h: number;
-  value: number;
-  isCorrect: boolean;
-  color: string;
-}
+// Earthy block palette
+const BC = [
+  { bg: '#8b7355', top: '#c4a882', txt: '#f0e8d8' },
+  { bg: '#6b8c6b', top: '#9bc49b', txt: '#f0e8d8' },
+  { bg: '#7a6b8a', top: '#b09bc4', txt: '#f0e8d8' },
+  { bg: '#8a6b5a', top: '#c49b82', txt: '#f0e8d8' },
+  { bg: '#5a7a8a', top: '#82b0c4', txt: '#f0e8d8' },
+  { bg: '#7a8a5a', top: '#b0c482', txt: '#f0e8d8' },
+];
 
-interface Particle {
-  x: number;
-  y: number;
-  vx: number;
-  vy: number;
-  life: number;
-  maxLife: number;
-  color: string;
-  r: number;
-}
+const PH = 36; // block height
+const PGAP = 8;
+const MOVE = 200;
 
-// ─── Constants ────────────────────────────────────────────────────────────────
-const PLAYER_W = 24;
-const PLAYER_H = 36;
-const BLOCK_H = 28;
-const BLOCK_PAD = 8;    // horizontal padding each side
-const GAP = 6;          // gap between blocks in a row
-const MAX_GRAV = 2000;
-const MAX_FALL = 1200;
-const HURT_CD = 1.5;    // seconds
+function ri(a: number, b: number) { return Math.floor(Math.random() * (b - a + 1)) + a; }
 
-const BLOCK_COLORS = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD'];
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-function shuffle<T>(arr: T[]): T[] {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
+function buildRule(d: Difficulty): Rule {
+  if (d === 'easy') {
+    const t = ri(5, 15), tp = ri(0, 3);
+    const opts: Rule[] = [
+      { icon: `<${t}`,  text: `Numbers less than ${t}`,    eg: `1, 2 … ${t - 1}`,     ok: v => v < t },
+      { icon: `≤${t}`,  text: `Numbers ${t} or less`,      eg: `1, 2 … ${t}`,         ok: v => v <= t },
+      { icon: `>${t}`,  text: `Numbers greater than ${t}`, eg: `${t+1}, ${t+2} …`,    ok: v => v > t },
+      { icon: `≥${t}`,  text: `Numbers ${t} or more`,      eg: `${t}, ${t+1} …`,      ok: v => v >= t },
+    ];
+    return opts[tp];
   }
-  return a;
-}
-
-function randInt(lo: number, hi: number) {
-  return Math.floor(Math.random() * (hi - lo + 1)) + lo;
-}
-
-function makeRule(diff: Difficulty): Rule {
-  if (diff === 'easy') {
-    const n = randInt(5, 15);
-    const type = randInt(0, 3);
-    if (type === 0) return { name: `Less than ${n}`, icon: `< ${n}`, example: `e.g. ${n - 3}, ${n - 2}, ${n - 1}`, test: x => x < n };
-    if (type === 1) return { name: `At most ${n}`, icon: `≤ ${n}`, example: `e.g. ${n - 2}, ${n - 1}, ${n}`, test: x => x <= n };
-    if (type === 2) return { name: `Greater than ${n}`, icon: `> ${n}`, example: `e.g. ${n + 1}, ${n + 3}, ${n + 5}`, test: x => x > n };
-    return { name: `At least ${n}`, icon: `≥ ${n}`, example: `e.g. ${n}, ${n + 2}, ${n + 4}`, test: x => x >= n };
+  if (d === 'medium') {
+    const tp = ri(0, 4);
+    if (tp === 0) return { icon: '2×', text: 'Even numbers',      eg: '2, 4, 6, 8 …',          ok: v => v % 2 === 0 };
+    if (tp === 1) return { icon: '1×', text: 'Odd numbers',       eg: '1, 3, 5, 7 …',          ok: v => v % 2 !== 0 };
+    const m = [2, 3, 4][tp - 2];
+    return { icon: `×${m}`, text: `Multiples of ${m}`, eg: `${m}, ${m*2}, ${m*3} …`, ok: v => v % m === 0 };
   }
-  if (diff === 'medium') {
-    const type = randInt(0, 4);
-    if (type === 0) return { name: 'Even numbers', icon: 'Even', example: 'e.g. 2, 4, 6, 8', test: x => x % 2 === 0 };
-    if (type === 1) return { name: 'Odd numbers', icon: 'Odd', example: 'e.g. 1, 3, 5, 7', test: x => x % 2 !== 0 };
-    if (type === 2) return { name: 'Multiples of 2', icon: '×2', example: 'e.g. 2, 4, 6, 8', test: x => x % 2 === 0 };
-    if (type === 3) return { name: 'Multiples of 3', icon: '×3', example: 'e.g. 3, 6, 9, 12', test: x => x % 3 === 0 };
-    return { name: 'Multiples of 4', icon: '×4', example: 'e.g. 4, 8, 12, 16', test: x => x % 4 === 0 };
-  }
-  const m = randInt(5, 9);
-  return { name: `Multiples of ${m}`, icon: `×${m}`, example: `e.g. ${m}, ${m * 2}, ${m * 3}`, test: x => x % m === 0 };
+  const m = ri(5, 9);
+  return { icon: `×${m}`, text: `Multiples of ${m}`, eg: `${m}, ${m*2}, ${m*3} …`, ok: v => v % m === 0 };
 }
 
-function spawnRow(
-  cols: number,
-  numRange: [number, number],
-  rule: Rule,
-  worldY: number,
-  canvasW: number,
-): Block[] {
-  const totalW = canvasW - BLOCK_PAD * 2;
-  const blockW = (totalW - GAP * (cols - 1)) / cols;
-  const colors = shuffle(BLOCK_COLORS).slice(0, cols);
-
-  // Generate values ensuring at least one correct
-  let values: number[];
-  let attempts = 0;
-  do {
-    values = Array.from({ length: cols }, () => randInt(numRange[0], numRange[1]));
-    attempts++;
-  } while (!values.some(v => rule.test(v)) && attempts < 50);
-
-  if (!values.some(v => rule.test(v))) {
-    // Force one correct by replacing a random block
-    const idx = randInt(0, cols - 1);
-    // Find a value that passes the rule
-    let v = numRange[0];
-    for (let i = numRange[0]; i <= numRange[1]; i++) {
-      if (rule.test(i)) { v = i; break; }
-    }
-    values[idx] = v;
-  }
-
-  return values.map((val, i) => ({
-    x: BLOCK_PAD + i * (blockW + GAP),
-    y: worldY,
-    w: blockW,
-    h: BLOCK_H,
-    value: val,
-    isCorrect: rule.test(val),
-    color: colors[i],
-  }));
-}
-
-function spawnParticles(
-  particles: Particle[],
-  x: number,
-  y: number,
-  color: string,
-  count: number,
-) {
-  for (let i = 0; i < count; i++) {
-    const angle = (Math.random() * Math.PI * 2);
-    const speed = 60 + Math.random() * 120;
-    particles.push({
-      x,
-      y,
-      vx: Math.cos(angle) * speed,
-      vy: Math.sin(angle) * speed,
-      life: 1,
-      maxLife: 1,
-      color,
-      r: 3 + Math.random() * 4,
-    });
-  }
-}
+// Static stars (deterministic)
+const STARS = Array.from({ length: 90 }, (_, i) => ({
+  id: i,
+  left: ((Math.sin(i * 9.7) * 0.5 + 0.5) * 100).toFixed(1) + '%',
+  top:  ((Math.sin(i * 6.3) * 0.5 + 0.5) * 60).toFixed(1) + '%',
+  size: (0.4 + (Math.sin(i * 13.7) * 0.5 + 0.5) * 1.4).toFixed(2),
+  dur:  (2 + (Math.sin(i * 4.2) * 0.5 + 0.5) * 3).toFixed(1) + 's',
+  del:  ((Math.sin(i * 2.1) * 0.5 + 0.5)).toFixed(2) + 's',
+}));
 
 // ─── Component ────────────────────────────────────────────────────────────────
 const StackClimber: React.FC = () => {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const gcRef   = useRef<HTMLCanvasElement>(null);
+  const mtnRef  = useRef<HTMLCanvasElement>(null);
   const animRef = useRef<number>(0);
+  const mountedRef = useRef(true);
   const { updateGameState } = useGameState();
 
-  // ── UI state (triggers re-render) ──
-  const [screen, setScreen] = useState<Screen>('start');
+  // ── UI state ──
+  const [screen,    setScreen]    = useState<Screen>('start');
+  const [selDiff,   setSelDiff]   = useState<Difficulty>('easy');
   const [hasJumped, setHasJumped] = useState(false);
+  const [cdNum,     setCdNum]     = useState(3);
+  const [showHint,  setShowHint]  = useState(false);
+  const [ruleDisp,  setRuleDisp]  = useState({ icon: '?', text: '-', eg: '' });
+  const [endData,   setEndData]   = useState({ height: 0, best: 0, ruleIcon: '?', ruleText: '-' });
 
-  // ── Game state refs ──
-  const screenRef = useRef<Screen>('start');
-  const diffRef = useRef<Difficulty>('easy' as Difficulty);
-  const ruleRef = useRef<Rule>(makeRule('easy'));
-  const livesRef = useRef(3);
-  const heightRef = useRef(0);     // current height in metres
-  const bestRef = useRef(0);
-  const peakYRef = useRef(0);      // lowest world Y reached by player (most upward)
-  const showHintRef = useRef(false);
+  // DOM refs for high-freq HUD updates (avoid re-renders)
+  const hScoreEl    = useRef<HTMLDivElement>(null);
+  const hLivesEl    = useRef<HTMLDivElement>(null);
+  const speedFillEl = useRef<HTMLDivElement>(null);
 
-  // Physics
-  const gravRef = useRef(600);     // current gravity (increases with height)
-  const camYRef = useRef(0);       // world Y of screen top
-  const groundYRef = useRef(0);    // world Y of ground line
-
-  // Player
-  const playerRef = useRef({ x: 200, y: 0, vx: 0, vy: 0 });
+  // ── Game refs ──
+  const diffRef      = useRef<Difficulty>('easy');
+  const ruleRef      = useRef<Rule>(buildRule('easy'));
+  const livesRef     = useRef(3);
+  const heightMRef   = useRef(0);
+  const hiScoreRef   = useRef(0);
+  const camYRef      = useRef(0);
+  const groundYRef   = useRef(600);
+  const gStateRef    = useRef<GState>('idle');
+  const showHintRef  = useRef(false);
   const hasJumpedRef = useRef(false);
-  const onGroundRef = useRef(true);
-  const hurtCDRef = useRef(0);     // seconds remaining of hurt cooldown
-  const flashTRef = useRef(0);     // seconds remaining of flash
-  const shakeTRef = useRef(0);     // seconds remaining of screen shake
-
-  // Blocks and particles
-  const blocksRef = useRef<Block[]>([]);
+  const P = useRef({ x: 0, y: 0, vx: 0, vy: 0, w: 26, h: 36, onGround: true, flashT: 0, hurtCD: 0, launchT: 0 });
+  const platformsRef = useRef<Block[]>([]);
   const particlesRef = useRef<Particle[]>([]);
+  const shakeTRef    = useRef(0);
+  const lastTsRef    = useRef(0);
+  const jumpQRef     = useRef(false);
+  const keysRef      = useRef({ l: false, r: false });
 
-  // Timing
-  const lastTRef = useRef<number>(0);
-  const revealTRef = useRef(3);
-
-  // Input
-  const keysRef = useRef({ left: false, right: false, jump: false });
-
-  // Canvas size
-  const cwRef = useRef(400);
-  const chRef = useRef(600);
+  // Keep showHint ref in sync
+  useEffect(() => { showHintRef.current = showHint; }, [showHint]);
 
   // ── Hide floating buttons ──
   useEffect(() => {
     updateGameState('stack-climber', true);
-    return () => updateGameState('stack-climber', false);
+    return () => { mountedRef.current = false; updateGameState('stack-climber', false); };
   }, [updateGameState]);
 
-  // ── Input handlers ──
-  const handleJump = useCallback(() => {
-    if (screenRef.current !== 'playing') return;
-    if (!hasJumpedRef.current && onGroundRef.current) {
-      const cfg = DIFF[diffRef.current as Difficulty];
-      playerRef.current.vy = cfg.jumpV;
-      hasJumpedRef.current = true;
-      onGroundRef.current = false;
-      setHasJumped(true);
-    }
+  // ── Keyboard ──
+  useEffect(() => {
+    const kd = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowLeft'  || e.key === 'a') keysRef.current.l = true;
+      if (e.key === 'ArrowRight' || e.key === 'd') keysRef.current.r = true;
+      if ((e.key === ' ' || e.key === 'ArrowUp' || e.key === 'w') && !hasJumpedRef.current) {
+        jumpQRef.current = true; e.preventDefault();
+      }
+    };
+    const ku = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowLeft'  || e.key === 'a') keysRef.current.l = false;
+      if (e.key === 'ArrowRight' || e.key === 'd') keysRef.current.r = false;
+    };
+    window.addEventListener('keydown', kd);
+    window.addEventListener('keyup', ku);
+    return () => { window.removeEventListener('keydown', kd); window.removeEventListener('keyup', ku); };
   }, []);
 
+  // ── Mountain canvas ──
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (['ArrowLeft', 'a', 'A'].includes(e.key)) keysRef.current.left = e.type === 'keydown';
-      if (['ArrowRight', 'd', 'D'].includes(e.key)) keysRef.current.right = e.type === 'keydown';
-      if (['ArrowUp', 'w', 'W', ' '].includes(e.key) && e.type === 'keydown') handleJump();
+    const draw = () => {
+      const mc = mtnRef.current; if (!mc) return;
+      const x = mc.getContext('2d'); if (!x) return;
+      mc.width = window.innerWidth; mc.height = window.innerHeight * 0.55;
+      const w = mc.width, h = mc.height;
+      const fill = (pts: number[], col: string) => {
+        x.fillStyle = col; x.beginPath(); x.moveTo(0, h);
+        pts.forEach((p, i) => x.lineTo(i / (pts.length - 1) * w, h * p));
+        x.lineTo(w, h); x.closePath(); x.fill();
+      };
+      fill([0.55,0.3,0.5,0.2,0.45,0.35,0.6,0.25,0.5], '#1e3a5f');
+      fill([0.7,0.45,0.6,0.3,0.65,0.5,0.75,0.4,0.7],  '#162840');
     };
-    window.addEventListener('keydown', onKey);
-    window.addEventListener('keyup', onKey);
-    return () => {
-      window.removeEventListener('keydown', onKey);
-      window.removeEventListener('keyup', onKey);
-    };
-  }, [handleJump]);
+    draw();
+    window.addEventListener('resize', draw);
+    return () => window.removeEventListener('resize', draw);
+  }, []);
 
   // ── Canvas resize ──
   useEffect(() => {
     const resize = () => {
-      const canvas = canvasRef.current;
-      if (!canvas) return;
-      const container = canvas.parentElement;
-      if (!container) return;
-      const w = Math.min(container.clientWidth, 440);
-      const h = Math.min(window.innerHeight - 80, 680);
-      canvas.width = w;
-      canvas.height = h;
-      cwRef.current = w;
-      chRef.current = h;
+      const gc = gcRef.current; if (!gc || !gc.parentElement) return;
+      gc.width  = gc.parentElement.clientWidth;
+      gc.height = gc.parentElement.clientHeight;
+      groundYRef.current = gc.height * 0.88;
     };
     resize();
     window.addEventListener('resize', resize);
     return () => window.removeEventListener('resize', resize);
   }, []);
 
-  // ── Game init ──
-  const initGame = useCallback((diff: Difficulty) => {
-    const cw = cwRef.current;
-    const ch = chRef.current;
-    const cfg = DIFF[diff];
-
-    diffRef.current = diff;
-    ruleRef.current = makeRule(diff);
-    livesRef.current = 3;
-    heightRef.current = 0;
-    peakYRef.current = ch * 0.85;  // starts at ground
-    gravRef.current = cfg.baseGrav;
-    camYRef.current = 0;
-    groundYRef.current = ch * 0.85;
-
-    const p = playerRef.current;
-    p.x = cw / 2;
-    p.y = groundYRef.current - PLAYER_H;
-    p.vx = 0;
-    p.vy = 0;
-
-    hasJumpedRef.current = false;
-    onGroundRef.current = true;
-    hurtCDRef.current = 0;
-    flashTRef.current = 0;
-    shakeTRef.current = 0;
-    setHasJumped(false);
-
-    // First row at ground level
-    blocksRef.current = spawnRow(cfg.cols, cfg.numRange, ruleRef.current, groundYRef.current - BLOCK_H, cw);
-    particlesRef.current = [];
-  }, []);
-
-  // ── Start flow ──
-  const startReveal = useCallback((diff: Difficulty) => {
-    diffRef.current = diff;
-    initGame(diff);
-    revealTRef.current = 3;
-    screenRef.current = 'reveal';
-    setScreen('reveal');
-  }, [initGame]);
-
-  const startPlaying = useCallback(() => {
-    screenRef.current = 'playing';
-    setScreen('playing');
-    lastTRef.current = 0;
-  }, []);
-
-  // ── Draw helpers ──────────────────────────────────────────────────────────
-
-  const drawRoundRect = (
-    ctx: CanvasRenderingContext2D,
-    x: number, y: number, w: number, h: number, r: number,
-  ) => {
-    ctx.beginPath();
-    ctx.roundRect(x, y, w, h, r);
-    ctx.closePath();
-  };
-
-  const drawStars = useCallback((ctx: CanvasRenderingContext2D, camY: number, cw: number, ch: number) => {
-    // Draw stars procedurally based on camY
-    const seed = Math.floor(camY / ch);
-    for (let s = seed - 1; s <= seed + 1; s++) {
-      const rng = (n: number) => {
-        let x = Math.sin(s * 9301 + n * 49297 + 233720) * 29323;
-        return x - Math.floor(x);
-      };
-      for (let i = 0; i < 40; i++) {
-        const sx = rng(i * 3) * cw;
-        const sy = s * ch + rng(i * 3 + 1) * ch;
-        const alpha = 0.3 + rng(i * 3 + 2) * 0.7;
-        const r = 0.5 + rng(i * 3 + 1.5) * 1.5;
-        const screenSy = sy - camY;
-        if (screenSy < -10 || screenSy > ch + 10) continue;
-        ctx.beginPath();
-        ctx.arc(sx, screenSy, r, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(255,255,255,${alpha})`;
-        ctx.fill();
-      }
-    }
-  }, []);
-
-  const drawMountains = useCallback((ctx: CanvasRenderingContext2D, cw: number, ch: number) => {
-    // Static mountains at bottom of screen
-    ctx.save();
-    ctx.fillStyle = '#1a1a2e';
-    ctx.beginPath();
-    ctx.moveTo(0, ch);
-    ctx.lineTo(0, ch * 0.7);
-    ctx.lineTo(cw * 0.15, ch * 0.45);
-    ctx.lineTo(cw * 0.3, ch * 0.65);
-    ctx.lineTo(cw * 0.45, ch * 0.38);
-    ctx.lineTo(cw * 0.6, ch * 0.6);
-    ctx.lineTo(cw * 0.75, ch * 0.42);
-    ctx.lineTo(cw * 0.9, ch * 0.58);
-    ctx.lineTo(cw, ch * 0.5);
-    ctx.lineTo(cw, ch);
-    ctx.closePath();
-    ctx.fill();
-
-    ctx.fillStyle = '#16213e';
-    ctx.beginPath();
-    ctx.moveTo(0, ch);
-    ctx.lineTo(0, ch * 0.8);
-    ctx.lineTo(cw * 0.2, ch * 0.6);
-    ctx.lineTo(cw * 0.35, ch * 0.72);
-    ctx.lineTo(cw * 0.5, ch * 0.55);
-    ctx.lineTo(cw * 0.65, ch * 0.7);
-    ctx.lineTo(cw * 0.8, ch * 0.5);
-    ctx.lineTo(cw, ch * 0.65);
-    ctx.lineTo(cw, ch);
-    ctx.closePath();
-    ctx.fill();
-    ctx.restore();
-  }, []);
-
-  const drawPlayer = useCallback((
-    ctx: CanvasRenderingContext2D,
-    px: number, py: number,   // screen coords
-    vy: number,
-    flashT: number,
-    hurtCD: number,
-  ) => {
-    // Flash effect: blink only when hurt (but never invisible during dying state)
-    if (hurtCD > 0 && flashT > 0 && Math.floor(flashT * 10) % 2 === 0) {
-      ctx.globalAlpha = 0.3;
-    }
-
-    const rising = vy < -50;
-    const falling = vy > 50;
-    const cx = px + PLAYER_W / 2;
-
-    ctx.save();
-
-    // Body
-    ctx.fillStyle = '#7C3AED';
-    drawRoundRect(ctx, px + 4, py + 10, PLAYER_W - 8, PLAYER_H - 14, 4);
-    ctx.fill();
-
-    // Head
-    ctx.fillStyle = '#F5D0A9';
-    ctx.beginPath();
-    ctx.arc(cx, py + 7, 8, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Eyes
-    ctx.fillStyle = '#1a1a2e';
-    ctx.beginPath();
-    ctx.arc(cx - 3, py + 6, 1.5, 0, Math.PI * 2);
-    ctx.arc(cx + 3, py + 6, 1.5, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Arms
-    ctx.strokeStyle = '#F5D0A9';
-    ctx.lineWidth = 3;
-    ctx.lineCap = 'round';
-    ctx.beginPath();
-    if (rising) {
-      // Arms wide open at ~±70° from horizontal
-      const armAngle = (70 * Math.PI) / 180;
-      ctx.moveTo(cx - 4, py + 14);
-      ctx.lineTo(cx - 4 - Math.cos(armAngle) * 12, py + 14 - Math.sin(armAngle) * 12);
-      ctx.moveTo(cx + 4, py + 14);
-      ctx.lineTo(cx + 4 + Math.cos(armAngle) * 12, py + 14 - Math.sin(armAngle) * 12);
-    } else if (falling) {
-      // Arms down/closed
-      ctx.moveTo(cx - 4, py + 14);
-      ctx.lineTo(cx - 4 - 6, py + 22);
-      ctx.moveTo(cx + 4, py + 14);
-      ctx.lineTo(cx + 4 + 6, py + 22);
-    } else {
-      // Neutral: arms out slightly
-      ctx.moveTo(cx - 4, py + 14);
-      ctx.lineTo(cx - 12, py + 16);
-      ctx.moveTo(cx + 4, py + 14);
-      ctx.lineTo(cx + 12, py + 16);
-    }
-    ctx.stroke();
-
-    // Legs
-    ctx.beginPath();
-    ctx.moveTo(cx - 4, py + PLAYER_H - 4);
-    ctx.lineTo(cx - 6, py + PLAYER_H + 2);
-    ctx.moveTo(cx + 4, py + PLAYER_H - 4);
-    ctx.lineTo(cx + 6, py + PLAYER_H + 2);
-    ctx.stroke();
-
-    // Shirt stripe
-    ctx.fillStyle = '#A78BFA';
-    ctx.fillRect(px + 5, py + 15, PLAYER_W - 10, 3);
-
-    ctx.restore();
-    ctx.globalAlpha = 1;
-  }, []);
-
-  const drawBlock = useCallback((
-    ctx: CanvasRenderingContext2D,
-    b: Block,
-    camY: number,
-    showHint: boolean,
-    frame: number,
-  ) => {
-    const sx = b.x;
-    const sy = b.y - camY;
-    if (sy > chRef.current + 50 || sy + b.h < -50) return;
-
-    ctx.save();
-
-    // Hint glow
-    if (showHint && b.isCorrect) {
-      ctx.shadowColor = '#22c55e';
-      ctx.shadowBlur = 18 + 6 * Math.sin(frame * 0.1);
-    }
-
-    drawRoundRect(ctx, sx, sy, b.w, b.h, 8);
-    ctx.fillStyle = b.color;
-    ctx.fill();
-
-    // Shine
-    const grad = ctx.createLinearGradient(sx, sy, sx, sy + b.h);
-    grad.addColorStop(0, 'rgba(255,255,255,0.35)');
-    grad.addColorStop(0.5, 'rgba(255,255,255,0.05)');
-    grad.addColorStop(1, 'rgba(0,0,0,0.15)');
-    ctx.fillStyle = grad;
-    drawRoundRect(ctx, sx, sy, b.w, b.h, 8);
-    ctx.fill();
-
-    // Number label
-    ctx.fillStyle = '#1a1a2e';
-    ctx.font = `bold ${b.w < 60 ? 14 : 16}px 'Nunito', sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(String(b.value), sx + b.w / 2, sy + b.h / 2);
-
-    ctx.restore();
-  }, []);
-
-  const drawHUD = useCallback((
-    ctx: CanvasRenderingContext2D,
-    cw: number,
-    ch: number,
-    lives: number,
-    height: number,
-    rule: Rule,
-    showHint: boolean,
-    currentGrav: number,
-    baseGrav: number,
-  ) => {
-    ctx.save();
-
-    // Top bar background
-    ctx.fillStyle = 'rgba(0,0,0,0.55)';
-    drawRoundRect(ctx, 8, 8, cw - 16, 44, 10);
-    ctx.fill();
-
-    // Height
-    ctx.fillStyle = '#fff';
-    ctx.font = "bold 15px 'Nunito', sans-serif";
-    ctx.textAlign = 'left';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(`${height}m`, 20, 30);
-
-    // Hearts
-    for (let i = 0; i < 3; i++) {
-      ctx.font = '18px serif';
-      ctx.textAlign = 'center';
-      ctx.fillText(i < lives ? '❤️' : '🖤', cw - 60 + i * 20, 30);
-    }
-
-    // Rule display
-    ctx.fillStyle = 'rgba(0,0,0,0.45)';
-    drawRoundRect(ctx, 8, 58, cw - 70, 30, 8);
-    ctx.fill();
-    ctx.fillStyle = '#fbbf24';
-    ctx.font = "bold 13px 'Nunito', sans-serif";
-    ctx.textAlign = 'left';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(`Rule: ${rule.name}`, 16, 73);
-
-    // Hint button
-    ctx.fillStyle = showHint ? 'rgba(34,197,94,0.85)' : 'rgba(255,255,255,0.15)';
-    drawRoundRect(ctx, cw - 58, 58, 50, 30, 8);
-    ctx.fill();
-    if (showHint) {
-      ctx.shadowColor = '#22c55e';
-      ctx.shadowBlur = 12;
-    }
-    ctx.fillStyle = showHint ? '#fff' : '#aaa';
-    ctx.font = "bold 11px 'Nunito', sans-serif";
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('HINT', cw - 33, 73);
-    ctx.shadowBlur = 0;
-
-    // Fall speed bar (bottom)
-    const barW = cw - 32;
-    const frac = Math.min(1, (currentGrav - baseGrav) / (MAX_GRAV - baseGrav));
-    ctx.fillStyle = 'rgba(0,0,0,0.5)';
-    drawRoundRect(ctx, 16, ch - 22, barW, 10, 5);
-    ctx.fill();
-
-    const barGrad = ctx.createLinearGradient(16, 0, 16 + barW, 0);
-    barGrad.addColorStop(0, '#22c55e');
-    barGrad.addColorStop(0.5, '#eab308');
-    barGrad.addColorStop(1, '#ef4444');
-    ctx.fillStyle = barGrad;
-    drawRoundRect(ctx, 16, ch - 22, barW * frac, 10, 5);
-    ctx.fill();
-
-    ctx.fillStyle = 'rgba(255,255,255,0.6)';
-    ctx.font = "10px 'Nunito', sans-serif";
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('GRAVITY', cw / 2, ch - 30);
-
-    ctx.restore();
-  }, []);
-
-  const drawStartScreen = useCallback((
-    ctx: CanvasRenderingContext2D,
-    cw: number,
-    ch: number,
-    diff: Difficulty,
-    frame: number,
-  ) => {
-    // Sky gradient
-    const sky = ctx.createLinearGradient(0, 0, 0, ch);
-    sky.addColorStop(0, '#0f0c29');
-    sky.addColorStop(1, '#302b63');
-    ctx.fillStyle = sky;
-    ctx.fillRect(0, 0, cw, ch);
-
-    // Stars
-    drawStars(ctx, 0, cw, ch);
-    drawMountains(ctx, cw, ch);
-
-    // Title
-    ctx.save();
-    ctx.shadowColor = '#a78bfa';
-    ctx.shadowBlur = 20;
-    ctx.fillStyle = '#fff';
-    ctx.font = `bold ${cw < 340 ? 28 : 34}px 'Nunito', sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('Stack Climber', cw / 2, ch * 0.14);
-    ctx.restore();
-
-    // Subtitle
-    ctx.fillStyle = '#c4b5fd';
-    ctx.font = `14px 'Nunito', sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('Jump on the right blocks to climb!', cw / 2, ch * 0.22);
-
-    // How to play
-    ctx.fillStyle = 'rgba(0,0,0,0.45)';
-    drawRoundRect(ctx, 20, ch * 0.27, cw - 40, 72, 10);
-    ctx.fill();
-    ctx.fillStyle = '#e2e8f0';
-    ctx.font = `12px 'Nunito', sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'top';
-    const lines = [
-      '1. Press JUMP to launch upward',
-      '2. Land on CORRECT blocks → big bounce',
-      '3. Wrong blocks → lose a life',
-      '4. Survive as long as possible!',
-    ];
-    lines.forEach((l, i) => ctx.fillText(l, cw / 2, ch * 0.27 + 10 + i * 15));
-
-    // Difficulty label
-    ctx.fillStyle = '#fbbf24';
-    ctx.font = `bold 14px 'Nunito', sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('SELECT DIFFICULTY', cw / 2, ch * 0.49);
-
-    // Difficulty buttons
-    const diffs: Difficulty[] = ['easy', 'medium', 'hard'];
-    const labels = ['Easy', 'Medium', 'Hard'];
-    const gradients: [string, string][] = [
-      ['#22c55e', '#16a34a'],
-      ['#f59e0b', '#d97706'],
-      ['#ef4444', '#dc2626'],
-    ];
-    const btnW = (cw - 48) / 3;
-    diffs.forEach((d, i) => {
-      const bx = 16 + i * (btnW + 8);
-      const by = ch * 0.53;
-      const bh = 38;
-      const selected = d === diff;
-
-      const g = ctx.createLinearGradient(bx, by, bx, by + bh);
-      g.addColorStop(0, gradients[i][0]);
-      g.addColorStop(1, gradients[i][1]);
-
-      ctx.save();
-      if (selected) {
-        ctx.shadowColor = gradients[i][0];
-        ctx.shadowBlur = 15;
-      }
-      drawRoundRect(ctx, bx, by, btnW, bh, 10);
-      ctx.fillStyle = g;
-      ctx.fill();
-
-      if (selected) {
-        ctx.strokeStyle = '#fff';
-        ctx.lineWidth = 2.5;
-        ctx.stroke();
-      }
-
-      ctx.fillStyle = '#fff';
-      ctx.font = `bold 14px 'Nunito', sans-serif`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(labels[i], bx + btnW / 2, by + bh / 2);
-      ctx.restore();
-    });
-
-    // Start button
-    const sbY = ch * 0.65;
-    const sbW = Math.min(200, cw - 60);
-    const sbX = (cw - sbW) / 2;
-    const pulse = 1 + 0.05 * Math.sin(frame * 0.06);
-
-    ctx.save();
-    ctx.shadowColor = '#7c3aed';
-    ctx.shadowBlur = 20 * pulse;
-    const sg = ctx.createLinearGradient(sbX, sbY, sbX, sbY + 46);
-    sg.addColorStop(0, '#7c3aed');
-    sg.addColorStop(1, '#4f46e5');
-    drawRoundRect(ctx, sbX, sbY, sbW, 46, 14);
-    ctx.fillStyle = sg;
-    ctx.fill();
-    ctx.fillStyle = '#fff';
-    ctx.font = `bold 18px 'Nunito', sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('START GAME', cw / 2, sbY + 23);
-    ctx.restore();
-
-    void frame;
-  }, [drawStars, drawMountains]);
-
-  const drawRevealScreen = useCallback((
-    ctx: CanvasRenderingContext2D,
-    cw: number,
-    ch: number,
-    rule: Rule,
-    countdown: number,
-  ) => {
-    const sky = ctx.createLinearGradient(0, 0, 0, ch);
-    sky.addColorStop(0, '#0f0c29');
-    sky.addColorStop(1, '#302b63');
-    ctx.fillStyle = sky;
-    ctx.fillRect(0, 0, cw, ch);
-    drawStars(ctx, 0, cw, ch);
-
-    // Card
-    const cardW = Math.min(320, cw - 40);
-    const cardX = (cw - cardW) / 2;
-    const cardY = ch * 0.12;
-    const cardH = ch * 0.7;
-
-    ctx.save();
-    ctx.fillStyle = 'rgba(15,12,41,0.9)';
-    ctx.strokeStyle = 'rgba(167,139,250,0.5)';
-    ctx.lineWidth = 2;
-    drawRoundRect(ctx, cardX, cardY, cardW, cardH, 16);
-    ctx.fill();
-    ctx.stroke();
-    ctx.restore();
-
-    // Title
-    ctx.fillStyle = '#c4b5fd';
-    ctx.font = `bold 13px 'Nunito', sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('YOUR RULE THIS ROUND', cw / 2, cardY + 30);
-
-    // Rule icon
-    ctx.save();
-    ctx.shadowColor = '#fbbf24';
-    ctx.shadowBlur = 18;
-    ctx.fillStyle = '#fbbf24';
-    ctx.font = `bold ${cw < 340 ? 36 : 44}px 'Nunito', sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(rule.icon, cw / 2, cardY + 100);
-    ctx.restore();
-
-    // Rule name
-    ctx.fillStyle = '#fff';
-    ctx.font = `bold ${cw < 340 ? 18 : 22}px 'Nunito', sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(rule.name, cw / 2, cardY + 160);
-
-    // Example
-    ctx.fillStyle = '#94a3b8';
-    ctx.font = `13px 'Nunito', sans-serif`;
-    ctx.fillText(rule.example, cw / 2, cardY + 190);
-
-    // Separator
-    ctx.strokeStyle = 'rgba(167,139,250,0.3)';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(cardX + 20, cardY + 215);
-    ctx.lineTo(cardX + cardW - 20, cardY + 215);
-    ctx.stroke();
-
-    // Instruction lines
-    ctx.fillStyle = '#22c55e';
-    ctx.font = `bold 13px 'Nunito', sans-serif`;
-    ctx.fillText('Correct block → big launch up', cw / 2, cardY + 238);
-    ctx.fillStyle = '#ef4444';
-    ctx.fillText('Wrong block → lose a life', cw / 2, cardY + 258);
-
-    // Countdown
-    ctx.fillStyle = '#fff';
-    ctx.font = `bold ${cw < 340 ? 48 : 60}px 'Nunito', sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    const countDisplay = countdown <= 0 ? 'GO!' : String(Math.ceil(countdown));
-    ctx.fillText(countDisplay, cw / 2, cardY + cardH - 50);
-
-    ctx.fillStyle = '#94a3b8';
-    ctx.font = `12px 'Nunito', sans-serif`;
-    ctx.fillText('Get ready...', cw / 2, cardY + cardH - 20);
-  }, [drawStars]);
-
-  const drawDeadScreen = useCallback((
-    ctx: CanvasRenderingContext2D,
-    cw: number,
-    ch: number,
-    height: number,
-    best: number,
-    rule: Rule,
-    frame: number,
-  ) => {
-    const sky = ctx.createLinearGradient(0, 0, 0, ch);
-    sky.addColorStop(0, '#0f0c29');
-    sky.addColorStop(1, '#302b63');
-    ctx.fillStyle = sky;
-    ctx.fillRect(0, 0, cw, ch);
-    drawStars(ctx, 0, cw, ch);
-
-    const cardW = Math.min(320, cw - 40);
-    const cardX = (cw - cardW) / 2;
-    const cardY = ch * 0.1;
-    const cardH = ch * 0.78;
-
-    ctx.save();
-    ctx.fillStyle = 'rgba(15,12,41,0.92)';
-    ctx.strokeStyle = 'rgba(239,68,68,0.4)';
-    ctx.lineWidth = 2;
-    drawRoundRect(ctx, cardX, cardY, cardW, cardH, 16);
-    ctx.fill();
-    ctx.stroke();
-    ctx.restore();
-
-    ctx.fillStyle = '#f87171';
-    ctx.font = `bold ${cw < 340 ? 26 : 32}px 'Nunito', sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('GAME OVER', cw / 2, cardY + 36);
-
-    ctx.fillStyle = '#94a3b8';
-    ctx.font = `12px 'Nunito', sans-serif`;
-    ctx.fillText('Rule was: ' + rule.name, cw / 2, cardY + 66);
-
-    // Height score
-    ctx.fillStyle = 'rgba(255,255,255,0.08)';
-    drawRoundRect(ctx, cardX + 16, cardY + 82, cardW - 32, 60, 10);
-    ctx.fill();
-    ctx.fillStyle = '#fbbf24';
-    ctx.font = `bold 13px 'Nunito', sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('HEIGHT REACHED', cw / 2, cardY + 102);
-    ctx.fillStyle = '#fff';
-    ctx.font = `bold ${cw < 340 ? 28 : 34}px 'Nunito', sans-serif`;
-    ctx.fillText(`${height}m`, cw / 2, cardY + 126);
-
-    // Best score
-    ctx.fillStyle = 'rgba(255,255,255,0.08)';
-    drawRoundRect(ctx, cardX + 16, cardY + 154, cardW - 32, 52, 10);
-    ctx.fill();
-    ctx.fillStyle = '#a78bfa';
-    ctx.font = `bold 12px 'Nunito', sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('BEST', cw / 2, cardY + 170);
-    ctx.fillStyle = '#e2e8f0';
-    ctx.font = `bold ${cw < 340 ? 22 : 26}px 'Nunito', sans-serif`;
-    ctx.fillText(`${best}m`, cw / 2, cardY + 192);
-
-    // Flavor text
-    const flavors = [
-      'The sky is the limit... but gravity disagrees.',
-      'Every fall is just a bounce waiting to happen.',
-      'Keep climbing, the blocks believe in you!',
-      'Higher next time!',
-    ];
-    ctx.fillStyle = '#64748b';
-    ctx.font = `italic 12px 'Nunito', sans-serif`;
-    ctx.fillText(flavors[height % flavors.length], cw / 2, cardY + 226);
-
-    // Play Again button
-    const sbY = cardY + cardH - 60;
-    const sbW = Math.min(200, cardW - 40);
-    const sbX = (cw - sbW) / 2;
-    const pulse = 1 + 0.05 * Math.sin(frame * 0.06);
-
-    ctx.save();
-    ctx.shadowColor = '#7c3aed';
-    ctx.shadowBlur = 20 * pulse;
-    const sg = ctx.createLinearGradient(sbX, sbY, sbX, sbY + 44);
-    sg.addColorStop(0, '#7c3aed');
-    sg.addColorStop(1, '#4f46e5');
-    drawRoundRect(ctx, sbX, sbY, sbW, 44, 14);
-    ctx.fillStyle = sg;
-    ctx.fill();
-    ctx.fillStyle = '#fff';
-    ctx.font = `bold 16px 'Nunito', sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('PLAY AGAIN', cw / 2, sbY + 22);
-    ctx.restore();
-  }, [drawStars]);
-
-  // ── Game loop ──────────────────────────────────────────────────────────────
+  // ── Main game loop (runs forever, updates only when playing/dying) ──
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+    const gc = gcRef.current; if (!gc) return;
+    const ctxMaybe = gc.getContext('2d'); if (!ctxMaybe) return;
+    const ctx: CanvasRenderingContext2D = ctxMaybe;
 
-    let frame = 0;
-
-    const loop = (now: number) => {
-      animRef.current = requestAnimationFrame(loop);
-      const cw = cwRef.current;
-      const ch = chRef.current;
-
-      // ── Reveal screen ──
-      if (screenRef.current === 'reveal') {
-        if (lastTRef.current === 0) lastTRef.current = now;
-        const dt = Math.min((now - lastTRef.current) / 1000, 0.1);
-        lastTRef.current = now;
-        revealTRef.current -= dt;
-        // countdown rendered on canvas, no state needed
-        if (revealTRef.current <= 0) {
-          startPlaying();
-        }
-        drawRevealScreen(ctx, cw, ch, ruleRef.current, revealTRef.current);
-        return;
-      }
-
-      // ── Start / Dead screens ──
-      if (screenRef.current === 'start') {
-        const sky = ctx.createLinearGradient(0, 0, 0, ch);
-        sky.addColorStop(0, '#0f0c29');
-        sky.addColorStop(1, '#302b63');
-        ctx.fillStyle = sky;
-        ctx.fillRect(0, 0, cw, ch);
-        drawStartScreen(ctx, cw, ch, diffRef.current, frame);
-        frame++;
-        return;
-      }
-      if (screenRef.current === 'dead') {
-        drawDeadScreen(ctx, cw, ch, heightRef.current, bestRef.current, ruleRef.current, frame);
-        frame++;
-        return;
-      }
-
-      // ── Playing ──
-      if (lastTRef.current === 0) lastTRef.current = now;
-      const rawDt = (now - lastTRef.current) / 1000;
-      const dt = Math.min(rawDt, 0.05);
-      lastTRef.current = now;
-      frame++;
-
-      const cfg = DIFF[diffRef.current as Difficulty];
-      const p = playerRef.current;
-
-      // 1. Update timers
-      flashTRef.current = Math.max(0, flashTRef.current - dt);
-      hurtCDRef.current = Math.max(0, hurtCDRef.current - dt);
-      shakeTRef.current = Math.max(0, shakeTRef.current - dt);
-
-      // 2. Horizontal movement
-      const MOVE_SPEED = 180;
-      if (keysRef.current.left) p.vx = -MOVE_SPEED;
-      else if (keysRef.current.right) p.vx = MOVE_SPEED;
-      else p.vx = 0;
-
-      // 3. Apply gravity
-      p.vy = Math.min(p.vy + gravRef.current * dt, MAX_FALL);
-
-      // 4. Move player
-      p.x += p.vx * dt;
-      p.y += p.vy * dt;
-
-      // Wrap horizontally
-      if (p.x < -PLAYER_W) p.x = cw;
-      if (p.x > cw) p.x = -PLAYER_W;
-
-      // 5. Block collisions (only when falling down)
-      if (p.vy > 0 && hasJumpedRef.current) {
-        const foot = p.y + PLAYER_H;
-        const prevFoot = foot - p.vy * dt;
-        for (const b of blocksRef.current) {
-          const bScreenY = b.y - camYRef.current;
-          const pScreenX = p.x;
-          // Check horizontal overlap
-          if (pScreenX + PLAYER_W < b.x || pScreenX > b.x + b.w) continue;
-          // Check foot crossing block top
-          const bTop = b.y;
-          if (prevFoot <= bTop && foot >= bTop) {
-            p.y = bTop - PLAYER_H;
-
-            // Calculate bounce velocity from peak height
-            const peakFrac = cfg.bouncePct;
-            const bounceV = -Math.sqrt(2 * cfg.baseGrav * ch * peakFrac);
-
-            if (b.isCorrect) {
-              // Correct block: big launch, spawn particles, new row
-              p.vy = bounceV;
-              spawnParticles(particlesRef.current, p.x + PLAYER_W / 2, bScreenY + b.h / 2, '#22c55e', 14);
-              blocksRef.current = [];
-            } else {
-              // Wrong block: smaller bounce, lose a life
-              if (hurtCDRef.current <= 0) {
-                livesRef.current = Math.max(0, livesRef.current - 1);
-                hurtCDRef.current = HURT_CD;
-                flashTRef.current = HURT_CD;
-                shakeTRef.current = 0.35;
-                spawnParticles(particlesRef.current, p.x + PLAYER_W / 2, bScreenY + b.h / 2, '#ef4444', 10);
-              }
-              p.vy = bounceV * 0.85;
-              blocksRef.current = [];
-            }
-            break;
-          }
+    function getBounceV() {
+      const cfg = DIFF[diffRef.current];
+      return -Math.sqrt(2 * cfg.grav * Math.max(gc!.height, 400) * cfg.bouncePct);
+    }
+    function getGrav() {
+      const cfg = DIFF[diffRef.current];
+      return Math.min(cfg.grav + heightMRef.current * cfg.gravInc, 3000);
+    }
+    function makeRow(worldY: number): Block[] {
+      const cfg = DIFF[diffRef.current], cols = cfg.cols;
+      const pw = Math.floor((gc!.width - 32 - (cols - 1) * PGAP) / cols);
+      const sx = Math.floor((gc!.width - (cols * pw + (cols - 1) * PGAP)) / 2);
+      const nums = Array.from({ length: cols }, () => ri(cfg.numRange[0], cfg.numRange[1]));
+      if (!nums.some(n => ruleRef.current.ok(n))) {
+        for (let t = 0; t < 80; t++) {
+          const n = ri(cfg.numRange[0], cfg.numRange[1]);
+          if (ruleRef.current.ok(n)) { nums[ri(0, cols - 1)] = n; break; }
         }
       }
-
-      // 6. Ground collision (only before first jump — once launched, no ground landing)
-      if (!hasJumpedRef.current) {
-        if (p.y + PLAYER_H >= groundYRef.current) {
-          p.y = groundYRef.current - PLAYER_H;
-          p.vy = 0;
-          onGroundRef.current = true;
-        }
+      const ci = BC.map((_, i) => i);
+      for (let i = ci.length - 1; i > 0; i--) { const j = ri(0, i); [ci[i], ci[j]] = [ci[j], ci[i]]; }
+      return nums.map((val, i): Block => ({
+        x: sx + i * (pw + PGAP), y: worldY, w: pw, h: PH,
+        val, valid: ruleRef.current.ok(val), colIdx: ci[i % ci.length], flash: 0, hit: false,
+      }));
+    }
+    function spawnRow(worldY: number) { platformsRef.current.push(...makeRow(worldY)); }
+    function spawnNextRow() {
+      if (platformsRef.current.length > 0) return;
+      spawnRow(camYRef.current + gc!.height - PH);
+    }
+    function spawnParts(x: number, y: number, color: string, count: number) {
+      for (let i = 0; i < count; i++) {
+        const a = Math.random() * Math.PI * 2, sp = 60 + Math.random() * 120;
+        particlesRef.current.push({ x, y, color, vx: Math.cos(a)*sp, vy: Math.sin(a)*sp-60, r: 3+Math.random()*3, life: 1 });
       }
-
-      // 7. Update height/score
-      if (p.y < peakYRef.current) {
-        peakYRef.current = p.y;
-        heightRef.current = Math.max(0, Math.floor((groundYRef.current - peakYRef.current) / 10));
-        if (heightRef.current > bestRef.current) bestRef.current = heightRef.current;
-
-        // Increase gravity with height
-        const newGrav = Math.min(MAX_GRAV, cfg.baseGrav + heightRef.current * cfg.gravInc);
-        gravRef.current = newGrav;
+    }
+    function updateHUD() {
+      if (hScoreEl.current) hScoreEl.current.textContent = `${heightMRef.current}m`;
+      if (hLivesEl.current) {
+        hLivesEl.current.innerHTML = [0,1,2].map(i =>
+          `<span style="font-size:1.1rem;transition:all .2s;opacity:${i<livesRef.current?1:0.2};filter:${i<livesRef.current?'none':'grayscale(1)'}">❤️</span>`
+        ).join('');
       }
+    }
+    function updateSpeedBar() {
+      if (!speedFillEl.current) return;
+      const grav = getGrav(), base = DIFF[diffRef.current].grav;
+      const pct = Math.min(100, (grav - base) / (3000 - base) * 100);
+      speedFillEl.current.style.width = `${pct}%`;
+      speedFillEl.current.style.background = pct > 70 ? '#e05c5c' : pct > 40 ? '#f4c542' : '#7ec8a0';
+    }
 
-      // 8. Update camera (instant snap upward only)
-      const targetCam = p.y - ch * 0.35;
-      if (targetCam < camYRef.current) {
-        camYRef.current = targetCam;
+    // ── Draw helpers ──
+    function rrect(x: number, y: number, w: number, h: number, r: number) {
+      ctx.beginPath();
+      ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y); ctx.quadraticCurveTo(x+w,y,x+w,y+r);
+      ctx.lineTo(x+w,y+h-r); ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+      ctx.lineTo(x+r,y+h); ctx.quadraticCurveTo(x,y+h,x,y+h-r);
+      ctx.lineTo(x,y+r); ctx.quadraticCurveTo(x,y,x+r,y); ctx.closePath();
+    }
+    function drawBlock(b: Block) {
+      const c = BC[b.colIdx % BC.length], r = 6;
+      const sx = b.x, sy = b.y - camYRef.current;
+      if (sy > gc!.height + 60 || sy + b.h < -20) return;
+      ctx.fillStyle = 'rgba(0,0,0,.28)'; rrect(sx+3,sy+4,b.w,b.h,r); ctx.fill();
+      ctx.fillStyle = b.flash > 0 ? '#c0392b' : c.bg; rrect(sx,sy,b.w,b.h,r); ctx.fill();
+      ctx.fillStyle = c.top; rrect(sx+3,sy+3,b.w-6,b.h*.38,r-2); ctx.fill();
+      if (b.valid && showHintRef.current) {
+        ctx.save(); ctx.shadowColor='#7ec8a0'; ctx.shadowBlur=12;
+        ctx.strokeStyle='rgba(126,200,160,.7)'; ctx.lineWidth=2.5;
+        rrect(sx+1,sy+1,b.w-2,b.h-2,r); ctx.stroke(); ctx.restore();
       }
-
-      // 9. Spawn new row if blocks empty (after bounce cleared them)
-      if (blocksRef.current.length === 0 && hasJumpedRef.current) {
-        const rowY = camYRef.current + ch - BLOCK_H;
-        blocksRef.current = spawnRow(cfg.cols, cfg.numRange, ruleRef.current, rowY, cw);
-      }
-
-      // 10. Death checks
-      if (livesRef.current <= 0 || (hasJumpedRef.current && p.y - camYRef.current > ch + 50)) {
-        screenRef.current = 'dead';
-        setScreen('dead');
-        return;
-      }
-
-      // ── Draw ──────────────────────────────────────────────────────────────
-
-      // Screen shake offset
-      let shakeX = 0;
-      let shakeY = 0;
-      if (shakeTRef.current > 0) {
-        const mag = shakeTRef.current * 8;
-        shakeX = (Math.random() * 2 - 1) * mag;
-        shakeY = (Math.random() * 2 - 1) * mag;
-      }
-
       ctx.save();
-      ctx.translate(shakeX, shakeY);
-
-      // Background
-      const sky = ctx.createLinearGradient(0, 0, 0, ch);
-      sky.addColorStop(0, '#0f0c29');
-      sky.addColorStop(0.6, '#302b63');
-      sky.addColorStop(1, '#24243e');
-      ctx.fillStyle = sky;
-      ctx.fillRect(0, 0, cw, ch);
-
-      drawStars(ctx, camYRef.current, cw, ch);
-
-      // Mountains (only visible near ground)
-      const groundScreenY = groundYRef.current - camYRef.current;
-      if (groundScreenY < ch + 200 && groundScreenY > -200) {
+      ctx.fillStyle = b.flash > 0 ? '#fff' : c.txt;
+      ctx.font = `900 ${b.val > 99 ? 12 : 16}px Nunito`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(String(b.val), sx+b.w/2, sy+b.h/2);
+      ctx.restore();
+    }
+    function drawGround() {
+      const sy = groundYRef.current - camYRef.current;
+      if (sy > gc!.height + 10) return;
+      ctx.fillStyle = '#2a1f14'; ctx.fillRect(0,sy,gc!.width,gc!.height-sy+10);
+      ctx.fillStyle = '#4a3520'; ctx.fillRect(0,sy,gc!.width,6);
+      ctx.fillStyle = '#3d6b3d';
+      for (let x = 0; x < gc!.width; x += 18) {
+        const bl = 4 + Math.sin(x*.3)*2; ctx.fillRect(x, sy-bl, 5, bl);
+      }
+    }
+    function drawHeightMarkers() {
+      const interval = 150, base = Math.floor(camYRef.current / interval) * interval;
+      for (let wy = base; wy < camYRef.current + gc!.height + interval; wy += interval) {
+        const sy = wy - camYRef.current;
+        if (sy < 0 || sy > gc!.height) continue;
+        const m = Math.max(0, Math.round((groundYRef.current - wy) / 10));
         ctx.save();
-        ctx.translate(0, groundScreenY - ch * 0.85);
-        drawMountains(ctx, cw, ch);
+        ctx.globalAlpha=.06; ctx.strokeStyle='white'; ctx.lineWidth=1; ctx.setLineDash([4,8]);
+        ctx.beginPath(); ctx.moveTo(0,sy); ctx.lineTo(gc!.width,sy); ctx.stroke();
+        ctx.setLineDash([]); ctx.globalAlpha=.11; ctx.fillStyle='white';
+        ctx.font='700 10px Nunito'; ctx.textAlign='left'; ctx.fillText(`${m}m`,6,sy-3);
         ctx.restore();
       }
-
-      // Ground line
-      if (groundScreenY < ch + 10) {
-        ctx.strokeStyle = '#4a5568';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(0, groundScreenY);
-        ctx.lineTo(cw, groundScreenY);
-        ctx.stroke();
-
-        ctx.fillStyle = '#1a1a2e';
-        ctx.fillRect(0, groundScreenY, cw, ch);
+    }
+    function drawPlayer() {
+      const p = P.current;
+      if (gStateRef.current !== 'dying' && p.flashT > 0 && Math.floor(p.flashT * 8) % 2 === 0) return;
+      const t = Date.now() * .001;
+      const cx = p.x, sy = p.y - camYRef.current;
+      const inAir = !p.onGround;
+      const ls = inAir ? 0 : Math.sin(t * 9) * .3;
+      const rising = inAir && p.vy <= -50;
+      const falling = inAir && p.vy > 50;
+      const as = rising ? 1.2 : falling ? 0.1 : inAir ? 0.3 : Math.sin(t*9+Math.PI)*.25;
+      ctx.save(); ctx.translate(cx, sy);
+      if (!inAir) {
+        ctx.save(); ctx.globalAlpha=.2; ctx.fillStyle='#000';
+        ctx.beginPath(); ctx.ellipse(0,2,13,4,0,0,Math.PI*2); ctx.fill(); ctx.restore();
       }
-
-      // Blocks
-      for (const b of blocksRef.current) {
-        drawBlock(ctx, b, camYRef.current, showHintRef.current, frame);
+      // legs
+      ctx.save(); ctx.translate(-5,-6); ctx.rotate(ls);
+      ctx.fillStyle='#1e3a6e'; ctx.fillRect(-3,0,6,13);
+      ctx.fillStyle='#3a2010'; ctx.fillRect(-4,10,8,5); ctx.restore();
+      ctx.save(); ctx.translate(5,-6); ctx.rotate(-ls);
+      ctx.fillStyle='#1e3a6e'; ctx.fillRect(-3,0,6,13);
+      ctx.fillStyle='#3a2010'; ctx.fillRect(-4,10,8,5); ctx.restore();
+      // body
+      ctx.fillStyle='#3a7bd5'; ctx.beginPath();
+      (ctx as CanvasRenderingContext2D & { roundRect: (...a: number[]) => void }).roundRect(-9,-24,18,20,4);
+      ctx.fill();
+      ctx.fillStyle='#c0392b'; ctx.beginPath();
+      (ctx as CanvasRenderingContext2D & { roundRect: (...a: number[]) => void }).roundRect(4,-22,8,13,3);
+      ctx.fill();
+      // arms
+      ctx.save(); ctx.translate(-10,-20); ctx.rotate(-as);
+      ctx.fillStyle='#3a7bd5'; ctx.fillRect(-2,0,5,11);
+      ctx.fillStyle='#f4c542'; ctx.beginPath(); ctx.arc(0,12,4,0,Math.PI*2); ctx.fill(); ctx.restore();
+      ctx.save(); ctx.translate(10,-20); ctx.rotate(as);
+      ctx.fillStyle='#3a7bd5'; ctx.fillRect(-3,0,5,11);
+      ctx.fillStyle='#f4c542'; ctx.beginPath(); ctx.arc(0,12,4,0,Math.PI*2); ctx.fill(); ctx.restore();
+      // head
+      ctx.fillStyle='#f5d5a8'; ctx.beginPath(); ctx.arc(0,-32,10,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle='#2a1a0a';
+      ctx.beginPath(); ctx.arc(-3.5,-33,2,0,Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(3.5,-33,2,0,Math.PI*2); ctx.fill();
+      ctx.strokeStyle='#5a3010'; ctx.lineWidth=1.5; ctx.lineCap='round'; ctx.beginPath();
+      if (inAir && p.vy < -150) ctx.arc(0,-31,3.5,.5,Math.PI-.5,true);
+      else ctx.arc(0,-31,3,.3,Math.PI-.3);
+      ctx.stroke();
+      // helmet
+      ctx.fillStyle='#f4c542'; ctx.beginPath(); ctx.ellipse(0,-38,11,7,0,Math.PI,0); ctx.fill();
+      ctx.fillStyle='#d4a820'; ctx.fillRect(-13,-39,26,4);
+      // launch sparks
+      if (p.launchT > 0) {
+        const lt = p.launchT;
+        for (let i = 0; i < 6; i++) {
+          const a = i/6*Math.PI*2+t, d = 18*(1-lt);
+          ctx.save(); ctx.globalAlpha=lt;
+          ctx.fillStyle = i%2 ? '#f4c542' : '#7ec8a0';
+          ctx.beginPath(); ctx.arc(Math.cos(a)*d,Math.sin(a)*d,3*lt,0,Math.PI*2); ctx.fill(); ctx.restore();
+        }
       }
+      ctx.restore();
+    }
+    function drawParticles() {
+      if (gStateRef.current === 'dying') return;
+      for (const pt of particlesRef.current) {
+        ctx.save(); ctx.globalAlpha=pt.life; ctx.fillStyle=pt.color;
+        ctx.beginPath(); ctx.arc(pt.x, pt.y-camYRef.current, pt.r*pt.life, 0, Math.PI*2); ctx.fill(); ctx.restore();
+      }
+    }
+    function draw() {
+      ctx.clearRect(0,0,gc!.width,gc!.height);
+      const ox = shakeTRef.current > 0 ? (Math.random()-.5)*shakeTRef.current*12 : 0;
+      const oy = shakeTRef.current > 0 ? (Math.random()-.5)*shakeTRef.current*12 : 0;
+      ctx.save(); ctx.translate(Math.round(ox),Math.round(oy));
+      const g = ctx.createLinearGradient(0,0,0,gc!.height);
+      g.addColorStop(0,'#0a0a1a'); g.addColorStop(.6,'#0f1a2e'); g.addColorStop(1,'#0a1a10');
+      ctx.fillStyle=g; ctx.fillRect(0,0,gc!.width,gc!.height);
+      if (gStateRef.current === 'playing' || gStateRef.current === 'dying') {
+        drawHeightMarkers(); drawGround();
+        for (const b of platformsRef.current) drawBlock(b);
+        drawPlayer(); drawParticles();
+      }
+      ctx.restore();
+    }
 
+    // ── Physics update ──
+    function endGame() {
+      if (gStateRef.current === 'idle') return;
+      gStateRef.current = 'dying';
+      const h = heightMRef.current;
+      if (h > hiScoreRef.current) hiScoreRef.current = h;
+      if (mountedRef.current) {
+        setEndData({ height: h, best: hiScoreRef.current, ruleIcon: ruleRef.current.icon, ruleText: ruleRef.current.text });
+        setTimeout(() => { if (mountedRef.current) { gStateRef.current = 'idle'; setScreen('dead'); } }, 900);
+      }
+    }
+    function update(dt: number) {
+      if (gStateRef.current !== 'playing') return;
+      const p = P.current;
+      if (p.flashT > 0) p.flashT = Math.max(0, p.flashT - dt);
+      if (p.hurtCD > 0) p.hurtCD = Math.max(0, p.hurtCD - dt);
+      if (p.launchT > 0) p.launchT = Math.max(0, p.launchT - dt * 2);
+      shakeTRef.current = Math.max(0, shakeTRef.current - dt);
+      if (keysRef.current.l) p.vx = -MOVE;
+      else if (keysRef.current.r) p.vx = MOVE;
+      else p.vx *= .5;
+      if (jumpQRef.current && p.onGround) {
+        p.vy = DIFF[diffRef.current].jumpV; p.onGround = false;
+        if (!hasJumpedRef.current) { hasJumpedRef.current = true; if (mountedRef.current) setHasJumped(true); }
+      }
+      jumpQRef.current = false;
+      p.vy = Math.min(p.vy + getGrav() * dt, 1200);
+      const oldY = p.y;
+      p.x += p.vx * dt; p.y += p.vy * dt;
+      p.x = Math.max(p.w/2, Math.min(gc!.width - p.w/2, p.x));
+      p.onGround = false;
+      // Block collision
+      for (let i = platformsRef.current.length - 1; i >= 0; i--) {
+        const b = platformsRef.current[i];
+        if (b.flash > 0) b.flash = Math.max(0, b.flash - dt);
+        if (b.hit) continue;
+        if (p.x + p.w*.4 <= b.x || p.x - p.w*.4 >= b.x + b.w) continue;
+        if (!(p.vy > 0 && oldY <= b.y + 1 && p.y >= b.y)) continue;
+        if (b.valid) {
+          b.hit = true; p.y = b.y; p.vy = getBounceV();
+          p.onGround = false; p.launchT = 0.6;
+          spawnParts(b.x+b.w/2, b.y, '#7ec8a0', 10);
+          shakeTRef.current = 0.04; platformsRef.current = [];
+          setTimeout(() => { if (gStateRef.current === 'playing') spawnNextRow(); }, 400);
+          break;
+        } else if (p.hurtCD <= 0) {
+          b.hit = true; b.flash = 0.5; p.y = b.y; p.vy = getBounceV() * 0.82;
+          p.onGround = false; p.hurtCD = 1.5; p.flashT = 1.5;
+          livesRef.current--; shakeTRef.current = 0.1;
+          spawnParts(p.x, p.y, '#e05c5c', 8); updateHUD();
+          if (livesRef.current <= 0) { endGame(); return; }
+          platformsRef.current = [];
+          setTimeout(() => { if (gStateRef.current === 'playing') spawnNextRow(); }, 400);
+          break;
+        } else {
+          p.y = b.y; p.vy = getBounceV() * 0.7; platformsRef.current = [];
+          setTimeout(() => { if (gStateRef.current === 'playing') spawnNextRow(); }, 400);
+          break;
+        }
+      }
+      // Ground
+      if (p.y >= groundYRef.current) { p.y = groundYRef.current; p.vy = 0; p.onGround = true; }
+      // Height
+      const h = Math.max(0, Math.round((groundYRef.current - p.y) / 10));
+      if (h > heightMRef.current) heightMRef.current = h;
+      // Camera (only scrolls up)
+      const targetCam = p.y - gc!.height * 0.65;
+      if (targetCam < camYRef.current) camYRef.current = targetCam;
+      // Death: fell off bottom
+      if (p.y - camYRef.current > gc!.height + 20) { endGame(); return; }
       // Particles
       for (let i = particlesRef.current.length - 1; i >= 0; i--) {
         const pt = particlesRef.current[i];
-        pt.x += pt.vx * dt;
-        pt.y += pt.vy * dt;
-        pt.vy += 200 * dt;
-        pt.life -= dt / pt.maxLife;
-        if (pt.life <= 0) {
-          particlesRef.current.splice(i, 1);
-          continue;
-        }
-        const alpha = Math.max(0, pt.life);
-        ctx.beginPath();
-        ctx.arc(pt.x, pt.y - camYRef.current, pt.r * alpha, 0, Math.PI * 2);
-        ctx.fillStyle = pt.color + Math.floor(alpha * 255).toString(16).padStart(2, '0');
-        ctx.fill();
+        pt.x += pt.vx * dt; pt.y += pt.vy * dt; pt.vy += 150 * dt;
+        pt.life -= dt * 2; if (pt.life <= 0) particlesRef.current.splice(i, 1);
       }
+      updateHUD(); updateSpeedBar();
+    }
 
-      // Player
-      const screenPX = p.x;
-      const screenPY = p.y - camYRef.current;
-      drawPlayer(ctx, screenPX, screenPY, p.vy, flashTRef.current, hurtCDRef.current);
-
-      ctx.restore();
-
-      // HUD (no shake)
-      drawHUD(
-        ctx, cw, ch,
-        livesRef.current,
-        heightRef.current,
-        ruleRef.current,
-        showHintRef.current,
-        gravRef.current,
-        cfg.baseGrav,
-      );
+    const loop = (ts: number) => {
+      const dt = Math.min((ts - lastTsRef.current) / 1000, .05);
+      lastTsRef.current = ts;
+      update(dt); draw();
+      animRef.current = requestAnimationFrame(loop);
     };
-
     animRef.current = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(animRef.current);
-  }, [drawStartScreen, drawRevealScreen, drawDeadScreen, drawStars, drawMountains, drawBlock, drawPlayer, drawHUD, startPlaying]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  // ── Canvas click handler ──────────────────────────────────────────────────
-  const handleCanvasClick = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const rect = canvas.getBoundingClientRect();
-    const sx = (e.clientX - rect.left) * (canvas.width / rect.width);
-    const sy = (e.clientY - rect.top) * (canvas.height / rect.height);
-    const cw = cwRef.current;
-    const ch = chRef.current;
-
-    if (screenRef.current === 'start') {
-      // Difficulty buttons
-      const diffs: Difficulty[] = ['easy', 'medium', 'hard'];
-      const btnW = (cw - 48) / 3;
-      const by = ch * 0.53;
-      const bh = 38;
-      for (let i = 0; i < 3; i++) {
-        const bx = 16 + i * (btnW + 8);
-        if (sx >= bx && sx <= bx + btnW && sy >= by && sy <= by + bh) {
-          diffRef.current = diffs[i];
-          diffRef.current = diffs[i];
-          return;
-        }
-      }
-      // Start button
-      const sbW = Math.min(200, cw - 60);
-      const sbX = (cw - sbW) / 2;
-      const sbY = ch * 0.65;
-      if (sx >= sbX && sx <= sbX + sbW && sy >= sbY && sy <= sbY + 46) {
-        startReveal(diffRef.current);
-        return;
-      }
+  // ── Launch game (called after countdown) ──
+  const launch = useCallback((d: Difficulty) => {
+    const gc = gcRef.current; if (!gc) return;
+    gc.width  = gc.parentElement?.clientWidth  || 480;
+    gc.height = gc.parentElement?.clientHeight || 400;
+    groundYRef.current = gc.height * 0.88;
+    diffRef.current = d;
+    livesRef.current = 3; heightMRef.current = 0;
+    platformsRef.current = []; particlesRef.current = [];
+    shakeTRef.current = 0; hasJumpedRef.current = false;
+    setHasJumped(false);
+    P.current = { x: gc.width/2, y: groundYRef.current, vx: 0, vy: 0, w: 26, h: 36, onGround: true, flashT: 0, hurtCD: 0, launchT: 0 };
+    camYRef.current = groundYRef.current - gc.height * 0.85;
+    // First row on ground
+    const cfg = DIFF[d], cols = cfg.cols;
+    const pw = Math.floor((gc.width - 32 - (cols-1)*PGAP) / cols);
+    const sx = Math.floor((gc.width - (cols*pw + (cols-1)*PGAP)) / 2);
+    const nums = Array.from({ length: cols }, () => ri(cfg.numRange[0], cfg.numRange[1]));
+    if (!nums.some(n => ruleRef.current.ok(n))) {
+      for (let t = 0; t < 80; t++) { const n = ri(cfg.numRange[0], cfg.numRange[1]); if (ruleRef.current.ok(n)) { nums[ri(0,cols-1)] = n; break; } }
     }
+    const ci = BC.map((_, i) => i);
+    for (let i = ci.length-1; i > 0; i--) { const j = ri(0,i); [ci[i],ci[j]] = [ci[j],ci[i]]; }
+    platformsRef.current = nums.map((val, i): Block => ({
+      x: sx+i*(pw+PGAP), y: groundYRef.current - PH, w: pw, h: PH,
+      val, valid: ruleRef.current.ok(val), colIdx: ci[i%ci.length], flash: 0, hit: false,
+    }));
+    if (hScoreEl.current)    hScoreEl.current.textContent = '0m';
+    if (hLivesEl.current)    hLivesEl.current.innerHTML = '❤️❤️❤️';
+    if (speedFillEl.current) { speedFillEl.current.style.width = '0%'; speedFillEl.current.style.background = '#7ec8a0'; }
+    lastTsRef.current = performance.now();
+    gStateRef.current = 'playing';
+    setScreen('playing');
+  }, []);
 
-    if (screenRef.current === 'playing') {
-      // Hint button
-      const hintX = cw - 58;
-      const hintY = 58;
-      if (sx >= hintX && sx <= hintX + 50 && sy >= hintY && sy <= hintY + 30) {
-        showHintRef.current = !showHintRef.current;
-        return;
-      }
-    }
+  // ── Start game flow ──
+  const startGame = useCallback((d: Difficulty) => {
+    const rule = buildRule(d);
+    ruleRef.current = rule;
+    setRuleDisp({ icon: rule.icon, text: rule.text, eg: rule.eg });
+    let cd = 3; setCdNum(cd);
+    setScreen('reveal');
+    const t = setInterval(() => {
+      cd--;
+      if (cd <= 0) { clearInterval(t); if (mountedRef.current) launch(d); }
+      else if (mountedRef.current) setCdNum(cd);
+    }, 1000);
+  }, [launch]);
 
-    if (screenRef.current === 'dead') {
-      const cardW = Math.min(320, cw - 40);
-      const cardY = ch * 0.1;
-      const cardH = ch * 0.78;
-      const sbW = Math.min(200, cardW - 40);
-      const sbX = (cw - sbW) / 2;
-      const sbY = cardY + cardH - 60;
-      if (sx >= sbX && sx <= sbX + sbW && sy >= sbY && sy <= sbY + 44) {
-        startReveal(diffRef.current);
-        return;
-      }
-    }
-  }, [startReveal]);
+  // ── Button handlers ──
+  const kd = useCallback((k: 'l' | 'r') => { keysRef.current[k] = true; }, []);
+  const ku = useCallback((k: 'l' | 'r') => { keysRef.current[k] = false; }, []);
+  const doJump = useCallback(() => { if (!hasJumpedRef.current) jumpQRef.current = true; }, []);
 
-  // ── Touch handler ─────────────────────────────────────────────────────────
-  const handleCanvasTouch = useCallback((e: React.TouchEvent<HTMLCanvasElement>) => {
-    e.preventDefault();
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const rect = canvas.getBoundingClientRect();
-    const touch = e.changedTouches[0];
-    const sx = (touch.clientX - rect.left) * (canvas.width / rect.width);
-    const sy = (touch.clientY - rect.top) * (canvas.height / rect.height);
-    const cw = cwRef.current;
-    const ch = chRef.current;
+  // ── Flavour texts ──
+  const flavours = ['Gravity wins again.', 'The summit is still far.', 'The blocks have won… for now.', 'Keep climbing!', 'Every climber falls eventually.'];
+  const endIco = endData.height > 80 ? '😤' : endData.height > 30 ? '😬' : '💥';
+  const endTitle = endData.height > 100 ? 'So High!' : endData.height > 40 ? 'Nice Try!' : 'You Fell!';
 
-    if (screenRef.current === 'start') {
-      const diffs: Difficulty[] = ['easy', 'medium', 'hard'];
-      const btnW = (cw - 48) / 3;
-      const by = ch * 0.53;
-      const bh = 38;
-      for (let i = 0; i < 3; i++) {
-        const bx = 16 + i * (btnW + 8);
-        if (sx >= bx && sx <= bx + btnW && sy >= by && sy <= by + bh) {
-          diffRef.current = diffs[i];
-          diffRef.current = diffs[i];
-          return;
-        }
-      }
-      const sbW = Math.min(200, cw - 60);
-      const sbX = (cw - sbW) / 2;
-      const sbY = ch * 0.65;
-      if (sx >= sbX && sx <= sbX + sbW && sy >= sbY && sy <= sbY + 46) {
-        startReveal(diffRef.current);
-        return;
-      }
-    }
-
-    if (screenRef.current === 'playing') {
-      const hintX = cw - 58;
-      const hintY = 58;
-      if (sx >= hintX && sx <= hintX + 50 && sy >= hintY && sy <= hintY + 30) {
-        showHintRef.current = !showHintRef.current;
-        return;
-      }
-    }
-
-    if (screenRef.current === 'dead') {
-      const cardW = Math.min(320, cw - 40);
-      const cardH = ch * 0.78;
-      const cardY = ch * 0.1;
-      const sbW = Math.min(200, cardW - 40);
-      const sbX = (cw - sbW) / 2;
-      const sbY = cardY + cardH - 60;
-      if (sx >= sbX && sx <= sbX + sbW && sy >= sbY && sy <= sbY + 44) {
-        startReveal(diffRef.current);
-        return;
-      }
-    }
-  }, [startReveal]);
-
-  // ── Render ────────────────────────────────────────────────────────────────
+  // ─── JSX ───────────────────────────────────────────────────────────────────
   return (
-    <div
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        width: '100%',
-        minHeight: '100vh',
-        background: '#0f0c29',
-        fontFamily: "'Nunito', sans-serif",
-        userSelect: 'none',
-        WebkitUserSelect: 'none',
-      }}
-    >
-      {/* Google Font */}
-      <link
-        rel="stylesheet"
-        href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap"
-      />
+    <div style={{ position: 'relative', width: '100%', height: '100dvh', maxHeight: '100vh', overflow: 'hidden', background: '#0a0a1a', fontFamily: "'Nunito', sans-serif", color: '#f0e8d8', userSelect: 'none', WebkitUserSelect: 'none' }}>
+      {/* Fonts */}
+      <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cabin+Sketch:wght@400;700&family=Nunito:wght@700;800;900&display=swap" />
 
-      <div style={{ position: 'relative', width: '100%', maxWidth: 440 }}>
-        <canvas
-          ref={canvasRef}
-          onClick={handleCanvasClick}
-          onTouchEnd={handleCanvasTouch}
-          style={{
-            display: 'block',
-            width: '100%',
-            cursor: 'pointer',
-            touchAction: 'none',
-          }}
-        />
+      {/* Star twinkle keyframes */}
+      <style>{`
+        @keyframes sc-tw { 0%,100%{opacity:.15} 50%{opacity:1} }
+        .sc-star { position:absolute; background:white; border-radius:50%; animation:sc-tw linear infinite; }
+        .sc-dbtn { padding:9px 16px; border-radius:10px; border:2px solid rgba(255,255,255,.12); background:rgba(255,255,255,.05); color:#8899aa; font-family:'Nunito',sans-serif; font-weight:800; font-size:.78rem; cursor:pointer; transition:all .15s; text-transform:uppercase; letter-spacing:1px; }
+        .sc-dbtn.sc-act { border-color:#f4c542; color:#f4c542; background:rgba(244,197,66,.08); }
+        .sc-bigbtn { width:100%; max-width:300px; padding:17px; border-radius:16px; border:none; font-family:'Cabin Sketch',cursive; font-size:1.5rem; letter-spacing:1px; cursor:pointer; transition:all .1s; box-shadow:0 5px 0 rgba(0,0,0,.3); }
+        .sc-bigbtn:active { transform:translateY(3px); box-shadow:0 2px 0 rgba(0,0,0,.3); }
+        .sc-btn { flex:1; height:64px; border-radius:18px; border:2px solid rgba(255,255,255,.15); background:rgba(255,255,255,.07); color:#f0e8d8; font-family:'Cabin Sketch',cursive; font-size:1.6rem; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all .1s; -webkit-tap-highlight-color:transparent; }
+        .sc-btn:active { background:rgba(255,255,255,.18); transform:translateY(2px); }
+        .sc-jbtn { flex:1.5 !important; background:rgba(126,200,160,.13) !important; border-color:rgba(126,200,160,.4) !important; color:#7ec8a0 !important; }
+      `}</style>
 
-        {/* On-screen controls (only shown during playing) */}
+      {/* Background gradient */}
+      <div style={{ position: 'fixed', inset: 0, background: 'linear-gradient(180deg,#0a0a1a 0%,#1a1a3e 40%,#0f3460 100%)', zIndex: 0, pointerEvents: 'none' }} />
+
+      {/* Stars */}
+      <div style={{ position: 'fixed', inset: 0, zIndex: 1, pointerEvents: 'none', overflow: 'hidden' }}>
+        {STARS.map(s => (
+          <div key={s.id} className="sc-star" style={{ left: s.left, top: s.top, width: `${s.size}px`, height: `${s.size}px`, animationDuration: s.dur, animationDelay: s.del }} />
+        ))}
+      </div>
+
+      {/* Mountain canvas */}
+      <canvas ref={mtnRef} style={{ position: 'fixed', bottom: 0, left: 0, right: 0, width: '100%', height: '55%', zIndex: 2, pointerEvents: 'none' }} />
+
+      {/* Main layout (z-index 5) */}
+      <div style={{ position: 'relative', zIndex: 5, width: '100%', maxWidth: 480, height: '100%', margin: '0 auto', display: 'flex', flexDirection: 'column' }}>
+
+        {/* HUD top */}
+        <div style={{ flexShrink: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: '14px 16px 0' }}>
+          <div>
+            <div style={{ fontFamily: "'Cabin Sketch', cursive", fontSize: '1.6rem', lineHeight: 1, textShadow: '0 2px 8px rgba(0,0,0,.6)' }}>Stack Climber</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '.72rem', fontWeight: 800, color: '#8899aa', textTransform: 'uppercase', letterSpacing: '1.5px', marginTop: 4 }}>
+              HEIGHT&nbsp;<span ref={hScoreEl} style={{ fontFamily: "'Cabin Sketch', cursive", fontSize: '1.1rem', color: '#f4c542' }}>0m</span>
+            </div>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2 }}>
+            <div ref={hLivesEl} style={{ display: 'flex', gap: 5 }}>❤️❤️❤️</div>
+          </div>
+        </div>
+
+        {/* Rule banner */}
+        <div style={{ flexShrink: 0, margin: '10px 16px 0', background: '#111827', border: '2px solid rgba(244,197,66,.5)', borderRadius: 14, padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ fontSize: '1.4rem', flexShrink: 0, color: '#f4c542' }}>{ruleDisp.icon}</div>
+          <div>
+            <div style={{ fontSize: '.6rem', fontWeight: 800, color: '#8899aa', textTransform: 'uppercase', letterSpacing: '2px' }}>Current Rule</div>
+            <div style={{ fontFamily: "'Cabin Sketch', cursive", fontSize: '1.15rem', color: '#f0e8d8', lineHeight: 1.2 }}>{ruleDisp.text || '—'}</div>
+            {ruleDisp.eg && <div style={{ fontSize: '.7rem', fontWeight: 700, color: '#7ec8a0', marginTop: 1 }}>e.g. {ruleDisp.eg}</div>}
+          </div>
+        </div>
+
+        {/* Speed bar */}
+        <div style={{ flexShrink: 0, margin: '6px 16px 0', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ fontSize: '.6rem', fontWeight: 800, color: '#8899aa', textTransform: 'uppercase', letterSpacing: '1.5px', whiteSpace: 'nowrap' }}>Fall speed</div>
+          <div style={{ flex: 1, height: 5, background: 'rgba(255,255,255,.1)', borderRadius: 99, overflow: 'hidden' }}>
+            <div ref={speedFillEl} style={{ height: '100%', width: '0%', borderRadius: 99, background: '#7ec8a0', transition: 'width .3s, background .3s' }} />
+          </div>
+        </div>
+
+        {/* Game canvas */}
+        <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
+          <canvas ref={gcRef} style={{ display: 'block', width: '100%', height: '100%' }} />
+        </div>
+
+        {/* Controls */}
         {screen === 'playing' && (
-          <div
-            style={{
-              position: 'absolute',
-              bottom: 36,
-              left: 0,
-              right: 0,
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              padding: '0 12px',
-              pointerEvents: 'none',
-            }}
-          >
-            {/* Left button */}
-            <button
-              onTouchStart={e => { e.preventDefault(); keysRef.current.left = true; }}
-              onTouchEnd={e => { e.preventDefault(); keysRef.current.left = false; }}
-              onMouseDown={() => keysRef.current.left = true}
-              onMouseUp={() => keysRef.current.left = false}
-              style={{
-                pointerEvents: 'all',
-                width: 64,
-                height: 64,
-                borderRadius: 16,
-                background: 'rgba(124,58,237,0.7)',
-                border: '2px solid rgba(167,139,250,0.5)',
-                color: '#fff',
-                fontSize: 28,
-                fontWeight: 'bold',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'pointer',
-                WebkitTapHighlightColor: 'transparent',
-              }}
-            >
-              ◀
-            </button>
-
-            {/* Jump button (only before first jump) */}
+          <div style={{ flexShrink: 0, display: 'flex', gap: 10, padding: '10px 16px 14px' }}>
+            <button className="sc-btn"
+              onMouseDown={() => kd('l')} onMouseUp={() => ku('l')} onMouseLeave={() => ku('l')}
+              onTouchStart={e => { e.preventDefault(); kd('l'); }}
+              onTouchEnd={e => { e.preventDefault(); ku('l'); }}>◀</button>
             {!hasJumped && (
-              <button
-                onTouchStart={e => { e.preventDefault(); handleJump(); }}
-                onMouseDown={() => handleJump()}
-                style={{
-                  pointerEvents: 'all',
-                  width: 88,
-                  height: 64,
-                  borderRadius: 20,
-                  background: 'rgba(34,197,94,0.85)',
-                  border: '2px solid rgba(134,239,172,0.6)',
-                  color: '#fff',
-                  fontSize: 14,
-                  fontWeight: 800,
-                  letterSpacing: 1,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: 'pointer',
-                  WebkitTapHighlightColor: 'transparent',
-                  boxShadow: '0 0 20px rgba(34,197,94,0.5)',
-                }}
-              >
-                JUMP
-              </button>
+              <button className="sc-btn sc-jbtn"
+                onMouseDown={doJump}
+                onTouchStart={e => { e.preventDefault(); doJump(); }}>▲ JUMP</button>
             )}
-
-            {/* Right button */}
-            <button
-              onTouchStart={e => { e.preventDefault(); keysRef.current.right = true; }}
-              onTouchEnd={e => { e.preventDefault(); keysRef.current.right = false; }}
-              onMouseDown={() => keysRef.current.right = true}
-              onMouseUp={() => keysRef.current.right = false}
-              style={{
-                pointerEvents: 'all',
-                width: 64,
-                height: 64,
-                borderRadius: 16,
-                background: 'rgba(124,58,237,0.7)',
-                border: '2px solid rgba(167,139,250,0.5)',
-                color: '#fff',
-                fontSize: 28,
-                fontWeight: 'bold',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'pointer',
-                WebkitTapHighlightColor: 'transparent',
-              }}
-            >
-              ▶
-            </button>
+            <button className="sc-btn"
+              onMouseDown={() => kd('r')} onMouseUp={() => ku('r')} onMouseLeave={() => ku('r')}
+              onTouchStart={e => { e.preventDefault(); kd('r'); }}
+              onTouchEnd={e => { e.preventDefault(); ku('r'); }}>▶</button>
           </div>
         )}
       </div>
+
+      {/* ── Rule reveal overlay ── */}
+      {screen === 'reveal' && (
+        <div style={{ display: 'flex', position: 'fixed', inset: 0, zIndex: 600, background: '#060612', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 28, padding: '40px 24px', textAlign: 'center' }}>
+          <div style={{ fontSize: '1rem', fontWeight: 900, color: 'rgba(255,255,255,.5)', textTransform: 'uppercase', letterSpacing: '4px' }}>This round's rule</div>
+          <div style={{ fontSize: '5rem', lineHeight: 1, animation: 'sc-rpop .5s cubic-bezier(.34,1.56,.64,1) both' }}>
+            <style>{`@keyframes sc-rpop{from{transform:scale(.1);opacity:0}to{transform:scale(1);opacity:1}}`}</style>
+            {ruleDisp.icon}
+          </div>
+          <div style={{ background: '#0d1a2e', border: '2px solid rgba(244,197,66,.5)', borderRadius: 24, padding: '28px 36px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, width: '100%', maxWidth: 380 }}>
+            <div style={{ fontFamily: "'Cabin Sketch', cursive", fontSize: '2rem', color: '#f4c542', lineHeight: 1.3 }}>{ruleDisp.text}</div>
+            <div style={{ fontSize: '1rem', fontWeight: 800, color: '#7ec8a0', letterSpacing: '2px' }}>e.g. {ruleDisp.eg}</div>
+          </div>
+          <div style={{ fontSize: '1.15rem', fontWeight: 700, color: 'rgba(255,255,255,.7)', display: 'flex', flexDirection: 'column', gap: 10, textAlign: 'center' }}>
+            <div>✅ <b style={{ color: '#f0e8d8' }}>Correct block</b> — launches you up!</div>
+            <div>❌ <b style={{ color: '#f0e8d8' }}>Wrong block</b> — lose a life.</div>
+          </div>
+          <div style={{ fontFamily: "'Cabin Sketch', cursive", fontSize: '5.5rem', color: 'white', lineHeight: 1 }}>{cdNum}</div>
+          <div style={{ fontSize: '.8rem', fontWeight: 900, color: 'rgba(255,255,255,.35)', textTransform: 'uppercase', letterSpacing: '3px' }}>Starting in…</div>
+        </div>
+      )}
+
+      {/* ── Start overlay ── */}
+      {screen === 'start' && (
+        <div style={{ display: 'flex', position: 'fixed', inset: 0, zIndex: 500, background: 'rgba(6,6,18,.93)', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 14, padding: 24, textAlign: 'center' }}>
+          <div style={{ fontSize: '3.5rem', lineHeight: 1 }}>🏔️</div>
+          <div style={{ fontFamily: "'Cabin Sketch', cursive", fontSize: '2.8rem', color: '#f0e8d8', lineHeight: 1, textShadow: '0 4px 20px rgba(0,0,0,.5)' }}>Stack Climber</div>
+          <div style={{ fontSize: '.88rem', fontWeight: 700, color: '#8899aa', lineHeight: 1.8, maxWidth: 290 }}>
+            Start on the ground and jump.<br />
+            <b style={{ color: '#f0e8d8' }}>Only land on blocks that follow the rule.</b><br />
+            Correct block launches you higher!<br />
+            Wrong block = bounce off, lose a life.<br />
+            Fall speed increases as you climb!
+          </div>
+          {/* Difficulty */}
+          <div style={{ display: 'flex', gap: 8 }}>
+            {(['easy','medium','hard'] as Difficulty[]).map(d => (
+              <button key={d} className={`sc-dbtn${selDiff === d ? ' sc-act' : ''}`}
+                onClick={() => setSelDiff(d)}>
+                {d.charAt(0).toUpperCase() + d.slice(1)}
+              </button>
+            ))}
+          </div>
+          {/* Hint toggle */}
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: '.82rem', fontWeight: 700, color: '#8899aa' }}>
+            <input type="checkbox" checked={showHint} onChange={e => setShowHint(e.target.checked)}
+              style={{ width: 16, height: 16, accentColor: '#7ec8a0', cursor: 'pointer' }} />
+            Show hint (green glow on valid blocks)
+          </label>
+          <button className="sc-bigbtn" style={{ background: '#f4c542', color: '#1a1a2e' }}
+            onClick={() => startGame(selDiff)}>
+            🧗 Start Climbing
+          </button>
+        </div>
+      )}
+
+      {/* ── Game over overlay ── */}
+      {screen === 'dead' && (
+        <div style={{ display: 'flex', position: 'fixed', inset: 0, zIndex: 500, background: 'rgba(6,6,18,.93)', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 14, padding: 24, textAlign: 'center' }}>
+          <div style={{ fontSize: '3.5rem', lineHeight: 1 }}>{endIco}</div>
+          <div style={{ fontFamily: "'Cabin Sketch', cursive", fontSize: '2.8rem', color: '#f0e8d8', lineHeight: 1 }}>{endTitle}</div>
+          <div style={{ fontSize: '.82rem', fontWeight: 700, color: '#8899aa', maxWidth: 270, lineHeight: 1.7 }}>
+            {flavours[endData.height % flavours.length]}
+          </div>
+          {/* Stats grid */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, width: '100%', maxWidth: 300 }}>
+            <div style={{ background: 'rgba(255,255,255,.05)', border: '1.5px solid rgba(255,255,255,.08)', borderRadius: 12, padding: '10px 14px' }}>
+              <div style={{ fontSize: '.62rem', fontWeight: 800, color: '#8899aa', textTransform: 'uppercase', letterSpacing: '1.5px' }}>Height</div>
+              <div style={{ fontFamily: "'Cabin Sketch', cursive", fontSize: '1.5rem', color: '#f0e8d8', lineHeight: 1 }}>{endData.height}m</div>
+            </div>
+            <div style={{ background: 'rgba(255,255,255,.05)', border: '1.5px solid rgba(255,255,255,.08)', borderRadius: 12, padding: '10px 14px' }}>
+              <div style={{ fontSize: '.62rem', fontWeight: 800, color: '#8899aa', textTransform: 'uppercase', letterSpacing: '1.5px' }}>Best</div>
+              <div style={{ fontFamily: "'Cabin Sketch', cursive", fontSize: '1.5rem', color: '#f0e8d8', lineHeight: 1 }}>
+                {endData.best}m{endData.height >= endData.best && endData.height > 0 ? ' 🏆' : ''}
+              </div>
+            </div>
+            <div style={{ background: 'rgba(255,255,255,.05)', border: '1.5px solid rgba(255,255,255,.08)', borderRadius: 12, padding: '10px 14px', gridColumn: '1/-1' }}>
+              <div style={{ fontSize: '.62rem', fontWeight: 800, color: '#8899aa', textTransform: 'uppercase', letterSpacing: '1.5px' }}>Rule</div>
+              <div style={{ fontFamily: "'Cabin Sketch', cursive", fontSize: '1.4rem', color: '#f0e8d8', lineHeight: 1.1, marginTop: 2 }}>{endData.ruleIcon}</div>
+              <div style={{ fontSize: '.82rem', fontWeight: 700, color: '#f0e8d8', marginTop: 4 }}>{endData.ruleText}</div>
+            </div>
+          </div>
+          <button className="sc-bigbtn" style={{ background: '#7ec8a0', color: '#1a1a2e' }}
+            onClick={() => startGame(selDiff)}>🧗 Climb Again</button>
+          <button className="sc-dbtn" style={{ marginTop: 4 }}
+            onClick={() => setScreen('start')}>Change Difficulty</button>
+        </div>
+      )}
     </div>
   );
 };
