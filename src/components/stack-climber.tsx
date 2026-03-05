@@ -153,8 +153,9 @@ const StackClimber: React.FC = () => {
   const P = useRef({ x: 0, y: 0, vx: 0, vy: 0, w: 26, h: 36, onGround: true, flashT: 0, hurtCD: 0, launchT: 0 });
   const platformsRef = useRef<Block[]>([]);
   const particlesRef = useRef<Particle[]>([]);
-  const shakeTRef    = useRef(0);
-  const fastCamRef   = useRef(0);       // seconds remaining of boosted camera speed
+  const shakeTRef       = useRef(0);
+  const fastCamRef      = useRef(0);    // >0 = boosted camera lerp active
+  const waitingForApexRef = useRef(false); // true after valid bounce, spawn block at apex
   const lastTsRef    = useRef(0);
   const jumpQRef          = useRef(false);
   const keysRef           = useRef({ l: false, r: false });
@@ -450,8 +451,11 @@ const StackClimber: React.FC = () => {
           p.onGround = false; p.launchT = 0.6;
           spawnParts(b.x+b.w/2, b.y, '#7ec8a0', 10);
           shakeTRef.current = 0.04;
-          fastCamRef.current = 0.5;   // snap camera quickly so block lands at screen bottom
-          spawnNextRow(p.y, bv);
+          // Clear existing row and use fast camera throughout the ascent.
+          // Block spawns at apex (when p.vy >= 0) so camera has fully caught up.
+          platformsRef.current = [];
+          fastCamRef.current = 1;
+          waitingForApexRef.current = true;
           break;
         } else if (p.hurtCD <= 0) {
           const bv = getBounceV() * 0.82;
@@ -469,6 +473,14 @@ const StackClimber: React.FC = () => {
           break;
         }
       }
+      // Spawn block at apex after valid bounce (camera has fully caught up by then)
+      if (waitingForApexRef.current && p.vy >= 0) {
+        waitingForApexRef.current = false;
+        fastCamRef.current = 0;
+        const cfg = DIFF[diffRef.current];
+        const refCam = Math.min(camYRef.current, p.y - cfg.camTarget * gc!.height);
+        platformsRef.current = makeRow(refCam + gc!.height - PH);
+      }
       // Ground
       if (p.y >= groundYRef.current) { p.y = groundYRef.current; p.vy = 0; p.onGround = true; }
       // Height
@@ -479,7 +491,6 @@ const StackClimber: React.FC = () => {
       const targetCam = p.y - gc!.height * DIFF[diffRef.current].camTarget;
       if (targetCam < camYRef.current) {
         const lerp = fastCamRef.current > 0 ? 30 : CAM_LERP;
-        fastCamRef.current = Math.max(0, fastCamRef.current - dt);
         const factor = 1 - Math.exp(-lerp * dt);
         camYRef.current += (targetCam - camYRef.current) * factor;
       }
@@ -516,7 +527,7 @@ const StackClimber: React.FC = () => {
     diffRef.current = d;
     livesRef.current = 3; heightMRef.current = 0;
     platformsRef.current = []; particlesRef.current = [];
-    shakeTRef.current = 0; fastCamRef.current = 0; hasJumpedRef.current = false;
+    shakeTRef.current = 0; fastCamRef.current = 0; hasJumpedRef.current = false; waitingForApexRef.current = false;
     setHasJumped(false);
     P.current = { x: gc.width/2, y: groundYRef.current, vx: 0, vy: 0, w: 26, h: 36, onGround: true, flashT: 0, hurtCD: 0, launchT: 0 };
     camYRef.current = groundYRef.current - gc.height * 0.85;
