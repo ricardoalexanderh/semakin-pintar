@@ -149,6 +149,24 @@ const GamesIndexPage = () => {
           "position": 10,
           "name": "Mirror Dash",
           "url": "https://www.semakinpintar.com/games/mirror-dash"
+        },
+        {
+          "@type": "Game",
+          "position": 11,
+          "name": "Math Flip",
+          "url": "https://www.semakinpintar.com/games/math-flip"
+        },
+        {
+          "@type": "Game",
+          "position": 12,
+          "name": "Pair Shift",
+          "url": "https://www.semakinpintar.com/games/pair-shift"
+        },
+        {
+          "@type": "Game",
+          "position": 13,
+          "name": "Stack Climber",
+          "url": "https://www.semakinpintar.com/games/stack-climber"
         }
       ]
     }
@@ -276,12 +294,12 @@ const MentalDivisionPage = () => {
   );
 };
 
-// Mental Division Game page with SEO
+// Mental Multiplication Game page with SEO
 const MentalMultiplicationPage = () => {
   const gameJsonLd = {
     "@context": "https://schema.org",
     "@type": "Game",
-    "name": "Mental Division Game",
+    "name": "Mental Multiplication Game",
     "description": "Train your brain with fun mental multiplication calculations. Improve cognitive skills through progressive difficulty levels.",
     "url": "https://www.semakinpintar.com/games/mental-multiplication",
     "genre": "Educational",
@@ -297,11 +315,11 @@ const MentalMultiplicationPage = () => {
   return (
     <>
       <SEOHead
-        title="Mental Division Game - Brain Training & Math Practice | Semakin Pintar"
+        title="Mental Multiplication Game - Brain Training & Math Practice | Semakin Pintar"
         description="Train your brain with our free mental multiplication game. Progressive difficulty levels, customizable settings, and speech support. Perfect for kids and adults learning math."
         keywords="mental multiplication, brain training, math practice, cognitive skills, mental math game, arithmetic training, educational games, kids math"
         canonicalUrl="https://www.semakinpintar.com/games/mental-multiplication"
-        ogTitle="Mental Division Game - Brain Training & Math Practice"
+        ogTitle="Mental Multiplication Game - Brain Training & Math Practice"
         ogDescription="Train your brain with our free mental multiplication game. Progressive difficulty levels and customizable settings."
         ogImage="https://www.semakinpintar.com/logo.png"
         jsonLd={gameJsonLd}
