@@ -131,7 +131,7 @@ const BrainBombGame: React.FC = () => {
           setSettings(payload.settings);
           setPlayers(payload.players);
           setPhase('countdown');
-        } else if (['game-state', 'answer-submitted', 'powerup-used', 'chain-answer'].includes(msg.type)) {
+        } else if (['game-state', 'answer-submitted', 'powerup-used', 'chain-answer', 'sabotage-applied'].includes(msg.type)) {
           // Forward game messages to GameScreen's sync handler
           const room = roomRef.current as unknown as { gameSyncHandler?: (m: typeof msg) => void };
           room?.gameSyncHandler?.(msg);

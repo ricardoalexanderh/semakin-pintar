@@ -62,16 +62,19 @@ const GameScreen: React.FC<GameScreenProps> = ({
 
   const maxTime = DIFFICULTY_CONFIG[settings.difficulty].timer;
 
-  const [round, setRound] = useState<RoundState>({
+  // Only host generates the initial question; guests get it via state sync
+  const [round, setRound] = useState<RoundState>(() => ({
     currentPlayerIdx: 0,
-    question: getRandomQuestion(settings.activeSubs, settings.difficulty),
+    question: isHost
+      ? getRandomQuestion(settings.activeSubs, settings.difficulty)
+      : { q: '...', a: ['...', '...', '...', '...'], correct: 0, diff: settings.difficulty },
     timeLeft: maxTime,
     maxTime,
     answered: false,
     answerIdx: null,
     round: 1,
     frozen: false,
-  });
+  }));
 
   const [overlay, setOverlay] = useState<OverlayType>('none');
   const [explosionInfo, setExplosionInfo] = useState({ name: '', message: '' });
@@ -140,6 +143,13 @@ const GameScreen: React.FC<GameScreenProps> = ({
       } else if (msg.type === 'chain-answer') {
         const { answerIdx, playerId } = msg.payload as { answerIdx: number; playerId: string };
         handleRemoteChainAnswer(answerIdx, playerId);
+      } else if (msg.type === 'sabotage-applied') {
+        const { sabotageType, targetId } = msg.payload as { sabotageType: string; targetId: string };
+        if (sabotageType === 'skip') {
+          handleSkipSabotage(true);
+        } else {
+          handleSabotage(sabotageType as 'shuffle' | 'timebomb', targetId, true);
+        }
       }
     }
   };
@@ -475,7 +485,17 @@ const GameScreen: React.FC<GameScreenProps> = ({
     broadcastState(playersRef.current, roundRef.current, 'none', explosionInfoRef.current, chainQuestionRef.current);
   };
 
-  const handleSabotage = (type: 'shuffle' | 'timebomb', targetId: string) => {
+  const handleSabotage = (type: 'shuffle' | 'timebomb', targetId: string, fromRemote = false) => {
+    // Guest sends sabotage selection to host via WebRTC
+    if (!isHost && !fromRemote) {
+      if (gameRoom) {
+        gameRoom.broadcast('sabotage-applied', { sabotageType: type, targetId });
+      }
+      return;
+    }
+
+    if (!isHost) return;
+
     const target = playersRef.current.find((p) => p.id === targetId);
     if (!target) return;
 
@@ -495,6 +515,19 @@ const GameScreen: React.FC<GameScreenProps> = ({
     } else {
       passToNextRef.current(newPlayers);
     }
+  };
+
+  const handleSkipSabotage = (fromRemote = false) => {
+    if (!isHost && !fromRemote) {
+      if (gameRoom) {
+        gameRoom.broadcast('sabotage-applied', { sabotageType: 'skip', targetId: '' });
+      }
+      return;
+    }
+    if (!isHost) return;
+    setOverlay('none');
+    broadcastState(playersRef.current, roundRef.current, 'none', explosionInfoRef.current, chainQuestionRef.current);
+    passToNextRef.current();
   };
 
   // Cleanup on unmount
@@ -786,7 +819,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
                     </React.Fragment>
                   ))}
                   <button
-                    onClick={() => { setOverlay('none'); broadcastState(playersRef.current, roundRef.current, 'none', explosionInfoRef.current, chainQuestionRef.current); passToNextRef.current(); }}
+                    onClick={() => handleSkipSabotage()}
                     style={{ ...sabotageOptionStyle, color: C.muted, borderColor: C.muted }}
                   >
                     Skip sabotage
