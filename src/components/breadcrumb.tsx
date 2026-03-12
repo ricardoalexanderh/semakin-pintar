@@ -43,6 +43,7 @@ const Breadcrumb: React.FC = () => {
           'math-flip': 'Math Flip',
           'mirror-dash': 'Mirror Dash',
           'stack-climber': 'Stack Climber',
+          'brain-bomb': 'Brain Bomb',
         };
         
         breadcrumbs.push({
