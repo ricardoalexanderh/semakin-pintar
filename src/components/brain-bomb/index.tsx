@@ -306,18 +306,19 @@ const BrainBombGame: React.FC = () => {
             {/* Join with code */}
             <div style={lobbyCard}>
               <h3 style={cardTitle}>{'\uD83D\uDD17'} Join with Code</h3>
-              <div style={{ display: 'flex', gap: 10 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 <input
                   value={manualCode}
                   onChange={(e) => setManualCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6))}
                   placeholder="ABCDEF"
                   maxLength={6}
                   style={{
-                    flex: 1, padding: '12px 16px', background: C.surface,
+                    width: '100%', padding: '12px 16px', background: C.surface,
                     border: `2px solid ${C.border}`, borderRadius: 12,
                     color: C.white, fontFamily: "'Bebas Neue', sans-serif",
                     fontSize: '1.5rem', fontWeight: 700, outline: 'none',
                     letterSpacing: 6, textAlign: 'center',
+                    boxSizing: 'border-box',
                   }}
                   onKeyDown={(e) => { if (e.key === 'Enter') handleJoinWithCode(); }}
                 />
@@ -326,13 +327,14 @@ const BrainBombGame: React.FC = () => {
                   disabled={manualCode.trim().length < 4}
                   style={{
                     ...startBtn,
-                    fontSize: '0.9rem',
-                    padding: '12px 20px',
+                    fontSize: '1rem',
+                    padding: '14px 24px',
+                    width: '100%',
                     opacity: manualCode.trim().length >= 4 ? 1 : 0.5,
                     cursor: manualCode.trim().length >= 4 ? 'pointer' : 'not-allowed',
                   }}
                 >
-                  JOIN
+                  {'\uD83D\uDD17'} JOIN ROOM
                 </button>
               </div>
             </div>
