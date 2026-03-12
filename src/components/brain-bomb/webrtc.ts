@@ -1,12 +1,15 @@
 // ===== Brain Bomb — WebRTC P2P Room System =====
-// Uses a simple signaling approach via QR code / room code.
-// The host creates a room, guests join by entering the code.
-// Since players are physically in the same room, we use
-// BroadcastChannel as a local signaling mechanism and
-// WebRTC DataChannels for the actual game data.
+// Uses PeerJS for WebRTC signaling and DataChannels.
+// The host creates a room, guests join by entering the code or scanning QR.
+// PeerJS provides a free cloud signaling server so peers on different
+// devices can discover each other and establish direct P2P connections.
 
+import Peer, { DataConnection } from 'peerjs';
 import QRCode from 'qrcode';
 import type { PeerMessage } from './types';
+
+// Prefix for PeerJS IDs to avoid collisions
+const PEER_PREFIX = 'brain-bomb-';
 
 // Generate a short room code (6 chars)
 export function generateRoomCode(): string {
@@ -25,72 +28,132 @@ export function generatePeerId(): string {
 
 type MessageHandler = (msg: PeerMessage) => void;
 type ConnectionHandler = (peerId: string) => void;
+type ReadyHandler = () => void;
 
 export class GameRoom {
   roomCode: string;
   peerId: string;
   isHost: boolean;
-  private channel: BroadcastChannel;
+  private peer: Peer | null = null;
+  private connections: Map<string, DataConnection> = new Map();
   private onMessage: MessageHandler;
   private onPeerConnected: ConnectionHandler;
-  private connectedPeers: Set<string> = new Set();
-  private heartbeatInterval: ReturnType<typeof setInterval> | null = null;
+  private onPeerDisconnected: ConnectionHandler;
+  private onReady: ReadyHandler;
+  private destroyed = false;
 
   constructor(
     roomCode: string,
     isHost: boolean,
     onMessage: MessageHandler,
     onPeerConnected: ConnectionHandler,
-    _onPeerDisconnected: ConnectionHandler,
+    onPeerDisconnected: ConnectionHandler,
+    onReady?: ReadyHandler,
   ) {
     this.roomCode = roomCode;
     this.peerId = generatePeerId();
     this.isHost = isHost;
     this.onMessage = onMessage;
     this.onPeerConnected = onPeerConnected;
+    this.onPeerDisconnected = onPeerDisconnected;
+    this.onReady = onReady || (() => {});
 
-    // Use BroadcastChannel for same-device communication (works across tabs)
-    // For real cross-device WebRTC, a signaling server would be needed.
-    // This implementation supports both same-device (BroadcastChannel) and
-    // local network play.
-    this.channel = new BroadcastChannel(`brain-bomb-${roomCode}`);
-    this.channel.onmessage = (event) => {
-      const msg = event.data as PeerMessage;
-      if (msg.senderId === this.peerId) return; // ignore own messages
+    this.init();
+  }
 
-      if (msg.type === 'player-join') {
-        this.connectedPeers.add(msg.senderId);
-        this.onPeerConnected(msg.senderId);
-        this.onMessage(msg); // Forward to handler so host can add the player
-        // Host responds with an ack
-        if (this.isHost) {
-          this.send({ type: 'player-update', payload: { ack: true }, senderId: this.peerId, timestamp: Date.now() });
-        }
-      } else {
-        if (!this.connectedPeers.has(msg.senderId)) {
-          this.connectedPeers.add(msg.senderId);
-          this.onPeerConnected(msg.senderId);
-        }
-        this.onMessage(msg);
+  private init() {
+    // Host registers with a deterministic ID based on room code so guests can find it.
+    // Guests register with a random ID.
+    const peerjsId = this.isHost
+      ? `${PEER_PREFIX}${this.roomCode}`
+      : `${PEER_PREFIX}${this.peerId}`;
+
+    this.peer = new Peer(peerjsId, {
+      debug: 0, // silent
+    });
+
+    this.peer.on('open', () => {
+      if (this.destroyed) return;
+
+      if (!this.isHost) {
+        // Guest: connect to the host
+        const hostId = `${PEER_PREFIX}${this.roomCode}`;
+        const conn = this.peer!.connect(hostId, { reliable: true });
+        this.setupConnection(conn);
       }
-    };
 
-    // Start heartbeat for connection monitoring
-    this.heartbeatInterval = setInterval(() => {
-      this.send({
-        type: 'player-update',
-        payload: { heartbeat: true },
-        senderId: this.peerId,
-        timestamp: Date.now(),
+      this.onReady();
+    });
+
+    this.peer.on('error', (err) => {
+      if (this.destroyed) return;
+      console.warn('[Brain Bomb WebRTC] Peer error:', err.type, err.message);
+
+      // If host ID is taken, the room code is already in use
+      if (err.type === 'unavailable-id' && this.isHost) {
+        console.warn('[Brain Bomb WebRTC] Room code already in use');
+      }
+
+      // If peer not found, host doesn't exist yet
+      if (err.type === 'peer-unavailable' && !this.isHost) {
+        console.warn('[Brain Bomb WebRTC] Host not found for room:', this.roomCode);
+      }
+    });
+
+    // Host listens for incoming connections
+    if (this.isHost) {
+      this.peer.on('connection', (conn) => {
+        if (this.destroyed) return;
+        this.setupConnection(conn);
       });
-    }, 5000);
+    }
+  }
+
+  private setupConnection(conn: DataConnection) {
+    conn.on('open', () => {
+      if (this.destroyed) return;
+      const remotePeerId = conn.peer.replace(PEER_PREFIX, '');
+      this.connections.set(remotePeerId, conn);
+      this.onPeerConnected(remotePeerId);
+    });
+
+    conn.on('data', (data) => {
+      if (this.destroyed) return;
+      const msg = data as PeerMessage;
+      if (msg.senderId === this.peerId) return;
+
+      this.onMessage(msg);
+
+      // Host relays messages to all other connected peers
+      if (this.isHost) {
+        const senderConnId = conn.peer.replace(PEER_PREFIX, '');
+        for (const [id, c] of this.connections) {
+          if (id !== senderConnId && c.open) {
+            try { c.send(data); } catch { /* closed */ }
+          }
+        }
+      }
+    });
+
+    conn.on('close', () => {
+      const remotePeerId = conn.peer.replace(PEER_PREFIX, '');
+      this.connections.delete(remotePeerId);
+      if (!this.destroyed) {
+        this.onPeerDisconnected(remotePeerId);
+      }
+    });
+
+    conn.on('error', () => {
+      const remotePeerId = conn.peer.replace(PEER_PREFIX, '');
+      this.connections.delete(remotePeerId);
+    });
   }
 
   send(msg: PeerMessage) {
-    try {
-      this.channel.postMessage(msg);
-    } catch {
-      // Channel closed
+    for (const [, conn] of this.connections) {
+      if (conn.open) {
+        try { conn.send(msg); } catch { /* closed */ }
+      }
     }
   }
 
@@ -104,17 +167,19 @@ export class GameRoom {
   }
 
   destroy() {
-    if (this.heartbeatInterval) clearInterval(this.heartbeatInterval);
-    try {
-      this.channel.close();
-    } catch {
-      // Already closed
+    this.destroyed = true;
+    for (const [, conn] of this.connections) {
+      try { conn.close(); } catch { /* already closed */ }
     }
-    this.connectedPeers.clear();
+    this.connections.clear();
+    if (this.peer) {
+      try { this.peer.destroy(); } catch { /* already destroyed */ }
+      this.peer = null;
+    }
   }
 
   getPeerCount(): number {
-    return this.connectedPeers.size;
+    return this.connections.size;
   }
 }
 

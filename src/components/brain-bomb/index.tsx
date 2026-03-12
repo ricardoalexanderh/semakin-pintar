@@ -102,6 +102,8 @@ const BrainBombGame: React.FC = () => {
           const payload = msg.payload as { name: string; avatar: string };
           setPlayers((prev) => {
             if (prev.length >= 8) return prev;
+            // Prevent duplicate players
+            if (prev.some((p) => p.peerId === msg.senderId)) return prev;
             return [
               ...prev,
               {
@@ -124,15 +126,19 @@ const BrainBombGame: React.FC = () => {
           setSettings(msg.payload as LobbySettings);
         }
       },
-      () => {
-        // Peer connected
+      (peerId) => {
+        // Peer connected via WebRTC
+        console.log('[Brain Bomb] Peer connected:', peerId);
+      },
+      (peerId) => {
+        // Peer disconnected
+        console.log('[Brain Bomb] Peer disconnected:', peerId);
       },
       () => {
-        // Peer disconnected
+        // WebRTC peer is ready (connected to signaling server)
+        setRoomReady(true);
       },
     );
-
-    setRoomReady(true);
 
     return () => {
       roomRef.current?.destroy();
