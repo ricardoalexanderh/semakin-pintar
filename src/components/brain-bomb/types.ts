@@ -18,6 +18,9 @@ export interface Player {
   usedPowerupThisRound: boolean;
   isLocal: boolean;
   peerId?: string;
+  shieldActive?: boolean;
+  timePenalty?: number;
+  shuffleNextRound?: boolean;
 }
 
 export interface Powerups {
@@ -75,7 +78,9 @@ export type PeerMessageType =
   | 'chain-answer'
   | 'sabotage-applied'
   | 'clone-target'
-  | 'lobby-settings';
+  | 'lobby-settings'
+  | 'game-over'
+  | 'return-lobby';
 
 export interface PeerMessage {
   type: PeerMessageType;

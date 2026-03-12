@@ -33,6 +33,7 @@ interface SyncState {
   overlay: OverlayType;
   explosionInfo: { name: string; message: string };
   chainQuestion: Question | null;
+  gameOver?: boolean;
 }
 
 type OverlayType = 'none' | 'explosion' | 'chain' | 'sabotage' | 'clone';
@@ -57,6 +58,9 @@ const GameScreen: React.FC<GameScreenProps> = ({
       sabotages: 0,
       usedPowerupThisRound: false,
       powerups: { shield: 1, freeze: 1, clone: 1 },
+      shieldActive: false,
+      timePenalty: 0,
+      shuffleNextRound: false,
     })),
   );
 
@@ -116,17 +120,28 @@ const GameScreen: React.FC<GameScreenProps> = ({
     ov: OverlayType,
     ei: { name: string; message: string },
     cq: Question | null,
+    gameOver = false,
   ) => {
     if (!isHost || !gameRoom) return;
-    const state: SyncState = { players: p, round: r, overlay: ov, explosionInfo: ei, chainQuestion: cq };
+    const state: SyncState = { players: p, round: r, overlay: ov, explosionInfo: ei, chainQuestion: cq, gameOver };
     gameRoom.broadcast('game-state', state);
   }, [isHost, gameRoom]);
+
+  // Broadcast game over to guests, then call onGameOver locally
+  const broadcastGameOver = useCallback((finalPlayers: Player[]) => {
+    broadcastState(finalPlayers, roundRef.current, 'none', explosionInfoRef.current, null, true);
+    onGameOver(finalPlayers);
+  }, [broadcastState, onGameOver]);
 
   // Handle sync messages passed from parent via gameRoom.gameSyncHandler
   // Not memoized so it always captures fresh closures to handleAnswer, usePowerup, etc.
   const handleSyncMessage = (msg: PeerMessage) => {
     if (msg.type === 'game-state' && !isHost) {
       const state = msg.payload as SyncState;
+      if (state.gameOver) {
+        onGameOver(state.players);
+        return;
+      }
       setPlayers(state.players);
       setRound(state.round);
       setOverlay(state.overlay);
@@ -166,6 +181,16 @@ const GameScreen: React.FC<GameScreenProps> = ({
       };
     }
   }, [gameRoom]);
+
+  // Broadcast initial state to guests immediately on mount
+  useEffect(() => {
+    if (!isHost || !gameRoom) return;
+    const t = setTimeout(() => {
+      broadcastState(playersRef.current, roundRef.current, overlayRef.current, explosionInfoRef.current, chainQuestionRef.current);
+    }, 100);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isHost, gameRoom]);
 
   // Timer logic (host only runs timer, guests get state via sync)
   useEffect(() => {
@@ -217,11 +242,32 @@ const GameScreen: React.FC<GameScreenProps> = ({
 
   const bombExplodes = () => {
     if (timerRef.current) clearInterval(timerRef.current);
-    playSound('explosion', sound);
 
     const curPlayers = playersRef.current;
     const curRound = roundRef.current;
     const cp = curPlayers[curRound.currentPlayerIdx];
+
+    // Shield blocks the explosion
+    if (cp.shieldActive) {
+      playSound('powerup', sound);
+      const shieldedPlayers = curPlayers.map((p, i) =>
+        i === curRound.currentPlayerIdx ? { ...p, shieldActive: false } : p
+      );
+      setPlayers(shieldedPlayers);
+      const ei = { name: cp.name, message: `${cp.name}'s shield blocked the explosion!` };
+      setExplosionInfo(ei);
+      setOverlay('explosion');
+      const newRound = { ...curRound, answered: true };
+      setRound(newRound);
+      broadcastState(shieldedPlayers, newRound, 'explosion', ei, chainQuestionRef.current);
+      setTimeout(() => {
+        setOverlay('none');
+        passToNextRef.current(shieldedPlayers);
+      }, 1500);
+      return;
+    }
+
+    playSound('explosion', sound);
 
     const newPlayers = curPlayers.map((p, i) => {
       if (i !== curRound.currentPlayerIdx) return p;
@@ -251,8 +297,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
 
       const remaining = newPlayers.filter((p) => !p.eliminated);
       if (remaining.length <= 1) {
-        onGameOver(newPlayers);
-        broadcastState(newPlayers, newRound, 'none', ei, null);
+        broadcastGameOver(newPlayers);
         return;
       }
 
@@ -278,8 +323,9 @@ const GameScreen: React.FC<GameScreenProps> = ({
   triggerChainReactionRef.current = triggerChainReaction;
 
   const handleRemoteChainAnswer = (idx: number, playerId: string) => {
-    if (!chainQuestion) return;
-    if (idx !== chainQuestion.correct) {
+    const cq = chainQuestionRef.current;
+    if (!cq) return;
+    if (idx !== cq.correct) {
       setPlayers((prev) => {
         const next = prev.map((p) => {
           if (p.id !== playerId) return p;
@@ -324,7 +370,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
         setChainQuestion(null);
         const remaining = playersRef.current.filter((p) => !p.eliminated);
         if (remaining.length <= 1) {
-          onGameOver(playersRef.current);
+          broadcastGameOver(playersRef.current);
           return;
         }
         passToNextRef.current();
@@ -339,7 +385,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
 
     const active = cp.filter((p) => !p.eliminated);
     if (active.length <= 1) {
-      onGameOver(cp);
+      broadcastGameOver(cp);
       return;
     }
 
@@ -348,11 +394,30 @@ const GameScreen: React.FC<GameScreenProps> = ({
       nextIdx = (nextIdx + 1) % cp.length;
     } while (cp[nextIdx].eliminated);
 
-    const newQuestion = getRandomQuestion(settings.activeSubs, settings.difficulty);
+    const nextPlayer = cp[nextIdx];
+    let newQuestion = getRandomQuestion(settings.activeSubs, settings.difficulty);
+
+    // Apply shuffle sabotage: randomize answer positions
+    if (nextPlayer.shuffleNextRound) {
+      const indices = newQuestion.a.map((_, i) => i);
+      // Fisher-Yates shuffle
+      for (let i = indices.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [indices[i], indices[j]] = [indices[j], indices[i]];
+      }
+      const shuffledAnswers = indices.map((i) => newQuestion.a[i]);
+      const newCorrect = indices.indexOf(newQuestion.correct);
+      newQuestion = { ...newQuestion, a: shuffledAnswers, correct: newCorrect };
+    }
+
+    // Apply time penalty sabotage
+    const penalty = nextPlayer.timePenalty || 0;
+    const adjustedTime = Math.max(5, maxTime - penalty);
+
     const newRound: RoundState = {
       currentPlayerIdx: nextIdx,
       question: newQuestion,
-      timeLeft: maxTime,
+      timeLeft: adjustedTime,
       maxTime,
       answered: false,
       answerIdx: null,
@@ -361,7 +426,13 @@ const GameScreen: React.FC<GameScreenProps> = ({
     };
     setRound(newRound);
 
-    const newPlayers = cp.map((p) => ({ ...p, usedPowerupThisRound: false }));
+    // Clear effects and reset round state
+    const newPlayers = cp.map((p, i) => ({
+      ...p,
+      usedPowerupThisRound: false,
+      timePenalty: i === nextIdx ? 0 : p.timePenalty,
+      shuffleNextRound: i === nextIdx ? false : p.shuffleNextRound,
+    }));
     setPlayers(newPlayers);
     broadcastState(newPlayers, newRound, 'none', { name: '', message: '' }, null);
   };
@@ -457,7 +528,12 @@ const GameScreen: React.FC<GameScreenProps> = ({
 
     if (type === 'shield') {
       showToast('\uD83D\uDEE1\uFE0F Shield activated! Next explosion blocked!');
-      broadcastState(newPlayers, curRound, overlayRef.current, explosionInfoRef.current, chainQuestionRef.current);
+      // Mark shield as active on the current player
+      const shieldedPlayers = newPlayers.map((p, i) =>
+        i === curRound.currentPlayerIdx ? { ...p, shieldActive: true } : p
+      );
+      setPlayers(shieldedPlayers);
+      broadcastState(shieldedPlayers, curRound, overlayRef.current, explosionInfoRef.current, chainQuestionRef.current);
     } else if (type === 'freeze') {
       showToast('\u2744\uFE0F Timer frozen for 5 seconds!');
       const newRound = { ...curRound, frozen: true };
@@ -477,12 +553,31 @@ const GameScreen: React.FC<GameScreenProps> = ({
   };
 
   const handleCloneTarget = (targetId: string) => {
-    const target = playersRef.current.find((p) => p.id === targetId);
-    if (target) {
-      showToast(`\uD83D\uDC65 Bomb cloned to ${target.name}!`);
-    }
+    const curPlayers = playersRef.current;
+    const curRound = roundRef.current;
+    const targetIdx = curPlayers.findIndex((p) => p.id === targetId);
+    const target = curPlayers[targetIdx];
+    if (!target) return;
+
+    showToast(`\uD83D\uDC65 Bomb cloned to ${target.name}!`);
     setOverlay('none');
-    broadcastState(playersRef.current, roundRef.current, 'none', explosionInfoRef.current, chainQuestionRef.current);
+
+    // Pass the bomb directly to the target player with a new question
+    const newQuestion = getRandomQuestion(settings.activeSubs, settings.difficulty);
+    const newRound: RoundState = {
+      currentPlayerIdx: targetIdx,
+      question: newQuestion,
+      timeLeft: maxTime,
+      maxTime,
+      answered: false,
+      answerIdx: null,
+      round: curRound.round + 1,
+      frozen: false,
+    };
+    setRound(newRound);
+    const newPlayers = curPlayers.map((p) => ({ ...p, usedPowerupThisRound: false }));
+    setPlayers(newPlayers);
+    broadcastState(newPlayers, newRound, 'none', { name: '', message: '' }, null);
   };
 
   const handleSabotage = (type: 'shuffle' | 'timebomb', targetId: string, fromRemote = false) => {
@@ -504,8 +599,16 @@ const GameScreen: React.FC<GameScreenProps> = ({
 
     const curRound = roundRef.current;
     const newPlayers = playersRef.current.map((p, i) => {
-      if (i !== curRound.currentPlayerIdx) return p;
-      return { ...p, sabotages: Math.max(0, p.sabotages - 1) };
+      // Decrement sabotage count for the current player
+      if (i === curRound.currentPlayerIdx) {
+        return { ...p, sabotages: Math.max(0, p.sabotages - 1) };
+      }
+      // Apply effect to target
+      if (p.id === targetId) {
+        if (type === 'timebomb') return { ...p, timePenalty: (p.timePenalty || 0) + 10 };
+        if (type === 'shuffle') return { ...p, shuffleNextRound: true };
+      }
+      return p;
     });
     setPlayers(newPlayers);
     setOverlay('none');

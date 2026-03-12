@@ -131,6 +131,9 @@ const BrainBombGame: React.FC = () => {
           setSettings(payload.settings);
           setPlayers(payload.players);
           setPhase('countdown');
+        } else if (msg.type === 'return-lobby') {
+          setPhase('lobby');
+          setFinalPlayers([]);
         } else if (['game-state', 'answer-submitted', 'powerup-used', 'chain-answer', 'sabotage-applied'].includes(msg.type)) {
           // Forward game messages to GameScreen's sync handler
           const room = roomRef.current as unknown as { gameSyncHandler?: (m: typeof msg) => void };
@@ -279,6 +282,10 @@ const BrainBombGame: React.FC = () => {
 
   const handlePlayAgain = useCallback(() => {
     trackButtonClick('play-again', 'brain-bomb-gameover');
+    // Notify guests to return to lobby
+    if (roomRef.current) {
+      roomRef.current.broadcast('return-lobby', {});
+    }
     setPhase('lobby');
     setFinalPlayers([]);
   }, []);
