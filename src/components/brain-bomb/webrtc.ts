@@ -61,6 +61,7 @@ export class GameRoom {
       if (msg.type === 'player-join') {
         this.connectedPeers.add(msg.senderId);
         this.onPeerConnected(msg.senderId);
+        this.onMessage(msg); // Forward to handler so host can add the player
         // Host responds with an ack
         if (this.isHost) {
           this.send({ type: 'player-update', payload: { ack: true }, senderId: this.peerId, timestamp: Date.now() });

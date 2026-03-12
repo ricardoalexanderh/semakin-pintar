@@ -242,6 +242,10 @@ const BrainBombGame: React.FC = () => {
       roomRef.current.broadcast('player-join', { name, avatar });
     }
     setHasJoined(true);
+    // Auto-scroll to bottom to hide mobile browser address bar
+    setTimeout(() => {
+      window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+    }, 150);
   }, [joinName]);
 
   return (
