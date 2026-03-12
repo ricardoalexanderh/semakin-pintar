@@ -22,6 +22,7 @@ export default defineConfig({
         '/games/sort-attack',
         '/games/math-flip',
         '/games/mirror-dash',
+        '/games/brain-bomb',
       ],
       lastmod: new Date(),
     }),

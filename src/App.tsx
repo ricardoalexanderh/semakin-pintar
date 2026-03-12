@@ -23,6 +23,7 @@ import MathFlipGame from './components/math-flip';
 import MirrorDash from './components/mirror-dash';
 import PairShift from './components/pair-shift';
 import StackClimber from './components/stack-climber';
+import BrainBombGame from './components/brain-bomb';
 
 // Component to handle page tracking and SEO
 const PageTracker = () => {
@@ -625,6 +626,41 @@ const StackClimberPage = () => {
   );
 };
 
+// Brain Bomb Game page with SEO
+const BrainBombPage = () => {
+  const gameJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Game",
+    "name": "Brain Bomb",
+    "description": "Multiplayer party game where players pass a ticking bomb by answering trivia questions. Wrong answer or time runs out = boom! Last player standing wins.",
+    "url": "https://www.semakinpintar.com/games/brain-bomb",
+    "genre": "Educational",
+    "gamePlatform": "Web Browser",
+    "applicationCategory": "EducationalApplication",
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD"
+    }
+  };
+
+  return (
+    <>
+      <SEOHead
+        title="Brain Bomb - Multiplayer Party Trivia Game | Semakin Pintar"
+        description="Pass the bomb, answer questions, survive! A multiplayer party game for 2-8 players with math, logic, and word challenges. Play on your phones together!"
+        keywords="brain bomb, multiplayer trivia, party game, math quiz, logic game, word game, educational multiplayer, brain training, family game, kids party game"
+        canonicalUrl="https://www.semakinpintar.com/games/brain-bomb"
+        ogTitle="Brain Bomb - Multiplayer Party Trivia Game"
+        ogDescription="Pass the bomb, answer questions, survive! A multiplayer party game for 2-8 players."
+        ogImage="https://www.semakinpintar.com/logo.png"
+        jsonLd={gameJsonLd}
+      />
+      <BrainBombGame />
+    </>
+  );
+};
+
 function App() {
   useEffect(() => {
     // Initialize Google Analytics    
@@ -715,6 +751,11 @@ function App() {
           <Route path="/games/stack-climber" element={
             <GamesLayout>
               <StackClimberPage />
+            </GamesLayout>
+          } />
+          <Route path="/games/brain-bomb" element={
+            <GamesLayout>
+              <BrainBombPage />
             </GamesLayout>
           } />
           <Route path="*" element={
