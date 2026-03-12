@@ -1,5 +1,5 @@
 // ===== Brain Bomb — Lobby Screen =====
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import type { Player, Difficulty, GameMode, LobbySettings } from './types';
 import { DIFFICULTY_CONFIG } from './types';
 import { SUB_DEFS } from './questions';
@@ -14,7 +14,6 @@ interface LobbyScreenProps {
   isHost: boolean;
   localPlayerId: string;
   onUpdateSettings: (settings: LobbySettings) => void;
-  onAddPlayer: () => void;
   onRemovePlayer: (id: string) => void;
   onUpdatePlayerName: (id: string, name: string) => void;
   onStartGame: () => void;
@@ -26,7 +25,6 @@ const LobbyScreen: React.FC<LobbyScreenProps> = ({
   settings,
   isHost,
   onUpdateSettings,
-  onAddPlayer,
   onRemovePlayer,
   onUpdatePlayerName,
   onStartGame,
@@ -66,7 +64,14 @@ const LobbyScreen: React.FC<LobbyScreenProps> = ({
   const enabledSubCount = Object.values(settings.activeSubs).filter(Boolean).length;
   const canStart = players.length >= 2 && enabledSubCount > 0;
 
-  const qrDataUrl = generateQRCodeDataURL(roomCode);
+  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    generateQRCodeDataURL(roomCode).then((url) => {
+      if (!cancelled) setQrDataUrl(url);
+    });
+    return () => { cancelled = true; };
+  }, [roomCode]);
 
   return (
     <div style={{ padding: 24, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0 }}>
@@ -104,7 +109,11 @@ const LobbyScreen: React.FC<LobbyScreenProps> = ({
         <div style={lobbyCard}>
           <h3 style={cardTitle}>{'\uD83D\uDD17'} Room Code</h3>
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-            <img src={qrDataUrl} alt="Room QR Code" style={{ width: 80, height: 80, borderRadius: 12 }} />
+            {qrDataUrl ? (
+              <img src={qrDataUrl} alt="Room QR Code" style={{ width: 80, height: 80, borderRadius: 12 }} />
+            ) : (
+              <div style={{ width: 80, height: 80, borderRadius: 12, background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.7rem', color: C.muted }}>Loading...</div>
+            )}
             <div>
               <div style={{
                 fontFamily: "'Bebas Neue', sans-serif",
@@ -169,19 +178,6 @@ const LobbyScreen: React.FC<LobbyScreenProps> = ({
               </div>
             ))}
           </div>
-          {isHost && players.length < 8 && (
-            <button
-              onClick={() => { onAddPlayer(); playSound('uiClick', sound); }}
-              style={{
-                width: '100%', padding: 12, background: 'none',
-                border: '1.5px dashed rgba(255,255,255,0.15)', borderRadius: 12,
-                color: C.muted, fontFamily: "'Nunito', sans-serif",
-                fontSize: '0.85rem', fontWeight: 700, cursor: 'pointer', letterSpacing: 1,
-              }}
-            >
-              + Add Player
-            </button>
-          )}
         </div>
 
         {/* Question Types */}

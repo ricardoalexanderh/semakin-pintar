@@ -5,6 +5,7 @@
 // BroadcastChannel as a local signaling mechanism and
 // WebRTC DataChannels for the actual game data.
 
+import QRCode from 'qrcode';
 import type { PeerMessage } from './types';
 
 // Generate a short room code (6 chars)
@@ -116,25 +117,13 @@ export class GameRoom {
   }
 }
 
-// QR code generation using a simple SVG approach (no external dependency)
-export function generateQRCodeDataURL(text: string): string {
-  // Simple QR-like visual using the room code text
-  // For a real QR code, you'd use a library like qrcode.
-  // This generates a URL that can be used as a join link.
-  return `data:image/svg+xml,${encodeURIComponent(
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
-      <rect width="200" height="200" fill="#1e1e24" rx="16"/>
-      <rect x="20" y="20" width="60" height="60" fill="none" stroke="#ff3d3d" stroke-width="6" rx="8"/>
-      <rect x="30" y="30" width="40" height="40" fill="#ff3d3d" rx="4"/>
-      <rect x="120" y="20" width="60" height="60" fill="none" stroke="#ff3d3d" stroke-width="6" rx="8"/>
-      <rect x="130" y="30" width="40" height="40" fill="#ff3d3d" rx="4"/>
-      <rect x="20" y="120" width="60" height="60" fill="none" stroke="#ff3d3d" stroke-width="6" rx="8"/>
-      <rect x="30" y="130" width="40" height="40" fill="#ff3d3d" rx="4"/>
-      <text x="100" y="108" text-anchor="middle" fill="#f0f0f5" font-family="monospace" font-size="20" font-weight="bold">${text}</text>
-      <rect x="120" y="120" width="20" height="20" fill="#ff9500" rx="2"/>
-      <rect x="145" y="120" width="20" height="20" fill="#ff3d3d" rx="2"/>
-      <rect x="120" y="145" width="20" height="20" fill="#ff3d3d" rx="2"/>
-      <rect x="145" y="145" width="20" height="20" fill="#ff9500" rx="2"/>
-    </svg>`,
-  )}`;
+// Generate a real scannable QR code as a data URL
+export async function generateQRCodeDataURL(roomCode: string): Promise<string> {
+  const joinUrl = `${window.location.origin}${window.location.pathname}?room=${roomCode}`;
+  return QRCode.toDataURL(joinUrl, {
+    width: 200,
+    margin: 1,
+    color: { dark: '#ff3d3dff', light: '#1e1e24ff' },
+    errorCorrectionLevel: 'M',
+  });
 }

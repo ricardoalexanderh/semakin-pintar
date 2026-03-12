@@ -147,29 +147,6 @@ const BrainBombGame: React.FC = () => {
     }
   }, [settings, isHost]);
 
-  const handleAddPlayer = useCallback(() => {
-    setPlayers((prev) => {
-      if (prev.length >= 8) return prev;
-      const idx = prev.length;
-      return [
-        ...prev,
-        {
-          id: nextPlayerId(),
-          name: `Player ${idx + 1}`,
-          avatar: AVATARS[idx % AVATARS.length],
-          color: PLAYER_COLORS[idx % PLAYER_COLORS.length],
-          lives: DIFFICULTY_CONFIG[settings.difficulty].lives,
-          score: 0,
-          eliminated: false,
-          sabotages: 0,
-          powerups: { shield: 1, freeze: 1, clone: 1 },
-          usedPowerupThisRound: false,
-          isLocal: true,
-        },
-      ];
-    });
-  }, [settings.difficulty]);
-
   const handleRemovePlayer = useCallback((id: string) => {
     setPlayers((prev) => {
       if (prev.length <= 2) return prev;
@@ -240,7 +217,6 @@ const BrainBombGame: React.FC = () => {
           isHost={isHost}
           localPlayerId={localPlayerId}
           onUpdateSettings={setSettings}
-          onAddPlayer={handleAddPlayer}
           onRemovePlayer={handleRemovePlayer}
           onUpdatePlayerName={handleUpdatePlayerName}
           onStartGame={handleStartGame}
