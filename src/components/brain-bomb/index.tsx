@@ -60,6 +60,7 @@ const BrainBombGame: React.FC = () => {
   const [settings, setSettings] = useState<LobbySettings>(DEFAULT_SETTINGS);
   const [players, setPlayers] = useState<Player[]>([]);
   const [finalPlayers, setFinalPlayers] = useState<Player[]>([]);
+  const [countdown, setCountdown] = useState(3);
 
   const roomRef = useRef<GameRoom | null>(null);
   const startTimeRef = useRef<number>(0);
@@ -124,6 +125,11 @@ const BrainBombGame: React.FC = () => {
           });
         } else if (msg.type === 'lobby-settings') {
           setSettings(msg.payload as LobbySettings);
+        } else if (msg.type === 'game-start') {
+          const payload = msg.payload as { settings: LobbySettings; players: Player[] };
+          setSettings(payload.settings);
+          setPlayers(payload.players);
+          setPhase('countdown');
         }
       },
       (peerId) => {
@@ -152,6 +158,23 @@ const BrainBombGame: React.FC = () => {
       roomRef.current.broadcast('lobby-settings', settings);
     }
   }, [settings, isHost]);
+
+  // Countdown timer: 3 → 2 → 1 → playing
+  useEffect(() => {
+    if (phase !== 'countdown') return;
+    setCountdown(3);
+    const interval = setInterval(() => {
+      setCountdown((prev) => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          setPhase('playing');
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [phase]);
 
   // --- Menu actions ---
 
@@ -217,7 +240,7 @@ const BrainBombGame: React.FC = () => {
       roomRef.current.broadcast('game-start', { settings, players });
     }
 
-    setPhase('playing');
+    setPhase('countdown');
   }, [settings, players]);
 
   const handleGameOver = useCallback((finalP: Player[]) => {
@@ -433,6 +456,37 @@ const BrainBombGame: React.FC = () => {
           onUpdatePlayerName={handleUpdatePlayerName}
           onStartGame={handleStartGame}
         />
+      )}
+
+      {/* Countdown */}
+      {phase === 'countdown' && (
+        <div style={{
+          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+          minHeight: '60vh', gap: 24, padding: 24,
+        }}>
+          <div key={countdown} style={{
+            fontSize: 'clamp(8rem, 30vw, 14rem)',
+            fontFamily: "'Bebas Neue', sans-serif",
+            fontWeight: 900,
+            lineHeight: 1,
+            background: `linear-gradient(135deg, ${C.accent} 0%, ${C.accent2} 50%, ${C.yellow} 100%)`,
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            filter: 'drop-shadow(0 0 60px rgba(255,61,61,0.5))',
+            animation: 'bb-pop-in 0.4s ease',
+          }}>
+            {countdown}
+          </div>
+          <div style={{
+            fontFamily: "'Space Mono', monospace",
+            fontSize: '1rem',
+            letterSpacing: 4,
+            color: C.muted,
+            textTransform: 'uppercase',
+          }}>
+            Get Ready...
+          </div>
+        </div>
       )}
 
       {phase === 'playing' && (

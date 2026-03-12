@@ -2,7 +2,7 @@
 
 export type Difficulty = 'easy' | 'medium' | 'hard';
 export type GameMode = 'classic' | 'team' | 'speed' | 'sudden';
-export type GamePhase = 'menu' | 'lobby' | 'playing' | 'chainReaction' | 'gameover';
+export type GamePhase = 'menu' | 'lobby' | 'countdown' | 'playing' | 'chainReaction' | 'gameover';
 export type PeerRole = 'host' | 'guest';
 
 export interface Player {
