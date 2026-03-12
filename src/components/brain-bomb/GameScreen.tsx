@@ -158,6 +158,9 @@ const GameScreen: React.FC<GameScreenProps> = ({
       } else if (msg.type === 'chain-answer') {
         const { answerIdx, playerId } = msg.payload as { answerIdx: number; playerId: string };
         handleRemoteChainAnswer(answerIdx, playerId);
+      } else if (msg.type === 'clone-target') {
+        const { targetId } = msg.payload as { targetId: string };
+        handleCloneTarget(targetId, true);
       } else if (msg.type === 'sabotage-applied') {
         const { sabotageType, targetId } = msg.payload as { sabotageType: string; targetId: string };
         if (sabotageType === 'skip') {
@@ -552,7 +555,16 @@ const GameScreen: React.FC<GameScreenProps> = ({
     }
   };
 
-  const handleCloneTarget = (targetId: string) => {
+  const handleCloneTarget = (targetId: string, fromRemote = false) => {
+    // Guest sends clone target selection to host via WebRTC
+    if (!isHost && !fromRemote) {
+      if (gameRoom) {
+        gameRoom.broadcast('clone-target', { targetId });
+      }
+      return;
+    }
+    if (!isHost) return;
+
     const curPlayers = playersRef.current;
     const curRound = roundRef.current;
     const targetIdx = curPlayers.findIndex((p) => p.id === targetId);
