@@ -130,6 +130,10 @@ const BrainBombGame: React.FC = () => {
           setSettings(payload.settings);
           setPlayers(payload.players);
           setPhase('countdown');
+        } else if (['game-state', 'answer-submitted', 'powerup-used', 'chain-answer'].includes(msg.type)) {
+          // Forward game messages to GameScreen's sync handler
+          const room = roomRef.current as unknown as { gameSyncHandler?: (m: typeof msg) => void };
+          room?.gameSyncHandler?.(msg);
         }
       },
       (peerId) => {
@@ -158,6 +162,15 @@ const BrainBombGame: React.FC = () => {
       roomRef.current.broadcast('lobby-settings', settings);
     }
   }, [settings, isHost]);
+
+  // Auto-scroll to bottom on game start
+  useEffect(() => {
+    if (phase === 'countdown' || phase === 'playing') {
+      setTimeout(() => {
+        window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+      }, 150);
+    }
+  }, [phase]);
 
   // Countdown timer: 3 → 2 → 1 → playing
   useEffect(() => {
@@ -495,6 +508,8 @@ const BrainBombGame: React.FC = () => {
           settings={settings}
           localPlayerId={localPlayerId}
           onGameOver={handleGameOver}
+          gameRoom={roomRef.current}
+          isHost={isHost}
         />
       )}
 

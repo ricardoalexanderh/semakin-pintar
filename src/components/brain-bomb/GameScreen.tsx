@@ -1,16 +1,19 @@
 // ===== Brain Bomb — Game Screen (Active Player + Waiting) =====
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import type { Player, Question, LobbySettings } from './types';
+import type { Player, Question, LobbySettings, PeerMessage } from './types';
 import { DIFFICULTY_CONFIG } from './types';
 import { getRandomQuestion } from './questions';
 import { playSound } from './audio';
 import { C, playerChip, overlayBase, powerupBtn } from './styles';
+import type { GameRoom } from './webrtc';
 
 interface GameScreenProps {
   players: Player[];
   settings: LobbySettings;
   localPlayerId: string;
   onGameOver: (players: Player[]) => void;
+  gameRoom?: GameRoom | null;
+  isHost: boolean;
 }
 
 interface RoundState {
@@ -24,6 +27,14 @@ interface RoundState {
   frozen: boolean;
 }
 
+interface SyncState {
+  players: Player[];
+  round: RoundState;
+  overlay: OverlayType;
+  explosionInfo: { name: string; message: string };
+  chainQuestion: Question | null;
+}
+
 type OverlayType = 'none' | 'explosion' | 'chain' | 'sabotage' | 'clone';
 
 const GameScreen: React.FC<GameScreenProps> = ({
@@ -31,6 +42,8 @@ const GameScreen: React.FC<GameScreenProps> = ({
   settings,
   localPlayerId,
   onGameOver,
+  gameRoom,
+  isHost,
 }) => {
   const [players, setPlayers] = useState<Player[]>(() =>
     initialPlayers.map((p) => ({
@@ -78,19 +91,66 @@ const GameScreen: React.FC<GameScreenProps> = ({
     setTimeout(() => setToastVisible(false), 2500);
   }, []);
 
-  // Timer logic
+  // --- Sync: Host broadcasts state after changes ---
+  const broadcastState = useCallback((
+    p: Player[],
+    r: RoundState,
+    ov: OverlayType,
+    ei: { name: string; message: string },
+    cq: Question | null,
+  ) => {
+    if (!isHost || !gameRoom) return;
+    const state: SyncState = { players: p, round: r, overlay: ov, explosionInfo: ei, chainQuestion: cq };
+    gameRoom.broadcast('game-state', state);
+  }, [isHost, gameRoom]);
+
+  // Handle sync messages passed from parent via gameRoom.gameSyncHandler
+  // Not memoized so it always captures fresh closures to handleAnswer, usePowerup, etc.
+  const handleSyncMessage = (msg: PeerMessage) => {
+    if (msg.type === 'game-state' && !isHost) {
+      const state = msg.payload as SyncState;
+      setPlayers(state.players);
+      setRound(state.round);
+      setOverlay(state.overlay);
+      setExplosionInfo(state.explosionInfo);
+      setChainQuestion(state.chainQuestion);
+    } else if (isHost) {
+      // Host receives actions from guests
+      if (msg.type === 'answer-submitted') {
+        const { answerIdx } = msg.payload as { answerIdx: number };
+        handleAnswer(answerIdx, true);
+      } else if (msg.type === 'powerup-used') {
+        const { type } = msg.payload as { type: 'shield' | 'freeze' | 'clone' };
+        usePowerup(type, true);
+      } else if (msg.type === 'chain-answer') {
+        const { answerIdx, playerId } = msg.payload as { answerIdx: number; playerId: string };
+        handleRemoteChainAnswer(answerIdx, playerId);
+      }
+    }
+  };
+
+  // Expose handleSyncMessage via ref so parent can call it
+  const syncRef = useRef(handleSyncMessage);
+  syncRef.current = handleSyncMessage;
+
+  // Store syncRef on gameRoom for parent to access
   useEffect(() => {
+    if (gameRoom) {
+      (gameRoom as unknown as { gameSyncHandler: (msg: PeerMessage) => void }).gameSyncHandler = (msg: PeerMessage) => {
+        syncRef.current(msg);
+      };
+    }
+  }, [gameRoom]);
+
+  // Timer logic (host only runs timer, guests get state via sync)
+  useEffect(() => {
+    if (!isHost) return; // Guests don't run timer
     if (round.answered || overlay !== 'none') return;
 
     timerRef.current = setInterval(() => {
       setRound((prev) => {
         if (prev.frozen) return prev;
         const newTime = prev.timeLeft - 1;
-
-        // Play tick sounds
-        if (newTime <= 3 && newTime > 0) playSound('tickDanger', sound);
-        else if (newTime <= 8 && newTime > 3) playSound('tickFast', sound);
-        else if (newTime > 8) playSound('tick', sound);
 
         if (newTime <= 0) {
           return { ...prev, timeLeft: 0 };
@@ -102,15 +162,49 @@ const GameScreen: React.FC<GameScreenProps> = ({
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [round.answered, round.frozen, overlay, sound]);
+  }, [round.answered, round.frozen, overlay, isHost]);
 
-  // Check if timer hit 0
+  // Play tick sounds (both host and guest based on round state)
   useEffect(() => {
+    if (round.answered || overlay !== 'none') return;
+    if (round.timeLeft <= 3 && round.timeLeft > 0) playSound('tickDanger', sound);
+    else if (round.timeLeft <= 8 && round.timeLeft > 3) playSound('tickFast', sound);
+    else if (round.timeLeft > 8) playSound('tick', sound);
+  }, [round.timeLeft, round.answered, overlay, sound]);
+
+  // Check if timer hit 0 (host only)
+  useEffect(() => {
+    if (!isHost) return;
     if (round.timeLeft <= 0 && !round.answered && overlay === 'none') {
       bombExplodes();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [round.timeLeft]);
+  }, [round.timeLeft, isHost]);
+
+  // Host syncs state periodically and after changes
+  const syncAfterUpdate = useCallback((
+    newPlayers?: Player[],
+    newRound?: RoundState,
+    newOverlay?: OverlayType,
+    newExplosion?: { name: string; message: string },
+    newChain?: Question | null,
+  ) => {
+    // Use current state for any not provided
+    const p = newPlayers ?? players;
+    const r = newRound ?? round;
+    const o = newOverlay ?? overlay;
+    const e = newExplosion ?? explosionInfo;
+    const c = newChain !== undefined ? newChain : chainQuestion;
+    broadcastState(p, r, o, e, c);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [broadcastState, players, round, overlay, explosionInfo, chainQuestion]);
+
+  // Sync timer state to guests every second
+  useEffect(() => {
+    if (!isHost || !gameRoom) return;
+    syncAfterUpdate(undefined, round);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [round.timeLeft, isHost]);
 
   const bombExplodes = useCallback(() => {
     if (timerRef.current) clearInterval(timerRef.current);
@@ -118,197 +212,238 @@ const GameScreen: React.FC<GameScreenProps> = ({
 
     const cp = players[round.currentPlayerIdx];
 
-    // Check shield
-    if (cp.powerups.shield > 0 && cp.usedPowerupThisRound) {
-      // Shield was already applied via usePowerup
-    }
-
-    setPlayers((prev) => {
-      const next = [...prev];
-      const idx = round.currentPlayerIdx;
-      next[idx] = { ...next[idx], lives: next[idx].lives - 1 };
-      if (next[idx].lives <= 0 || settings.mode === 'sudden') {
-        next[idx] = { ...next[idx], eliminated: true };
-      }
-      return next;
+    const newPlayers = players.map((p, i) => {
+      if (i !== round.currentPlayerIdx) return p;
+      const newLives = p.lives - 1;
+      return {
+        ...p,
+        lives: newLives,
+        eliminated: newLives <= 0 || settings.mode === 'sudden',
+      };
     });
+
+    setPlayers(newPlayers);
 
     const isEliminated = cp.lives - 1 <= 0 || settings.mode === 'sudden';
-    setExplosionInfo({
+    const ei = {
       name: cp.name,
       message: isEliminated ? `${cp.name} is ELIMINATED! \uD83D\uDC80` : `${cp.name} loses a life!`,
-    });
+    };
+    setExplosionInfo(ei);
     setOverlay('explosion');
-    setRound((prev) => ({ ...prev, answered: true }));
+    const newRound = { ...round, answered: true };
+    setRound(newRound);
+    broadcastState(newPlayers, newRound, 'explosion', ei, chainQuestion);
 
     setTimeout(() => {
       setOverlay('none');
 
-      // Check for game over
-      const remaining = players.filter((p, i) => {
-        if (i === round.currentPlayerIdx) return (p.lives - 1) > 0 && settings.mode !== 'sudden';
-        return !p.eliminated;
-      });
-
+      const remaining = newPlayers.filter((p) => !p.eliminated);
       if (remaining.length <= 1) {
-        onGameOver(players.map((p, i) => {
-          if (i === round.currentPlayerIdx) return { ...p, lives: Math.max(0, p.lives - 1), eliminated: p.lives - 1 <= 0 || settings.mode === 'sudden' };
-          return p;
-        }));
+        onGameOver(newPlayers);
+        broadcastState(newPlayers, newRound, 'none', ei, null);
         return;
       }
 
       // Chain reaction?
       if (settings.enableChainReaction && Math.random() > 0.4) {
-        triggerChainReaction();
+        triggerChainReaction(newPlayers);
       } else {
-        passToNext();
+        passToNext(newPlayers);
       }
     }, 2000);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [players, round.currentPlayerIdx, settings, sound]);
+  }, [players, round, settings, sound, broadcastState]);
 
-  const triggerChainReaction = () => {
+  const triggerChainReaction = (currentPlayers?: Player[]) => {
     const q = getRandomQuestion(settings.activeSubs, settings.difficulty);
     setChainQuestion(q);
     setChainAnswered(false);
     setOverlay('chain');
+    broadcastState(currentPlayers ?? players, round, 'chain', explosionInfo, q);
+  };
+
+  const handleRemoteChainAnswer = (idx: number, playerId: string) => {
+    if (!chainQuestion) return;
+    if (idx !== chainQuestion.correct) {
+      setPlayers((prev) => {
+        const next = prev.map((p) => {
+          if (p.id !== playerId) return p;
+          const newLives = Math.max(0, p.lives - 1);
+          return { ...p, lives: newLives, eliminated: newLives <= 0 };
+        });
+        return next;
+      });
+    }
   };
 
   const handleChainAnswer = (idx: number) => {
     if (chainAnswered || !chainQuestion) return;
     setChainAnswered(true);
 
+    if (!isHost && gameRoom) {
+      // Guest sends chain answer to host
+      gameRoom.broadcast('chain-answer', { answerIdx: idx, playerId: localPlayerId });
+    }
+
     if (idx !== chainQuestion.correct) {
       playSound('wrong', sound);
       showToast('Wrong! -1 life for you!');
-      setPlayers((prev) => {
-        const next = [...prev];
-        const localIdx = next.findIndex((p) => p.id === localPlayerId);
-        if (localIdx >= 0) {
-          next[localIdx] = { ...next[localIdx], lives: Math.max(0, next[localIdx].lives - 1) };
-          if (next[localIdx].lives <= 0) next[localIdx].eliminated = true;
-        }
-        return next;
-      });
+      if (isHost) {
+        setPlayers((prev) => {
+          const next = prev.map((p) => {
+            if (p.id !== localPlayerId) return p;
+            const newLives = Math.max(0, p.lives - 1);
+            return { ...p, lives: newLives, eliminated: newLives <= 0 };
+          });
+          return next;
+        });
+      }
     } else {
       playSound('correct', sound);
       showToast('Correct! You survived the chain!');
     }
 
-    setTimeout(() => {
-      setOverlay('none');
-      setChainQuestion(null);
-
-      const remaining = players.filter((p) => !p.eliminated);
-      if (remaining.length <= 1) {
-        onGameOver(players);
-        return;
-      }
-      passToNext();
-    }, 1200);
+    if (isHost) {
+      setTimeout(() => {
+        setOverlay('none');
+        setChainQuestion(null);
+        const remaining = players.filter((p) => !p.eliminated);
+        if (remaining.length <= 1) {
+          onGameOver(players);
+          return;
+        }
+        passToNext();
+      }, 1200);
+    }
   };
 
-  const passToNext = () => {
+  const passToNext = (currentPlayers?: Player[]) => {
     playSound('pass', sound);
+    const cp = currentPlayers ?? players;
 
-    setPlayers((current) => {
-      const active = current.filter((p) => !p.eliminated);
-      if (active.length <= 1) {
-        onGameOver(current);
-        return current;
-      }
+    const active = cp.filter((p) => !p.eliminated);
+    if (active.length <= 1) {
+      onGameOver(cp);
+      return;
+    }
 
-      let nextIdx = round.currentPlayerIdx;
-      do {
-        nextIdx = (nextIdx + 1) % current.length;
-      } while (current[nextIdx].eliminated);
+    let nextIdx = round.currentPlayerIdx;
+    do {
+      nextIdx = (nextIdx + 1) % cp.length;
+    } while (cp[nextIdx].eliminated);
 
-      const newQuestion = getRandomQuestion(settings.activeSubs, settings.difficulty);
+    const newQuestion = getRandomQuestion(settings.activeSubs, settings.difficulty);
+    const newRound: RoundState = {
+      currentPlayerIdx: nextIdx,
+      question: newQuestion,
+      timeLeft: maxTime,
+      maxTime,
+      answered: false,
+      answerIdx: null,
+      round: round.round + 1,
+      frozen: false,
+    };
+    setRound(newRound);
 
-      setRound({
-        currentPlayerIdx: nextIdx,
-        question: newQuestion,
-        timeLeft: maxTime,
-        maxTime,
-        answered: false,
-        answerIdx: null,
-        round: round.round + 1,
-        frozen: false,
-      });
-
-      // Reset usedPowerupThisRound for all players
-      return current.map((p) => ({ ...p, usedPowerupThisRound: false }));
-    });
+    const newPlayers = cp.map((p) => ({ ...p, usedPowerupThisRound: false }));
+    setPlayers(newPlayers);
+    broadcastState(newPlayers, newRound, 'none', { name: '', message: '' }, null);
   };
 
-  const handleAnswer = (idx: number) => {
-    if (round.answered || !isLocalTurn) return;
+  const handleAnswer = (idx: number, fromRemote = false) => {
+    if (round.answered) return;
+
+    // Guest sends answer to host via WebRTC
+    if (!isHost && !fromRemote) {
+      if (!isLocalTurn) return;
+      if (gameRoom) {
+        gameRoom.broadcast('answer-submitted', { answerIdx: idx });
+      }
+      return; // Host will process and broadcast state back
+    }
+
+    // Host processes the answer
+    if (!isHost) return;
     if (timerRef.current) clearInterval(timerRef.current);
 
     const isCorrect = idx === round.question.correct;
-    setRound((prev) => ({ ...prev, answered: true, answerIdx: idx }));
+    const newRound = { ...round, answered: true, answerIdx: idx };
+    setRound(newRound);
 
     if (isCorrect) {
       playSound('correct', sound);
-      // Update score
-      setPlayers((prev) => {
-        const next = [...prev];
-        const ci = round.currentPlayerIdx;
-        next[ci] = { ...next[ci], score: next[ci].score + 10 + round.timeLeft };
-
-        // Check for sabotage earn: >70% time remaining, no powerup used
-        if (settings.enableSabotage && !next[ci].usedPowerupThisRound && round.timeLeft > maxTime * 0.7) {
-          next[ci] = { ...next[ci], sabotages: next[ci].sabotages + 1 };
-          // Show sabotage overlay
-          setTimeout(() => {
-            if (next[ci].sabotages > 0) {
-              setOverlay('sabotage');
-            }
-          }, 900);
-        }
-        return next;
+      const newPlayers = players.map((p, i) => {
+        if (i !== round.currentPlayerIdx) return p;
+        const newScore = p.score + 10 + round.timeLeft;
+        const earnedSabotage = settings.enableSabotage && !p.usedPowerupThisRound && round.timeLeft > maxTime * 0.7;
+        return {
+          ...p,
+          score: newScore,
+          sabotages: earnedSabotage ? p.sabotages + 1 : p.sabotages,
+        };
       });
+      setPlayers(newPlayers);
+      broadcastState(newPlayers, newRound, overlay, explosionInfo, chainQuestion);
 
       setTimeout(() => {
-        if (overlay === 'none') {
-          passToNext();
-        }
+        passToNext(newPlayers);
       }, 800);
     } else {
       playSound('wrong', sound);
+      broadcastState(players, newRound, overlay, explosionInfo, chainQuestion);
       setTimeout(() => bombExplodes(), 800);
     }
   };
 
-  const usePowerup = (type: 'shield' | 'freeze' | 'clone') => {
-    if (!isLocalTurn || round.answered) return;
+  const usePowerup = (type: 'shield' | 'freeze' | 'clone', fromRemote = false) => {
+    if (round.answered) return;
+
+    // Guest sends powerup use to host
+    if (!isHost && !fromRemote) {
+      if (!isLocalTurn) return;
+      const cp = players[round.currentPlayerIdx];
+      if (cp.powerups[type] <= 0) return;
+      if (gameRoom) {
+        gameRoom.broadcast('powerup-used', { type });
+      }
+      return;
+    }
+
+    if (!isHost) return;
     const cp = players[round.currentPlayerIdx];
     if (cp.powerups[type] <= 0) return;
 
     playSound('powerup', sound);
 
-    setPlayers((prev) => {
-      const next = [...prev];
-      const ci = round.currentPlayerIdx;
-      next[ci] = {
-        ...next[ci],
+    const newPlayers = players.map((p, i) => {
+      if (i !== round.currentPlayerIdx) return p;
+      return {
+        ...p,
         usedPowerupThisRound: true,
-        powerups: { ...next[ci].powerups, [type]: next[ci].powerups[type] - 1 },
+        powerups: { ...p.powerups, [type]: p.powerups[type] - 1 },
       };
-      return next;
     });
+    setPlayers(newPlayers);
 
     if (type === 'shield') {
       showToast('\uD83D\uDEE1\uFE0F Shield activated! Next explosion blocked!');
+      broadcastState(newPlayers, round, overlay, explosionInfo, chainQuestion);
     } else if (type === 'freeze') {
       showToast('\u2744\uFE0F Timer frozen for 5 seconds!');
-      setRound((prev) => ({ ...prev, frozen: true }));
+      const newRound = { ...round, frozen: true };
+      setRound(newRound);
+      broadcastState(newPlayers, newRound, overlay, explosionInfo, chainQuestion);
       freezeTimeoutRef.current = setTimeout(() => {
-        setRound((prev) => ({ ...prev, frozen: false }));
+        setRound((prev) => {
+          const unfrozen = { ...prev, frozen: false };
+          broadcastState(newPlayers, unfrozen, overlay, explosionInfo, chainQuestion);
+          return unfrozen;
+        });
       }, 5000);
     } else if (type === 'clone') {
       setOverlay('clone');
+      broadcastState(newPlayers, round, 'clone', explosionInfo, chainQuestion);
     }
   };
 
@@ -318,6 +453,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
       showToast(`\uD83D\uDC65 Bomb cloned to ${target.name}!`);
     }
     setOverlay('none');
+    broadcastState(players, round, 'none', explosionInfo, chainQuestion);
   };
 
   const handleSabotage = (type: 'shuffle' | 'timebomb', targetId: string) => {
@@ -327,18 +463,17 @@ const GameScreen: React.FC<GameScreenProps> = ({
     playSound('powerup', sound);
     showToast(`\uD83D\uDC80 ${type === 'shuffle' ? 'Shuffle' : 'Time Bomb'} sent to ${target.name}!`);
 
-    setPlayers((prev) => {
-      const next = [...prev];
-      const ci = round.currentPlayerIdx;
-      next[ci] = { ...next[ci], sabotages: Math.max(0, next[ci].sabotages - 1) };
-      return next;
+    const newPlayers = players.map((p, i) => {
+      if (i !== round.currentPlayerIdx) return p;
+      return { ...p, sabotages: Math.max(0, p.sabotages - 1) };
     });
-
+    setPlayers(newPlayers);
     setOverlay('none');
+
     if (!round.answered) {
-      // Continue game
+      broadcastState(newPlayers, round, 'none', explosionInfo, chainQuestion);
     } else {
-      passToNext();
+      passToNext(newPlayers);
     }
   };
 
