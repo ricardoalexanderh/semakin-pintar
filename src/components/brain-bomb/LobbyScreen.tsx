@@ -108,13 +108,13 @@ const LobbyScreen: React.FC<LobbyScreenProps> = ({
         {/* Room Code + QR */}
         <div style={lobbyCard}>
           <h3 style={cardTitle}>{'\uD83D\uDD17'} Room Code</h3>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
             {qrDataUrl ? (
-              <img src={qrDataUrl} alt="Room QR Code" style={{ width: 80, height: 80, borderRadius: 12 }} />
+              <img src={qrDataUrl} alt="Room QR Code" style={{ width: 180, height: 180, borderRadius: 12 }} />
             ) : (
-              <div style={{ width: 80, height: 80, borderRadius: 12, background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.7rem', color: C.muted }}>Loading...</div>
+              <div style={{ width: 180, height: 180, borderRadius: 12, background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.8rem', color: C.muted }}>Loading...</div>
             )}
-            <div>
+            <div style={{ textAlign: 'center' }}>
               <div style={{
                 fontFamily: "'Bebas Neue', sans-serif",
                 fontSize: '2.5rem',
@@ -125,7 +125,7 @@ const LobbyScreen: React.FC<LobbyScreenProps> = ({
                 {roomCode}
               </div>
               <div style={{ fontSize: '0.75rem', color: C.muted, marginTop: 4 }}>
-                Share this code with friends to join
+                Scan QR or enter code to join
               </div>
             </div>
           </div>

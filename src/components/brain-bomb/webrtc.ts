@@ -122,8 +122,8 @@ export class GameRoom {
 export async function generateQRCodeDataURL(roomCode: string): Promise<string> {
   const joinUrl = `${window.location.origin}${window.location.pathname}?room=${roomCode}`;
   return QRCode.toDataURL(joinUrl, {
-    width: 200,
-    margin: 1,
+    width: 360,
+    margin: 2,
     color: { dark: '#ff3d3dff', light: '#1e1e24ff' },
     errorCorrectionLevel: 'M',
   });
