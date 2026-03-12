@@ -100,15 +100,16 @@ const BrainBombGame: React.FC = () => {
       (msg) => {
         // Handle incoming messages from peers
         if (msg.type === 'player-join') {
-          const payload = msg.payload as { name: string; avatar: string };
+          const payload = msg.payload as { name: string; avatar: string; playerId: string };
+          const playerId = payload.playerId || msg.senderId;
           setPlayers((prev) => {
             if (prev.length >= 8) return prev;
             // Prevent duplicate players
-            if (prev.some((p) => p.peerId === msg.senderId)) return prev;
+            if (prev.some((p) => p.id === playerId || p.peerId === msg.senderId)) return prev;
             return [
               ...prev,
               {
-                id: msg.senderId,
+                id: playerId,
                 name: payload.name || `Player ${prev.length + 1}`,
                 avatar: payload.avatar || AVATARS[prev.length % AVATARS.length],
                 color: PLAYER_COLORS[prev.length % PLAYER_COLORS.length],
@@ -286,7 +287,7 @@ const BrainBombGame: React.FC = () => {
     const name = joinName.trim() || 'Player';
     const avatar = AVATARS[Math.floor(Math.random() * AVATARS.length)];
     if (roomRef.current) {
-      roomRef.current.broadcast('player-join', { name, avatar });
+      roomRef.current.broadcast('player-join', { name, avatar, playerId: localPlayerId });
     }
     setHasJoined(true);
     // Auto-scroll to bottom to hide mobile browser address bar
