@@ -795,7 +795,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
                   cursor: round.answered || !isLocalTurn ? 'default' : 'pointer',
                   textAlign: 'center',
                   animation: anim || 'none',
-                  opacity: (round.answered || !isLocalTurn) && !round.answerIdx && i !== round.question.correct ? 0.6 : 1,
+                  opacity: (round.answered || !isLocalTurn) && round.answerIdx === null && i !== round.question.correct ? 0.6 : 1,
                 }}
               >
                 {ans}
