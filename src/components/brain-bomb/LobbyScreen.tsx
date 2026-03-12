@@ -160,6 +160,7 @@ const LobbyScreen: React.FC<LobbyScreenProps> = ({
                     value={p.name}
                     placeholder="Enter name..."
                     onChange={(e) => onUpdatePlayerName(p.id, e.target.value)}
+                    onBlur={() => { if (!p.name.trim()) onUpdatePlayerName(p.id, 'Player'); }}
                   />
                 ) : (
                   <span style={{ flex: 1, fontWeight: 700, fontSize: '0.95rem' }}>{p.name}</span>

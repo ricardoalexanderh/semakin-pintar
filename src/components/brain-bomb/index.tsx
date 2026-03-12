@@ -54,6 +54,7 @@ const BrainBombGame: React.FC = () => {
   const [localPlayerId] = useState(() => nextPlayerId());
   const [isHost, setIsHost] = useState(() => !initialRoomParam);
   const [hasJoined, setHasJoined] = useState(false);
+  const [roomReady, setRoomReady] = useState(false);
   const [joinName, setJoinName] = useState('');
   const [manualCode, setManualCode] = useState('');
   const [settings, setSettings] = useState<LobbySettings>(DEFAULT_SETTINGS);
@@ -90,6 +91,7 @@ const BrainBombGame: React.FC = () => {
   // Setup WebRTC room when we have a roomCode and are in lobby
   useEffect(() => {
     if (phase === 'menu' || !roomCode) return;
+    setRoomReady(false);
 
     roomRef.current = new GameRoom(
       roomCode,
@@ -130,8 +132,11 @@ const BrainBombGame: React.FC = () => {
       },
     );
 
+    setRoomReady(true);
+
     return () => {
       roomRef.current?.destroy();
+      setRoomReady(false);
     };
   }, [roomCode, isHost, phase]);
 
@@ -190,7 +195,7 @@ const BrainBombGame: React.FC = () => {
 
   const handleUpdatePlayerName = useCallback((id: string, name: string) => {
     setPlayers((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, name: name || `Player` } : p)),
+      prev.map((p) => (p.id === id ? { ...p, name } : p)),
     );
   }, []);
 
@@ -375,18 +380,21 @@ const BrainBombGame: React.FC = () => {
                   fontSize: '1rem', fontWeight: 700, outline: 'none',
                   boxSizing: 'border-box',
                 }}
-                onKeyDown={(e) => { if (e.key === 'Enter') handleJoinRoom(); }}
+                onKeyDown={(e) => { if (e.key === 'Enter' && roomReady) handleJoinRoom(); }}
                 autoFocus
               />
               <button
                 onClick={handleJoinRoom}
+                disabled={!roomReady}
                 style={{
                   ...startBtn,
                   fontSize: '1.1rem',
                   padding: '14px 24px',
+                  opacity: roomReady ? 1 : 0.5,
+                  cursor: roomReady ? 'pointer' : 'not-allowed',
                 }}
               >
-                {'\uD83D\uDE80'} JOIN
+                {roomReady ? '\uD83D\uDE80' : '\u23F3'} {roomReady ? 'JOIN' : 'CONNECTING...'}
               </button>
             </div>
           </div>
