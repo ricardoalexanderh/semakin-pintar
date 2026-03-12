@@ -330,6 +330,13 @@ export const SUB_DEFS: Record<string, { icon: string; label: string; color: stri
   },
 };
 
+// Track used questions to avoid repeats within a session
+const usedQuestions = new Set<string>();
+
+export function resetUsedQuestions(): void {
+  usedQuestions.clear();
+}
+
 export function getRandomQuestion(
   activeSubs: Record<string, boolean>,
   difficulty: Difficulty,
@@ -349,5 +356,16 @@ export function getRandomQuestion(
   const diffPool = pool.filter((q) => q.diff === difficulty);
   const finalPool = diffPool.length > 0 ? diffPool : pool;
 
-  return finalPool[Math.floor(Math.random() * finalPool.length)];
+  // Filter out already-used questions
+  const unused = finalPool.filter((q) => !usedQuestions.has(q.q));
+
+  // If all used, reset and allow all again
+  const pickFrom = unused.length > 0 ? unused : finalPool;
+  if (unused.length === 0) {
+    usedQuestions.clear();
+  }
+
+  const selected = pickFrom[Math.floor(Math.random() * pickFrom.length)];
+  usedQuestions.add(selected.q);
+  return selected;
 }

@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import type { Player, Question, LobbySettings, PeerMessage } from './types';
 import { DIFFICULTY_CONFIG } from './types';
-import { getRandomQuestion } from './questions';
+import { getRandomQuestion, resetUsedQuestions } from './questions';
 import { playSound } from './audio';
 import { C, playerChip, overlayBase, powerupBtn } from './styles';
 import type { GameRoom } from './webrtc';
@@ -45,6 +45,9 @@ const GameScreen: React.FC<GameScreenProps> = ({
   gameRoom,
   isHost,
 }) => {
+  // Reset used questions at game start so we get fresh questions
+  useState(() => { resetUsedQuestions(); return null; });
+
   const [players, setPlayers] = useState<Player[]>(() =>
     initialPlayers.map((p) => ({
       ...p,
@@ -379,10 +382,10 @@ const GameScreen: React.FC<GameScreenProps> = ({
 
     if (isCorrect) {
       playSound('correct', sound);
+      const earnedSabotage = settings.enableSabotage && !curPlayers[curRound.currentPlayerIdx].usedPowerupThisRound && curRound.timeLeft > maxTime * 0.7;
       const newPlayers = curPlayers.map((p, i) => {
         if (i !== curRound.currentPlayerIdx) return p;
         const newScore = p.score + 10 + curRound.timeLeft;
-        const earnedSabotage = settings.enableSabotage && !p.usedPowerupThisRound && curRound.timeLeft > maxTime * 0.7;
         return {
           ...p,
           score: newScore,
@@ -390,11 +393,19 @@ const GameScreen: React.FC<GameScreenProps> = ({
         };
       });
       setPlayers(newPlayers);
-      broadcastState(newPlayers, newRound, overlayRef.current, explosionInfoRef.current, chainQuestionRef.current);
 
-      setTimeout(() => {
-        passToNextRef.current(newPlayers);
-      }, 800);
+      if (earnedSabotage && newPlayers.filter((p) => !p.eliminated).length > 1) {
+        // Show sabotage picker — turn waits until player picks or skips
+        setTimeout(() => {
+          setOverlay('sabotage');
+          broadcastState(newPlayers, newRound, 'sabotage', explosionInfoRef.current, chainQuestionRef.current);
+        }, 800);
+      } else {
+        broadcastState(newPlayers, newRound, overlayRef.current, explosionInfoRef.current, chainQuestionRef.current);
+        setTimeout(() => {
+          passToNextRef.current(newPlayers);
+        }, 800);
+      }
     } else {
       playSound('wrong', sound);
       broadcastState(curPlayers, newRound, overlayRef.current, explosionInfoRef.current, chainQuestionRef.current);
@@ -754,30 +765,38 @@ const GameScreen: React.FC<GameScreenProps> = ({
             <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '2rem', letterSpacing: 3, color: C.accent2, marginBottom: 8 }}>
               {'\uD83C\uDFAF'} SABOTAGE!
             </div>
-            <div style={{ fontSize: '0.85rem', color: C.muted }}>You answered fast &mdash; choose your sabotage!</div>
+            <div style={{ fontSize: '0.85rem', color: C.muted }}>{currentPlayer?.name} answered fast &mdash; choose a sabotage!</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 16 }}>
-              {activePlayers.filter((p) => p.id !== localPlayerId).map((p) => (
-                <React.Fragment key={p.id}>
+              {isLocalTurn ? (
+                <>
+                  {activePlayers.filter((p) => p.id !== currentPlayer?.id).map((p) => (
+                    <React.Fragment key={p.id}>
+                      <button
+                        onClick={() => handleSabotage('shuffle', p.id)}
+                        style={sabotageOptionStyle}
+                      >
+                        <span>{'\uD83D\uDD00'}</span> Shuffle {p.name}'s answers
+                      </button>
+                      <button
+                        onClick={() => handleSabotage('timebomb', p.id)}
+                        style={sabotageOptionStyle}
+                      >
+                        <span>{'\u23F1\uFE0F'}</span> -10s from {p.name}'s timer
+                      </button>
+                    </React.Fragment>
+                  ))}
                   <button
-                    onClick={() => handleSabotage('shuffle', p.id)}
-                    style={sabotageOptionStyle}
+                    onClick={() => { setOverlay('none'); broadcastState(playersRef.current, roundRef.current, 'none', explosionInfoRef.current, chainQuestionRef.current); passToNextRef.current(); }}
+                    style={{ ...sabotageOptionStyle, color: C.muted, borderColor: C.muted }}
                   >
-                    <span>{'\uD83D\uDD00'}</span> Shuffle {p.name}'s answers
+                    Skip sabotage
                   </button>
-                  <button
-                    onClick={() => handleSabotage('timebomb', p.id)}
-                    style={sabotageOptionStyle}
-                  >
-                    <span>{'\u23F1\uFE0F'}</span> -10s from {p.name}'s timer
-                  </button>
-                </React.Fragment>
-              ))}
-              <button
-                onClick={() => { setOverlay('none'); passToNext(); }}
-                style={{ ...sabotageOptionStyle, color: C.muted, borderColor: C.muted }}
-              >
-                Skip sabotage
-              </button>
+                </>
+              ) : (
+                <div style={{ fontSize: '0.9rem', color: C.muted, padding: 16 }}>
+                  Waiting for {currentPlayer?.name} to choose...
+                </div>
+              )}
             </div>
           </div>
         </div>
