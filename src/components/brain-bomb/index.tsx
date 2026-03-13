@@ -225,6 +225,10 @@ const BrainBombGame: React.FC = () => {
     }]);
     setPhase('lobby');
     playSound('uiClick', true);
+    // Auto-scroll to bottom to hide mobile browser address bar
+    setTimeout(() => {
+      window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+    }, 150);
   }, [localPlayerId]);
 
   const handleJoinWithCode = useCallback(() => {
@@ -235,6 +239,10 @@ const BrainBombGame: React.FC = () => {
     setPlayers([]);
     setPhase('lobby');
     playSound('uiClick', true);
+    // Auto-scroll to bottom to hide mobile browser address bar
+    setTimeout(() => {
+      window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+    }, 150);
     // Clear the ?room= param from URL without reload
     const url = new URL(window.location.href);
     url.searchParams.delete('room');

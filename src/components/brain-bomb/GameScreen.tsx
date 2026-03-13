@@ -35,6 +35,7 @@ interface SyncState {
   overlay: OverlayType;
   explosionInfo: { name: string; message: string };
   chainQuestion: Question | null;
+  chainTimeLeft?: number;
   gameOver?: boolean;
 }
 
@@ -95,6 +96,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const chainTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const chainTimeLeftRef = useRef(0);
   const freezeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const blindTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const chainTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -112,6 +114,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
   chainQuestionRef.current = chainQuestion;
   const chainRespondentsRef = useRef(chainRespondents);
   chainRespondentsRef.current = chainRespondents;
+  chainTimeLeftRef.current = chainTimeLeft;
 
   const sound = settings.enableSound;
   const currentPlayer = players[round.currentPlayerIdx];
@@ -134,7 +137,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
     gameOver = false,
   ) => {
     if (!isHost || !gameRoom) return;
-    const state: SyncState = { players: p, round: r, overlay: ov, explosionInfo: ei, chainQuestion: cq, gameOver };
+    const state: SyncState = { players: p, round: r, overlay: ov, explosionInfo: ei, chainQuestion: cq, chainTimeLeft: chainTimeLeftRef.current, gameOver };
     gameRoom.broadcast('game-state', state);
   }, [isHost, gameRoom]);
 
@@ -158,6 +161,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
       setOverlay(state.overlay);
       setExplosionInfo(state.explosionInfo);
       setChainQuestion(state.chainQuestion);
+      if (state.chainTimeLeft != null) setChainTimeLeft(state.chainTimeLeft);
       // Reset chainAnswered when a new chain reaction starts (guest doesn't run triggerChainReaction)
       if (state.overlay === 'chain' && state.chainQuestion) {
         setChainAnswered(false);
@@ -248,9 +252,10 @@ const GameScreen: React.FC<GameScreenProps> = ({
     }
   }, [round.timeLeft, round.answered, overlay, isHost]);
 
-  // Sync timer state to guests every second
+  // Sync timer state to guests every second (skip when timer expired — bombExplodes handles that)
   useEffect(() => {
     if (!isHost || !gameRoom) return;
+    if (round.timeLeft <= 0) return;
     broadcastState(playersRef.current, roundRef.current, overlayRef.current, explosionInfoRef.current, chainQuestionRef.current);
   }, [round.timeLeft, isHost, gameRoom, broadcastState]);
 
@@ -388,7 +393,11 @@ const GameScreen: React.FC<GameScreenProps> = ({
             finishChainRef.current();
             return 0;
           }
-          return prev - 1;
+          const next = prev - 1;
+          // Sync chain timer to guests
+          chainTimeLeftRef.current = next;
+          broadcastState(playersRef.current, roundRef.current, 'chain', explosionInfoRef.current, chainQuestionRef.current);
+          return next;
         });
       }, 1000);
     }
@@ -990,8 +999,8 @@ const GameScreen: React.FC<GameScreenProps> = ({
             padding: '28px 36px', textAlign: 'center', maxWidth: 380, width: '90%',
             boxShadow: '0 0 60px rgba(162,89,255,0.3)', animation: 'bb-chain-pop 0.4s cubic-bezier(0.34,1.56,0.64,1)',
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, marginBottom: 8 }}>
-              <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '2rem', letterSpacing: 3, color: C.accent4 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+              <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '2rem', letterSpacing: 3, color: C.accent4, textAlign: 'center' }}>
                 {'\u26A1'} CHAIN REACTION!
               </div>
               {chainTimeLeft > 0 && (
@@ -999,10 +1008,10 @@ const GameScreen: React.FC<GameScreenProps> = ({
                   fontFamily: "'Bebas Neue', sans-serif", fontSize: '1.5rem',
                   color: chainTimeLeft <= 5 ? C.danger : C.accent4,
                   background: `${chainTimeLeft <= 5 ? C.danger : C.accent4}22`,
-                  padding: '2px 10px', borderRadius: 8, minWidth: 36, textAlign: 'center',
+                  padding: '4px 14px', borderRadius: 10, minWidth: 36, textAlign: 'center',
                   animation: chainTimeLeft <= 5 ? 'bb-pulse-text 0.5s ease infinite alternate' : 'none',
                 }}>
-                  {chainTimeLeft}
+                  {chainTimeLeft}s
                 </div>
               )}
             </div>

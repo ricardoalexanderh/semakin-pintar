@@ -712,12 +712,17 @@ export function getRandomQuestion(
   const effectiveDiff = getEffectiveDifficulty(difficulty, round);
   const enabledSubs = Object.keys(activeSubs).filter((k) => activeSubs[k]);
 
-  // Check if any enabled sub has a generator — 70% chance to use generator
-  if (enabledSubs.length > 0 && Math.random() < 0.7) {
+  // Use generators for dynamic question variety
+  if (enabledSubs.length > 0) {
     const generatableSubs = enabledSubs.filter((s) => GENERATORS[s]);
     if (generatableSubs.length > 0) {
-      const sub = pickOne(generatableSubs);
-      return GENERATORS[sub](effectiveDiff);
+      // If ALL enabled subs have generators, always generate (avoids repeating small fixed pools)
+      // Otherwise 70% generate, 30% fixed pool for variety
+      const allGeneratable = generatableSubs.length === enabledSubs.length;
+      if (allGeneratable || Math.random() < 0.7) {
+        const sub = pickOne(generatableSubs);
+        return GENERATORS[sub](effectiveDiff);
+      }
     }
   }
 

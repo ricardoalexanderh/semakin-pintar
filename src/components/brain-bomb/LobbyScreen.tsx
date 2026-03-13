@@ -323,7 +323,7 @@ const LobbyScreen: React.FC<LobbyScreenProps> = ({
             </div>
 
             {/* Timer */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 0', borderBottom: `1px solid ${C.border}` }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '10px 0', borderBottom: `1px solid ${C.border}` }}>
               <div>
                 <div style={{ fontSize: '0.85rem', fontWeight: 700 }}>Timer</div>
                 <div style={{ fontSize: '0.7rem', color: C.muted, marginTop: 2 }}>Seconds per turn</div>
