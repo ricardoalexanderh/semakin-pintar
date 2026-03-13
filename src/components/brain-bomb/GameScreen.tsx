@@ -659,7 +659,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
     const target = curPlayers[targetIdx];
     if (!target) return;
 
-    showToast(`\uD83C\uDFAF Bomb redirected to ${target.name}!`);
+    showToast(`\uD83C\uDFAF Bomb thrown to ${target.name}!`);
     setOverlay('none');
 
     // Pass the bomb directly to the target player with a new question
@@ -910,7 +910,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
           {([
             { key: 'shield' as const, icon: '\uD83D\uDEE1\uFE0F', label: 'Shield' },
             { key: 'freeze' as const, icon: '\u2744\uFE0F', label: 'Freeze' },
-            { key: 'clone' as const, icon: '\uD83C\uDFAF', label: 'Redirect' },
+            { key: 'clone' as const, icon: '\uD83C\uDFAF', label: 'Throw' },
           ]).map(({ key, icon, label }) => {
             const count = currentPlayer?.powerups[key] || 0;
             return (
@@ -1101,9 +1101,9 @@ const GameScreen: React.FC<GameScreenProps> = ({
             boxShadow: '0 0 60px rgba(0,229,255,0.3)', animation: 'bb-chain-pop 0.4s cubic-bezier(0.34,1.56,0.64,1)',
           }}>
             <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '2rem', letterSpacing: 3, color: C.accent3, marginBottom: 8 }}>
-              {'\uD83C\uDFAF'} REDIRECT!
+              {'\uD83C\uDFAF'} THROW!
             </div>
-            <div style={{ fontSize: '0.85rem', color: C.muted }}>Choose a player to send the bomb to!</div>
+            <div style={{ fontSize: '0.85rem', color: C.muted }}>Pick a player to throw the bomb to!</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 16 }}>
               {activePlayers.filter((p) => p.id !== localPlayerId).map((p) => (
                 <button
@@ -1111,7 +1111,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
                   onClick={() => handleCloneTarget(p.id)}
                   style={sabotageOptionStyle}
                 >
-                  {p.avatar} Redirect bomb to <strong>{p.name}</strong>
+                  {p.avatar} Throw to <strong>{p.name}</strong>
                 </button>
               ))}
             </div>

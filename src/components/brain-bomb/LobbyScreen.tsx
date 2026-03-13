@@ -349,7 +349,7 @@ const LobbyScreen: React.FC<LobbyScreenProps> = ({
 
             {/* Toggles */}
             {([
-              { key: 'enablePowerups' as const, label: 'Power-ups', sub: 'Shield, Freeze, Redirect' },
+              { key: 'enablePowerups' as const, label: 'Power-ups', sub: 'Shield, Freeze, Throw' },
               { key: 'enableChainReaction' as const, label: 'Chain Reaction', sub: 'All players answer on explosion' },
               { key: 'enableSabotage' as const, label: 'Sabotage Cards', sub: 'Earned for fast correct answers' },
               { key: 'enableProgressiveDifficulty' as const, label: 'Progressive Difficulty', sub: 'Questions get harder each round' },
