@@ -682,7 +682,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
   const bombDanger = pct <= 0.3;
 
   return (
-    <div style={{ padding: 'clamp(8px, 2vw, 16px)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 'clamp(4px, 1.5vw, 12px)', position: 'relative', height: '100dvh', overflow: 'hidden', boxSizing: 'border-box' }}>
+    <div style={{ padding: 'clamp(8px, 1.5vh, 16px)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 'clamp(6px, 1.2vh, 12px)', position: 'relative', height: '100dvh', overflow: 'hidden', boxSizing: 'border-box', width: '100%' }}>
       {/* Players bar */}
       <div style={{ display: 'flex', gap: 'clamp(4px, 1vw, 8px)', width: '100%', maxWidth: 500, justifyContent: 'center', flexWrap: 'wrap' }}>
         {players.map((p, i) => (
@@ -700,7 +700,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
 
       {/* Current player banner */}
       <div style={{
-        width: '100%', maxWidth: 500, padding: 'clamp(6px, 1.5vw, 12px) clamp(10px, 3vw, 20px)',
+        width: '100%', maxWidth: 500, padding: 'clamp(8px, 1vh, 12px) clamp(12px, 3vw, 20px)', boxSizing: 'border-box' as const,
         background: `linear-gradient(135deg, rgba(255,61,61,0.15), rgba(255,149,0,0.1))`,
         border: `1px solid ${currentPlayer?.color || C.accent}55`,
         borderRadius: 14, display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -712,8 +712,8 @@ const GameScreen: React.FC<GameScreenProps> = ({
       </div>
 
       {/* Bomb + Timer */}
-      <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, width: '100%', maxWidth: 500 }}>
-        <div style={{ width: 'clamp(70px, 18vw, 120px)', height: 'clamp(70px, 18vw, 120px)', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 'clamp(2px, 0.5vh, 8px)', width: '100%', maxWidth: 500 }}>
+        <div style={{ width: 'clamp(80px, 14vh, 120px)', height: 'clamp(80px, 14vh, 120px)', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           {/* Timer ring */}
           <div style={{ position: 'absolute', inset: -10 }}>
             <svg viewBox="0 0 140 140" style={{ width: '100%', height: '100%', transform: 'rotate(-90deg)' }}>
@@ -726,7 +726,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
           </div>
           {/* Bomb emoji */}
           <div style={{
-            fontSize: 'clamp(3rem, 10vw, 5rem)',
+            fontSize: 'clamp(3.5rem, 10vh, 5rem)',
             animation: bombDanger ? 'bb-bomb-panic 0.3s ease-in-out infinite' : 'bb-bomb-tick 1s ease-in-out infinite',
             filter: `drop-shadow(0 0 ${bombDanger ? 40 : 20}px rgba(255,${bombDanger ? '23,68' : '61,61'},${bombDanger ? '0.9' : '0.5'}))`,
             transition: 'filter 0.3s',
@@ -737,7 +737,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
         {/* Timer text */}
         <div style={{
           fontFamily: "'Bebas Neue', sans-serif",
-          fontSize: 'clamp(1.5rem, 6vw, 2.5rem)', letterSpacing: 2, color: timerColor,
+          fontSize: 'clamp(1.8rem, 4vh, 2.5rem)', letterSpacing: 2, color: timerColor,
           textAlign: 'center',
           animation: bombDanger ? 'bb-pulse-text 0.3s ease infinite alternate' : 'none',
         }}>
@@ -749,7 +749,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
       {/* Question Card */}
       <div style={{
         background: C.card, border: `1.5px solid ${C.border}`, borderRadius: 'clamp(12px, 3vw, 20px)',
-        padding: 'clamp(12px, 3vw, 24px)', width: '100%', maxWidth: 500, textAlign: 'center',
+        padding: 'clamp(14px, 2vh, 24px)', width: '100%', maxWidth: 500, textAlign: 'center', boxSizing: 'border-box' as const,
         position: 'relative', overflow: 'hidden',
       }}>
         {/* Top accent line */}
@@ -763,7 +763,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
           display: 'inline-flex', alignItems: 'center', gap: 6,
           padding: '4px 12px', borderRadius: 99, fontSize: '0.65rem',
           fontWeight: 800, letterSpacing: 2, textTransform: 'uppercase',
-          marginBottom: 'clamp(6px, 1.5vw, 14px)', background: 'rgba(255,255,255,0.06)',
+          marginBottom: 'clamp(6px, 1vh, 14px)', background: 'rgba(255,255,255,0.06)',
           color: getCategoryColor(round.question),
         }}>
           {getCategoryIcon(round.question)} {getCategoryName(round.question)}
@@ -772,13 +772,13 @@ const GameScreen: React.FC<GameScreenProps> = ({
         {/* Question text */}
         <div style={{
           fontSize: 'clamp(1.1rem, 4vw, 1.4rem)', fontWeight: 800,
-          lineHeight: 1.4, marginBottom: 'clamp(10px, 2.5vw, 20px)', color: C.white,
+          lineHeight: 1.4, marginBottom: 'clamp(8px, 1.5vh, 20px)', color: C.white,
         }}>
           {round.question.q}
         </div>
 
         {/* Answer grid */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'clamp(6px, 1.5vw, 10px)' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'clamp(6px, 1vh, 10px)' }}>
           {round.question.a.map((ans, i) => {
             const isBlinded = round.blind && round.blindAnswers.includes(i);
             let bg: string = C.surface;
@@ -806,7 +806,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
                 onClick={() => handleAnswer(i)}
                 disabled={round.answered || !isLocalTurn || isBlinded}
                 style={{
-                  padding: 'clamp(8px, 2vw, 14px) clamp(6px, 1.5vw, 10px)',
+                  padding: 'clamp(10px, 1.5vh, 14px) clamp(8px, 2vw, 10px)',
                   background: isBlinded ? C.surface : bg,
                   border: `1.5px solid ${isBlinded ? C.border : borderC}`,
                   borderRadius: 'clamp(8px, 2vw, 14px)',

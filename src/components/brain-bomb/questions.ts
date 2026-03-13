@@ -330,6 +330,357 @@ export const SUB_DEFS: Record<string, { icon: string; label: string; color: stri
   },
 };
 
+// ===== Dynamic Question Generators =====
+
+function randInt(min: number, max: number): number {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+function pickOne<T>(arr: T[]): T {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
+function shuffleAnswers(correct: string, wrongs: string[]): { a: string[]; correct: number } {
+  const answers = [correct, ...wrongs.slice(0, 3)];
+  // Fisher-Yates shuffle
+  for (let i = answers.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [answers[i], answers[j]] = [answers[j], answers[i]];
+  }
+  return { a: answers, correct: answers.indexOf(correct) };
+}
+
+function makeWrongAnswers(correct: number, count = 3): string[] {
+  const wrongs = new Set<string>();
+  // Near misses
+  wrongs.add(String(correct + 1));
+  wrongs.add(String(correct - 1));
+  wrongs.add(String(correct + 2));
+  wrongs.add(String(correct - 2));
+  wrongs.add(String(correct + randInt(3, 8)));
+  wrongs.add(String(correct - randInt(3, 8)));
+  // Remove the correct answer if it snuck in
+  wrongs.delete(String(correct));
+  const arr = Array.from(wrongs);
+  // Shuffle and pick
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr.slice(0, count);
+}
+
+function generateArithmetic(diff: Difficulty): Question {
+  let q = '';
+  let answer = 0;
+
+  if (diff === 'easy') {
+    const op = pickOne(['+', '-', '×']);
+    if (op === '+') {
+      const a = randInt(1, 20), b = randInt(1, 20);
+      q = `What is ${a} + ${b}?`; answer = a + b;
+    } else if (op === '-') {
+      const a = randInt(10, 30), b = randInt(1, a);
+      q = `What is ${a} - ${b}?`; answer = a - b;
+    } else {
+      const a = randInt(2, 9), b = randInt(2, 9);
+      q = `What is ${a} × ${b}?`; answer = a * b;
+    }
+  } else if (diff === 'medium') {
+    const op = pickOne(['×', '÷', '+', '-']);
+    if (op === '×') {
+      const a = randInt(10, 25), b = randInt(2, 12);
+      q = `What is ${a} × ${b}?`; answer = a * b;
+    } else if (op === '÷') {
+      const b = randInt(2, 12), ans = randInt(3, 20);
+      const a = b * ans;
+      q = `What is ${a} ÷ ${b}?`; answer = ans;
+    } else if (op === '+') {
+      const a = randInt(50, 200), b = randInt(30, 150);
+      q = `What is ${a} + ${b}?`; answer = a + b;
+    } else {
+      const a = randInt(100, 300), b = randInt(30, a);
+      q = `What is ${a} - ${b}?`; answer = a - b;
+    }
+  } else {
+    const type = pickOne(['square', 'sqrt', 'mult', 'power']);
+    if (type === 'square') {
+      const a = randInt(5, 15), b = randInt(3, 10);
+      q = `What is ${a}² + ${b}²?`; answer = a * a + b * b;
+    } else if (type === 'sqrt') {
+      const root = randInt(4, 20);
+      q = `What is √${root * root}?`; answer = root;
+    } else if (type === 'mult') {
+      const a = randInt(10, 30), b = randInt(10, 30);
+      q = `What is ${a} × ${b}?`; answer = a * b;
+    } else {
+      const base = randInt(2, 5), exp = randInt(3, 5);
+      q = `What is ${base}${exp === 3 ? '³' : exp === 4 ? '⁴' : '⁵'}?`;
+      answer = Math.pow(base, exp);
+    }
+  }
+
+  const { a, correct } = shuffleAnswers(String(answer), makeWrongAnswers(answer));
+  return { q, a, correct, diff };
+}
+
+function gcd(a: number, b: number): number {
+  return b === 0 ? a : gcd(b, a % b);
+}
+
+function formatFrac(num: number, den: number): string {
+  if (den === 1) return String(num);
+  const g = gcd(Math.abs(num), Math.abs(den));
+  return `${num / g}/${den / g}`;
+}
+
+function generateFraction(diff: Difficulty): Question {
+  let q = '';
+  let correctStr = '';
+
+  if (diff === 'easy') {
+    const type = pickOne(['add', 'of']);
+    if (type === 'add') {
+      const d = pickOne([2, 3, 4]);
+      const a = randInt(1, d - 1), b = randInt(1, d - 1);
+      const num = a + b;
+      q = `What is ${a}/${d} + ${b}/${d}?`;
+      correctStr = formatFrac(num, d);
+    } else {
+      const frac = pickOne([[1, 2], [1, 3], [1, 4], [3, 4], [2, 3]]);
+      const whole = pickOne([6, 8, 9, 10, 12, 15, 16, 20]);
+      const ans = (whole * frac[0]) / frac[1];
+      if (Number.isInteger(ans)) {
+        q = `What is ${frac[0]}/${frac[1]} of ${whole}?`;
+        correctStr = String(ans);
+      } else {
+        q = `What is 1/2 of ${whole * 2}?`;
+        correctStr = String(whole);
+      }
+    }
+  } else if (diff === 'medium') {
+    const op = pickOne(['+', '×']);
+    const d1 = pickOne([2, 3, 4, 5, 6, 8]), d2 = pickOne([2, 3, 4, 5, 6, 8]);
+    const n1 = randInt(1, d1 - 1), n2 = randInt(1, d2 - 1);
+    if (op === '+') {
+      const num = n1 * d2 + n2 * d1;
+      const den = d1 * d2;
+      q = `What is ${n1}/${d1} + ${n2}/${d2}?`;
+      correctStr = formatFrac(num, den);
+    } else {
+      const num = n1 * n2;
+      const den = d1 * d2;
+      q = `What is ${n1}/${d1} × ${n2}/${d2}?`;
+      correctStr = formatFrac(num, den);
+    }
+  } else {
+    const type = pickOne(['div', 'simplify']);
+    if (type === 'div') {
+      const d1 = pickOne([2, 3, 4, 5, 6]), d2 = pickOne([2, 3, 4, 5]);
+      const n1 = randInt(1, d1 - 1 || 1), n2 = randInt(1, d2 - 1 || 1);
+      const num = n1 * d2;
+      const den = d1 * n2;
+      q = `What is ${n1}/${d1} ÷ ${n2}/${d2}?`;
+      correctStr = formatFrac(num, den);
+    } else {
+      const g = randInt(2, 6);
+      const simpNum = randInt(1, 5), simpDen = randInt(simpNum + 1, 8);
+      q = `Simplify ${simpNum * g}/${simpDen * g}:`;
+      correctStr = formatFrac(simpNum, simpDen);
+    }
+  }
+
+  // Generate wrong fraction answers
+  const wrongs: string[] = [];
+  const parts = correctStr.split('/');
+  if (parts.length === 2) {
+    const n = parseInt(parts[0]), d = parseInt(parts[1]);
+    wrongs.push(formatFrac(n + 1, d), formatFrac(n, d + 1), formatFrac(n + 1, d + 1));
+  } else {
+    const val = parseInt(correctStr);
+    wrongs.push(String(val + 1), String(val - 1), String(val + 2));
+  }
+
+  const { a, correct } = shuffleAnswers(correctStr, wrongs);
+  return { q, a, correct, diff };
+}
+
+function generatePercent(diff: Difficulty): Question {
+  let q = '';
+  let answer = 0;
+
+  if (diff === 'easy') {
+    const pct = pickOne([10, 20, 25, 50, 75, 100]);
+    const val = pickOne([10, 20, 30, 40, 50, 60, 80, 100]);
+    answer = (pct * val) / 100;
+    q = `What is ${pct}% of ${val}?`;
+  } else if (diff === 'medium') {
+    const pct = pickOne([5, 10, 15, 20, 25, 30, 35, 40, 50, 60, 75, 80, 90]);
+    const val = pickOne([20, 40, 50, 60, 80, 100, 120, 150, 200, 250, 300, 400, 500]);
+    answer = (pct * val) / 100;
+    q = `What is ${pct}% of ${val}?`;
+  } else {
+    const type = pickOne(['discount', 'increase', 'whatpct']);
+    if (type === 'discount') {
+      const pct = pickOne([10, 15, 20, 25, 30, 40, 50]);
+      const price = pickOne([40, 50, 60, 80, 100, 120, 150, 200]);
+      answer = price - (pct * price) / 100;
+      q = `A $${price} item is ${pct}% off. Final price?`;
+    } else if (type === 'increase') {
+      const old = pickOne([20, 25, 30, 40, 50, 60, 80, 100]);
+      const inc = pickOne([10, 20, 25, 50]);
+      const newVal = old + (inc * old) / 100;
+      answer = inc;
+      q = `Price went from ${old} to ${newVal}. % increase?`;
+    } else {
+      const part = pickOne([10, 12, 15, 20, 25, 30, 40, 50, 60]);
+      const whole = pickOne([40, 50, 60, 80, 100, 120, 150, 200, 250, 300]);
+      if (part <= whole) {
+        answer = Math.round((part / whole) * 100);
+        q = `${part} is what percent of ${whole}?`;
+      } else {
+        answer = 25;
+        q = `25 is what percent of 100?`;
+      }
+    }
+  }
+
+  const wrongStrs = makeWrongAnswers(answer);
+  const correctStr = type_is_pct(q) ? `${answer}%` : `$${answer}`;
+  const wrongFormatted = wrongStrs.map((w) => type_is_pct(q) ? `${w}%` : `$${w}`);
+
+  // Use plain numbers for simple percentage-of questions
+  const isPlain = q.startsWith('What is') && !q.includes('$');
+  const { a, correct } = shuffleAnswers(
+    isPlain ? String(answer) : correctStr,
+    isPlain ? wrongStrs : wrongFormatted,
+  );
+  return { q, a, correct, diff };
+}
+
+function type_is_pct(q: string): boolean {
+  return q.includes('% increase') || q.includes('what percent');
+}
+
+function generateMissing(diff: Difficulty): Question {
+  let q = '';
+  let answer = 0;
+
+  if (diff === 'easy') {
+    const type = pickOne(['+', '-', '×', '÷']);
+    if (type === '+') {
+      const ans = randInt(2, 15), b = randInt(1, 15);
+      q = `_ + ${b} = ${ans + b}`;
+      answer = ans;
+    } else if (type === '-') {
+      const ans = randInt(5, 20), b = randInt(1, ans - 1);
+      q = `_ - ${b} = ${ans - b}`;
+      answer = ans;
+    } else if (type === '×') {
+      const ans = randInt(2, 9), b = randInt(2, 9);
+      q = `_ × ${b} = ${ans * b}`;
+      answer = ans;
+    } else {
+      const ans = randInt(2, 10), b = randInt(2, 5);
+      q = `${ans * b} ÷ _ = ${ans}`;
+      answer = b;
+    }
+  } else if (diff === 'medium') {
+    const type = pickOne(['×', '+', '÷']);
+    if (type === '×') {
+      const ans = randInt(3, 15), b = randInt(3, 12);
+      q = `_ × ${b} = ${ans * b}`;
+      answer = ans;
+    } else if (type === '+') {
+      const ans = randInt(15, 50), b = randInt(10, 40);
+      q = `_ + ${b} = ${ans + b}`;
+      answer = ans;
+    } else {
+      const ans = randInt(3, 15), b = randInt(2, 8);
+      q = `${ans * b} ÷ _ = ${ans}`;
+      answer = b;
+    }
+  } else {
+    const type = pickOne(['square', 'linear', 'cube']);
+    if (type === 'square') {
+      const ans = randInt(4, 15);
+      q = `_² = ${ans * ans}`;
+      answer = ans;
+    } else if (type === 'cube') {
+      const ans = randInt(2, 6);
+      q = `_³ = ${ans * ans * ans}`;
+      answer = ans;
+    } else {
+      const ans = randInt(5, 20), mult = randInt(2, 5), add = randInt(3, 15);
+      q = `${mult}_ + ${add} = ${mult * ans + add} (${mult}_ means ${mult}×_)`;
+      answer = ans;
+    }
+  }
+
+  const { a, correct } = shuffleAnswers(String(answer), makeWrongAnswers(answer));
+  return { q, a, correct, diff };
+}
+
+function generatePattern(diff: Difficulty): Question {
+  let seq: number[] = [];
+  let answer = 0;
+
+  if (diff === 'easy') {
+    const start = randInt(1, 10), step = randInt(2, 10);
+    seq = Array.from({ length: 4 }, (_, i) => start + step * i);
+    answer = start + step * 4;
+  } else if (diff === 'medium') {
+    const type = pickOne(['geometric', 'fibonacci', 'squares']);
+    if (type === 'geometric') {
+      const start = randInt(1, 4), ratio = pickOne([2, 3]);
+      seq = Array.from({ length: 4 }, (_, i) => start * Math.pow(ratio, i));
+      answer = start * Math.pow(ratio, 4);
+    } else if (type === 'fibonacci') {
+      const a = randInt(1, 5), b = randInt(1, 5);
+      seq = [a, b];
+      for (let i = 2; i < 5; i++) seq.push(seq[i - 1] + seq[i - 2]);
+      answer = seq.pop()!;
+      // seq now has 4 elements
+    } else {
+      seq = [1, 4, 9, 16];
+      answer = 25;
+    }
+  } else {
+    const type = pickOne(['quadratic', 'alternating', 'geometric']);
+    if (type === 'quadratic') {
+      // n² + n pattern
+      seq = Array.from({ length: 4 }, (_, i) => (i + 1) * (i + 1) + (i + 1));
+      answer = 5 * 5 + 5;
+    } else if (type === 'alternating') {
+      // alternating +a, ×b
+      const start = randInt(1, 5), addVal = randInt(1, 3), multVal = 2;
+      seq = [start];
+      for (let i = 1; i < 5; i++) {
+        seq.push(i % 2 === 1 ? seq[i - 1] + addVal : seq[i - 1] * multVal);
+      }
+      answer = seq.length % 2 === 1 ? seq[seq.length - 1] + addVal : seq[seq.length - 1] * multVal;
+      seq = seq.slice(0, 4);
+    } else {
+      const start = randInt(2, 5), ratio = pickOne([2, 3]);
+      seq = Array.from({ length: 5 }, (_, i) => start * Math.pow(ratio, i));
+      answer = seq.pop()!;
+    }
+  }
+
+  const q = `${seq.join(', ')}, ?`;
+  const { a, correct } = shuffleAnswers(String(answer), makeWrongAnswers(answer));
+  return { q, a, correct, diff };
+}
+
+// Map subcategories to their generator functions
+const GENERATORS: Record<string, (diff: Difficulty) => Question> = {
+  math_arithmetic: generateArithmetic,
+  math_fractions: generateFraction,
+  math_percent: generatePercent,
+  math_missing: generateMissing,
+  logic_patterns: generatePattern,
+};
+
 // Track used questions to avoid repeats within a session
 const usedQuestions = new Set<string>();
 
@@ -342,6 +693,17 @@ export function getRandomQuestion(
   difficulty: Difficulty,
 ): Question {
   const enabledSubs = Object.keys(activeSubs).filter((k) => activeSubs[k]);
+
+  // Check if any enabled sub has a generator — 70% chance to use generator
+  if (enabledSubs.length > 0 && Math.random() < 0.7) {
+    const generatableSubs = enabledSubs.filter((s) => GENERATORS[s]);
+    if (generatableSubs.length > 0) {
+      const sub = pickOne(generatableSubs);
+      return GENERATORS[sub](difficulty);
+    }
+  }
+
+  // Fall back to fixed question pool
   let pool: Question[] = [];
 
   if (enabledSubs.length > 0) {
