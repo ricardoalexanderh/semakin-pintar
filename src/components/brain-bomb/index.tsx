@@ -66,12 +66,42 @@ const BrainBombGame: React.FC = () => {
 
   const roomRef = useRef<GameRoom | null>(null);
   const startTimeRef = useRef<number>(0);
+  const bgmRef = useRef<HTMLAudioElement | null>(null);
+  const phaseRef = useRef<GamePhase>(phase);
+
+  // Keep phaseRef in sync
+  useEffect(() => { phaseRef.current = phase; }, [phase]);
 
   // Init audio on first interaction
   useEffect(() => {
     const handler = () => { initAudioContext(); document.removeEventListener('click', handler); };
     document.addEventListener('click', handler);
     return () => document.removeEventListener('click', handler);
+  }, []);
+
+  // BGM setup
+  useEffect(() => {
+    const audio = new Audio('/brain-bomb.mp3');
+    audio.loop = true;
+    audio.volume = 0.4;
+    bgmRef.current = audio;
+
+    const onVisibility = () => {
+      if (!bgmRef.current) return;
+      if (document.hidden) {
+        bgmRef.current.pause();
+      } else if (phaseRef.current === 'playing') {
+        bgmRef.current.play().catch(() => {});
+      }
+    };
+
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility);
+      audio.pause();
+      audio.src = '';
+      bgmRef.current = null;
+    };
   }, []);
 
   // Track game state for floating buttons
@@ -88,6 +118,10 @@ const BrainBombGame: React.FC = () => {
         mode: settings.mode,
       });
       startTimeRef.current = Date.now();
+      if (bgmRef.current) {
+        bgmRef.current.currentTime = 0;
+        bgmRef.current.play().catch(() => {});
+      }
     }
   }, [phase]);
 
@@ -178,9 +212,9 @@ const BrainBombGame: React.FC = () => {
     }
   }, [settings, isHost]);
 
-  // Auto-scroll to bottom on game start
+  // Auto-scroll to bottom on menu and game start
   useEffect(() => {
-    if (phase === 'countdown' || phase === 'playing') {
+    if (phase === 'menu' || phase === 'countdown' || phase === 'playing') {
       setTimeout(() => {
         window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
       }, 150);
@@ -225,10 +259,6 @@ const BrainBombGame: React.FC = () => {
     }]);
     setPhase('lobby');
     playSound('uiClick', true);
-    // Auto-scroll to bottom to hide mobile browser address bar
-    setTimeout(() => {
-      window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
-    }, 150);
   }, [localPlayerId]);
 
   const handleJoinWithCode = useCallback(() => {
@@ -239,10 +269,6 @@ const BrainBombGame: React.FC = () => {
     setPlayers([]);
     setPhase('lobby');
     playSound('uiClick', true);
-    // Auto-scroll to bottom to hide mobile browser address bar
-    setTimeout(() => {
-      window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
-    }, 150);
     // Clear the ?room= param from URL without reload
     const url = new URL(window.location.href);
     url.searchParams.delete('room');
@@ -280,6 +306,7 @@ const BrainBombGame: React.FC = () => {
   }, [settings, players]);
 
   const handleGameOver = useCallback((finalP: Player[]) => {
+    bgmRef.current?.pause();
     setFinalPlayers(finalP);
     setPhase('gameover');
 
@@ -300,6 +327,7 @@ const BrainBombGame: React.FC = () => {
   }, [settings]);
 
   const handlePlayAgain = useCallback(() => {
+    bgmRef.current?.pause();
     trackButtonClick('play-again', 'brain-bomb-gameover');
     // Notify guests to return to lobby
     if (roomRef.current) {
