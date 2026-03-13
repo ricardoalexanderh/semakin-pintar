@@ -753,8 +753,8 @@ const GameScreen: React.FC<GameScreenProps> = ({
       </div>
 
       {/* Bomb + Timer */}
-      <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 'clamp(2px, 0.5vh, 8px)', width: '100%', maxWidth: 500 }}>
-        <div style={{ width: 'clamp(80px, 14vh, 120px)', height: 'clamp(80px, 14vh, 120px)', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 'clamp(2px, 0.5vh, 8px)', width: '100%', maxWidth: 500, marginTop: 'clamp(4px, 1vh, 12px)' }}>
+        <div style={{ width: 'clamp(70px, 12vh, 120px)', height: 'clamp(70px, 12vh, 120px)', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           {/* Timer ring */}
           <div style={{ position: 'absolute', inset: -10 }}>
             <svg viewBox="0 0 140 140" style={{ width: '100%', height: '100%', transform: 'rotate(-90deg)' }}>
@@ -1083,15 +1083,6 @@ const GameScreen: React.FC<GameScreenProps> = ({
       </div>
     </div>
   );
-};
-
-// Helper styles
-const lobbyCardStyle: React.CSSProperties = {
-  background: C.card,
-  border: `1px solid ${C.border}`,
-  borderRadius: 20,
-  padding: 24,
-  width: '100%',
 };
 
 const sabotageOptionStyle: React.CSSProperties = {
