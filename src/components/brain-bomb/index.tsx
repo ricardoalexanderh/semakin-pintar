@@ -388,6 +388,7 @@ const BrainBombGame: React.FC = () => {
                     letterSpacing: 6, textAlign: 'center',
                     boxSizing: 'border-box',
                   }}
+                  onFocus={(e) => { setTimeout(() => { e.target.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 300); }}
                   onKeyDown={(e) => { if (e.key === 'Enter') handleJoinWithCode(); }}
                 />
                 <button
@@ -439,6 +440,7 @@ const BrainBombGame: React.FC = () => {
                   fontSize: '1rem', fontWeight: 700, outline: 'none',
                   boxSizing: 'border-box',
                 }}
+                onFocus={(e) => { setTimeout(() => { e.target.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 300); }}
                 onKeyDown={(e) => { if (e.key === 'Enter' && roomReady) handleJoinRoom(); }}
                 autoFocus
               />
