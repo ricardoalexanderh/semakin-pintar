@@ -166,7 +166,8 @@ const BrainBombGame: React.FC = () => {
       roomRef.current?.destroy();
       setRoomReady(false);
     };
-  }, [roomCode, isHost, phase]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roomCode, isHost]);
 
   // Broadcast settings to peers when changed
   useEffect(() => {
