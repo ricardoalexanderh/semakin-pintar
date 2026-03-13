@@ -49,6 +49,9 @@ export const screenBase: CSSProperties = {
   flexDirection: 'column',
   alignItems: 'center',
   position: 'relative',
+  overflowX: 'hidden',
+  width: '100%',
+  boxSizing: 'border-box',
 };
 
 export const lobbyCard: CSSProperties = {

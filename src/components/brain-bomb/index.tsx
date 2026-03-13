@@ -74,7 +74,7 @@ const BrainBombGame: React.FC = () => {
 
   // Track game state for floating buttons
   useEffect(() => {
-    updateGameState('brain-bomb', phase === 'playing');
+    updateGameState('brain-bomb', phase !== 'menu');
   }, [phase, updateGameState]);
 
   // Analytics on phase change
@@ -322,7 +322,7 @@ const BrainBombGame: React.FC = () => {
 
       {/* Menu screen — Create or Join */}
       {phase === 'menu' && (
-        <div style={{ padding: 24, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0, paddingTop: 40 }}>
+        <div style={{ padding: 'clamp(12px, 4vw, 24px)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0, paddingTop: 40, width: '100%', boxSizing: 'border-box' }}>
           <span style={{ fontSize: '4rem', display: 'block', marginBottom: 8, animation: 'bb-pulse-bomb 2s ease-in-out infinite' }}>
             {'\uD83D\uDCA3'}
           </span>
