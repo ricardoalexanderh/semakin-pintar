@@ -47,6 +47,7 @@ export interface SubCategoryDef {
 export interface LobbySettings {
   difficulty: Difficulty;
   mode: GameMode;
+  timer: number;
   enablePowerups: boolean;
   enableChainReaction: boolean;
   enableSabotage: boolean;
@@ -91,8 +92,8 @@ export interface PeerMessage {
 
 // Difficulty config
 export const DIFFICULTY_CONFIG: Record<Difficulty, { timer: number; lives: number }> = {
-  easy:   { timer: 30, lives: 4 },
-  medium: { timer: 20, lives: 3 },
+  easy:   { timer: 20, lives: 4 },
+  medium: { timer: 15, lives: 3 },
   hard:   { timer: 10, lives: 2 },
 };
 

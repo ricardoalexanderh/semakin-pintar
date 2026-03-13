@@ -306,17 +306,42 @@ const LobbyScreen: React.FC<LobbyScreenProps> = ({
               <div>
                 <div style={{ fontSize: '0.85rem', fontWeight: 700 }}>Difficulty</div>
                 <div style={{ fontSize: '0.7rem', color: C.muted, marginTop: 2 }}>
-                  Timer: {DIFFICULTY_CONFIG[settings.difficulty].timer}s &middot; Lives: {DIFFICULTY_CONFIG[settings.difficulty].lives}
+                  Lives: {DIFFICULTY_CONFIG[settings.difficulty].lives}
                 </div>
               </div>
               <div style={{ display: 'flex', gap: 6 }}>
                 {(['easy', 'medium', 'hard'] as Difficulty[]).map((d) => (
                   <div
                     key={d}
-                    onClick={() => { onUpdateSettings({ ...settings, difficulty: d }); playSound('uiClick', sound); }}
+                    onClick={() => { onUpdateSettings({ ...settings, difficulty: d, timer: DIFFICULTY_CONFIG[d].timer }); playSound('uiClick', sound); }}
                     style={diffBadge(settings.difficulty === d, d)}
                   >
                     {d === 'easy' ? 'Easy' : d === 'medium' ? 'Med' : 'Hard'}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Timer */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 0', borderBottom: `1px solid ${C.border}` }}>
+              <div>
+                <div style={{ fontSize: '0.85rem', fontWeight: 700 }}>Timer</div>
+                <div style={{ fontSize: '0.7rem', color: C.muted, marginTop: 2 }}>Seconds per turn</div>
+              </div>
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                {[10, 15, 20, 25, 30].map((t) => (
+                  <div
+                    key={t}
+                    onClick={() => { onUpdateSettings({ ...settings, timer: t }); playSound('uiClick', sound); }}
+                    style={{
+                      padding: '6px 10px', borderRadius: 8, fontSize: '0.75rem', fontWeight: 800,
+                      cursor: 'pointer', transition: 'all 0.2s', userSelect: 'none',
+                      background: settings.timer === t ? `${C.accent}22` : C.surface,
+                      color: settings.timer === t ? C.accent : C.muted,
+                      border: `1.5px solid ${settings.timer === t ? C.accent : C.border}`,
+                    }}
+                  >
+                    {t}s
                   </div>
                 ))}
               </div>

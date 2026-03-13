@@ -66,7 +66,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
     })),
   );
 
-  const maxTime = DIFFICULTY_CONFIG[settings.difficulty].timer;
+  const maxTime = settings.timer || DIFFICULTY_CONFIG[settings.difficulty].timer;
 
   // Only host generates the initial question; guests get it via state sync
   const [round, setRound] = useState<RoundState>(() => ({
@@ -89,10 +89,12 @@ const GameScreen: React.FC<GameScreenProps> = ({
   const [chainQuestion, setChainQuestion] = useState<Question | null>(null);
   const [chainAnswered, setChainAnswered] = useState(false);
   const [chainRespondents, setChainRespondents] = useState<Set<string>>(new Set());
+  const [chainTimeLeft, setChainTimeLeft] = useState(0);
   const [toast, setToast] = useState('');
   const [toastVisible, setToastVisible] = useState(false);
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const chainTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const freezeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const blindTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const chainTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -331,29 +333,38 @@ const GameScreen: React.FC<GameScreenProps> = ({
   const bombExplodesRef = useRef(bombExplodes);
   bombExplodesRef.current = bombExplodes;
 
+  // Chain reaction timer config: 20/15/10 by difficulty
+  const chainMaxTime = { easy: 20, medium: 15, hard: 10 }[settings.difficulty];
+
   // Host: finish the chain reaction and move on
   const finishChainReaction = useCallback(() => {
     if (chainTimeoutRef.current) { clearTimeout(chainTimeoutRef.current); chainTimeoutRef.current = null; }
+    if (chainTimerRef.current) { clearInterval(chainTimerRef.current); chainTimerRef.current = null; }
+    // Brief delay so players see the result, then proceed
     setTimeout(() => {
       setOverlay('none');
       setChainQuestion(null);
       setChainAnswered(false);
       setChainRespondents(new Set());
+      setChainTimeLeft(0);
+      broadcastState(playersRef.current, roundRef.current, 'none', explosionInfoRef.current, null);
       const remaining = playersRef.current.filter((p) => !p.eliminated);
       if (remaining.length <= 1) {
         broadcastGameOver(playersRef.current);
         return;
       }
       passToNextRef.current();
-    }, 1200);
-  }, [broadcastGameOver]);
+    }, 800);
+  }, [broadcastGameOver, broadcastState]);
   const finishChainRef = useRef(finishChainReaction);
   finishChainRef.current = finishChainReaction;
 
-  // Host: check if all active players have answered the chain
+  // Host: check if all active (non-eliminated) players have answered the chain
   const checkChainComplete = useCallback((respondents: Set<string>) => {
     const active = playersRef.current.filter((p) => !p.eliminated);
+    console.log('[Brain Bomb] Chain progress:', respondents.size, '/', active.length);
     if (respondents.size >= active.length) {
+      console.log('[Brain Bomb] Chain complete — finishing');
       finishChainRef.current();
     }
   }, []);
@@ -363,14 +374,23 @@ const GameScreen: React.FC<GameScreenProps> = ({
     setChainQuestion(q);
     setChainAnswered(false);
     setChainRespondents(new Set());
+    setChainTimeLeft(chainMaxTime);
     setOverlay('chain');
     broadcastState(currentPlayers ?? playersRef.current, roundRef.current, 'chain', explosionInfoRef.current, q);
 
-    // Fallback timeout: if not all players answer within 15s, proceed anyway
+    // Start visible countdown timer for chain reaction
     if (isHost) {
-      chainTimeoutRef.current = setTimeout(() => {
-        finishChainRef.current();
-      }, 15000);
+      if (chainTimerRef.current) clearInterval(chainTimerRef.current);
+      chainTimerRef.current = setInterval(() => {
+        setChainTimeLeft((prev) => {
+          if (prev <= 1) {
+            if (chainTimerRef.current) { clearInterval(chainTimerRef.current); chainTimerRef.current = null; }
+            finishChainRef.current();
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
     }
   };
   triggerChainReactionRef.current = triggerChainReaction;
@@ -684,7 +704,10 @@ const GameScreen: React.FC<GameScreenProps> = ({
       }
       // Apply effect to target
       if (p.id === targetId) {
-        if (type === 'timebomb') return { ...p, timePenalty: (p.timePenalty || 0) + 10 };
+        if (type === 'timebomb') {
+          const penalty = { easy: 8, medium: 5, hard: 3 }[settings.difficulty];
+          return { ...p, timePenalty: (p.timePenalty || 0) + penalty };
+        }
         if (type === 'blind') return { ...p, blindNextRound: true };
       }
       return p;
@@ -719,6 +742,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
       if (freezeTimeoutRef.current) clearTimeout(freezeTimeoutRef.current);
       if (blindTimeoutRef.current) clearTimeout(blindTimeoutRef.current);
       if (chainTimeoutRef.current) clearTimeout(chainTimeoutRef.current);
+      if (chainTimerRef.current) clearInterval(chainTimerRef.current);
     };
   }, []);
 
@@ -730,7 +754,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
   const bombDanger = pct <= 0.3;
 
   return (
-    <div style={{ padding: 'clamp(8px, 1.5vh, 16px)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 'clamp(6px, 1.2vh, 12px)', position: 'relative', height: '100dvh', overflow: 'hidden', boxSizing: 'border-box', width: '100%' }}>
+    <div style={{ padding: 'clamp(8px, 1.5vh, 16px)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 'clamp(6px, 1.2vh, 12px)', position: 'relative', height: 'calc(100dvh - 4rem)', overflow: 'hidden', boxSizing: 'border-box', width: '100%' }}>
       {/* Players bar */}
       <div style={{ display: 'flex', gap: 'clamp(4px, 1vw, 8px)', width: '100%', maxWidth: 500, justifyContent: 'center', flexWrap: 'wrap' }}>
         {players.map((p, i) => (
@@ -961,8 +985,21 @@ const GameScreen: React.FC<GameScreenProps> = ({
             padding: '28px 36px', textAlign: 'center', maxWidth: 380, width: '90%',
             boxShadow: '0 0 60px rgba(162,89,255,0.3)', animation: 'bb-chain-pop 0.4s cubic-bezier(0.34,1.56,0.64,1)',
           }}>
-            <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '2rem', letterSpacing: 3, color: C.accent4, marginBottom: 8 }}>
-              {'\u26A1'} CHAIN REACTION!
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, marginBottom: 8 }}>
+              <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '2rem', letterSpacing: 3, color: C.accent4 }}>
+                {'\u26A1'} CHAIN REACTION!
+              </div>
+              {chainTimeLeft > 0 && (
+                <div style={{
+                  fontFamily: "'Bebas Neue', sans-serif", fontSize: '1.5rem',
+                  color: chainTimeLeft <= 5 ? C.danger : C.accent4,
+                  background: `${chainTimeLeft <= 5 ? C.danger : C.accent4}22`,
+                  padding: '2px 10px', borderRadius: 8, minWidth: 36, textAlign: 'center',
+                  animation: chainTimeLeft <= 5 ? 'bb-pulse-text 0.5s ease infinite alternate' : 'none',
+                }}>
+                  {chainTimeLeft}
+                </div>
+              )}
             </div>
             <div style={{ fontSize: '0.8rem', color: C.muted, marginBottom: 4 }}>Everyone answers &mdash; wrong answer loses a life!</div>
             {!chainAnswered ? (
@@ -1029,7 +1066,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
                         onClick={() => handleSabotage('timebomb', p.id)}
                         style={sabotageOptionStyle}
                       >
-                        <span>{'\u23F1\uFE0F'}</span> -10s from {p.name}'s timer
+                        <span>{'\u23F1\uFE0F'}</span> -{({ easy: 8, medium: 5, hard: 3 })[settings.difficulty]}s from {p.name}'s timer
                       </button>
                     </React.Fragment>
                   ))}

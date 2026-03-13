@@ -37,6 +37,7 @@ function nextPlayerId(): string {
 const DEFAULT_SETTINGS: LobbySettings = {
   difficulty: 'easy',
   mode: 'classic',
+  timer: DIFFICULTY_CONFIG.easy.timer,
   enablePowerups: true,
   enableChainReaction: true,
   enableSabotage: true,
