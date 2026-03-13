@@ -42,6 +42,7 @@ const DEFAULT_SETTINGS: LobbySettings = {
   enableChainReaction: true,
   enableSabotage: true,
   enableSound: true,
+  enableProgressiveDifficulty: false,
   activeSubs: {},
 };
 

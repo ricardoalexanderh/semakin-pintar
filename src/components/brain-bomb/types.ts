@@ -52,6 +52,7 @@ export interface LobbySettings {
   enableChainReaction: boolean;
   enableSabotage: boolean;
   enableSound: boolean;
+  enableProgressiveDifficulty: boolean;
   activeSubs: Record<string, boolean>;
 }
 

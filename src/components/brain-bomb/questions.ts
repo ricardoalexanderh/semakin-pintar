@@ -688,10 +688,28 @@ export function resetUsedQuestions(): void {
   usedQuestions.clear();
 }
 
+// Determine effective difficulty based on round progression
+function getEffectiveDifficulty(baseDifficulty: Difficulty, round?: number): Difficulty {
+  if (round == null) return baseDifficulty;
+  // Progressive: mix in harder questions as rounds increase
+  // Rounds 1-4: base difficulty, 5-8: chance of +1, 9+: chance of +2
+  const levels: Difficulty[] = ['easy', 'medium', 'hard'];
+  const baseIdx = levels.indexOf(baseDifficulty);
+  let bump = 0;
+  if (round >= 9) {
+    bump = Math.random() < 0.6 ? 2 : Math.random() < 0.7 ? 1 : 0;
+  } else if (round >= 5) {
+    bump = Math.random() < 0.5 ? 1 : 0;
+  }
+  return levels[Math.min(baseIdx + bump, 2)];
+}
+
 export function getRandomQuestion(
   activeSubs: Record<string, boolean>,
   difficulty: Difficulty,
+  round?: number,
 ): Question {
+  const effectiveDiff = getEffectiveDifficulty(difficulty, round);
   const enabledSubs = Object.keys(activeSubs).filter((k) => activeSubs[k]);
 
   // Check if any enabled sub has a generator — 70% chance to use generator
@@ -699,7 +717,7 @@ export function getRandomQuestion(
     const generatableSubs = enabledSubs.filter((s) => GENERATORS[s]);
     if (generatableSubs.length > 0) {
       const sub = pickOne(generatableSubs);
-      return GENERATORS[sub](difficulty);
+      return GENERATORS[sub](effectiveDiff);
     }
   }
 
@@ -715,7 +733,7 @@ export function getRandomQuestion(
   }
 
   // Filter by difficulty, fallback to all if empty
-  const diffPool = pool.filter((q) => q.diff === difficulty);
+  const diffPool = pool.filter((q) => q.diff === effectiveDiff);
   const finalPool = diffPool.length > 0 ? diffPool : pool;
 
   // Filter out already-used questions

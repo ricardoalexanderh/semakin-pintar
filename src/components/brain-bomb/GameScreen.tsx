@@ -370,7 +370,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
   }, []);
 
   const triggerChainReaction = (currentPlayers?: Player[]) => {
-    const q = getRandomQuestion(settings.activeSubs, settings.difficulty);
+    const q = getRandomQuestion(settings.activeSubs, settings.difficulty, settings.enableProgressiveDifficulty ? roundRef.current.round : undefined);
     setChainQuestion(q);
     setChainAnswered(false);
     setChainRespondents(new Set());
@@ -470,11 +470,14 @@ const GameScreen: React.FC<GameScreenProps> = ({
     } while (cp[nextIdx].eliminated);
 
     const nextPlayer = cp[nextIdx];
-    const newQuestion = getRandomQuestion(settings.activeSubs, settings.difficulty);
+    const newQuestion = getRandomQuestion(settings.activeSubs, settings.difficulty, settings.enableProgressiveDifficulty ? curRound.round + 1 : undefined);
 
+    // Add bonus seconds instead of resetting to full timer
+    const bonusSeconds = { easy: 12, medium: 8, hard: 5 }[settings.difficulty];
+    const baseTime = Math.min(curRound.timeLeft + bonusSeconds, maxTime);
     // Apply time penalty sabotage
     const penalty = nextPlayer.timePenalty || 0;
-    const adjustedTime = Math.max(5, maxTime - penalty);
+    const adjustedTime = Math.max(5, baseTime - penalty);
 
     // Apply blind sabotage: pick 2 random wrong answers to hide
     const isBlind = !!nextPlayer.blindNextRound;
@@ -656,15 +659,17 @@ const GameScreen: React.FC<GameScreenProps> = ({
     const target = curPlayers[targetIdx];
     if (!target) return;
 
-    showToast(`\uD83D\uDC65 Bomb cloned to ${target.name}!`);
+    showToast(`\uD83C\uDFAF Bomb redirected to ${target.name}!`);
     setOverlay('none');
 
     // Pass the bomb directly to the target player with a new question
-    const newQuestion = getRandomQuestion(settings.activeSubs, settings.difficulty);
+    const newQuestion = getRandomQuestion(settings.activeSubs, settings.difficulty, settings.enableProgressiveDifficulty ? curRound.round + 1 : undefined);
+    const bonusSecs = { easy: 12, medium: 8, hard: 5 }[settings.difficulty];
+    const redirectTime = Math.min(curRound.timeLeft + bonusSecs, maxTime);
     const newRound: RoundState = {
       currentPlayerIdx: targetIdx,
       question: newQuestion,
-      timeLeft: maxTime,
+      timeLeft: redirectTime,
       maxTime,
       answered: false,
       answerIdx: null,
@@ -905,7 +910,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
           {([
             { key: 'shield' as const, icon: '\uD83D\uDEE1\uFE0F', label: 'Shield' },
             { key: 'freeze' as const, icon: '\u2744\uFE0F', label: 'Freeze' },
-            { key: 'clone' as const, icon: '\uD83D\uDC65', label: 'Clone' },
+            { key: 'clone' as const, icon: '\uD83C\uDFAF', label: 'Redirect' },
           ]).map(({ key, icon, label }) => {
             const count = currentPlayer?.powerups[key] || 0;
             return (
@@ -1096,9 +1101,9 @@ const GameScreen: React.FC<GameScreenProps> = ({
             boxShadow: '0 0 60px rgba(0,229,255,0.3)', animation: 'bb-chain-pop 0.4s cubic-bezier(0.34,1.56,0.64,1)',
           }}>
             <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '2rem', letterSpacing: 3, color: C.accent3, marginBottom: 8 }}>
-              {'\uD83D\uDC65'} CLONE!
+              {'\uD83C\uDFAF'} REDIRECT!
             </div>
-            <div style={{ fontSize: '0.85rem', color: C.muted }}>Send a bomb copy to another player!</div>
+            <div style={{ fontSize: '0.85rem', color: C.muted }}>Choose a player to send the bomb to!</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 16 }}>
               {activePlayers.filter((p) => p.id !== localPlayerId).map((p) => (
                 <button
@@ -1106,7 +1111,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
                   onClick={() => handleCloneTarget(p.id)}
                   style={sabotageOptionStyle}
                 >
-                  {p.avatar} Clone bomb to <strong>{p.name}</strong>
+                  {p.avatar} Redirect bomb to <strong>{p.name}</strong>
                 </button>
               ))}
             </div>
