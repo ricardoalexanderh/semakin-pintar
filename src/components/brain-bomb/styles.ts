@@ -104,11 +104,11 @@ export const playerChip = (isActive: boolean, isEliminated: boolean, color: stri
   display: 'flex',
   alignItems: 'center',
   gap: 6,
-  padding: '6px 12px',
+  padding: '4px 8px',
   borderRadius: 99,
   background: isActive ? `rgba(255,61,61,0.15)` : C.card,
   border: `1.5px solid ${isActive ? color : C.border}`,
-  fontSize: '0.8rem',
+  fontSize: 'clamp(0.65rem, 2vw, 0.8rem)',
   fontWeight: 800,
   opacity: isEliminated ? 0.3 : 1,
   textDecoration: isEliminated ? 'line-through' : 'none',
@@ -181,12 +181,12 @@ export const modeBtn = (active: boolean): CSSProperties => ({
 });
 
 export const powerupBtn = (disabled: boolean): CSSProperties => ({
-  padding: '8px 14px',
+  padding: '6px 10px',
   background: C.card,
   border: `1px solid ${C.border}`,
   borderRadius: 10,
   cursor: disabled ? 'not-allowed' : 'pointer',
-  fontSize: '0.75rem',
+  fontSize: 'clamp(0.65rem, 2vw, 0.75rem)',
   fontWeight: 800,
   color: disabled ? C.muted : C.white,
   display: 'flex',

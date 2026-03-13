@@ -20,7 +20,7 @@ export interface Player {
   peerId?: string;
   shieldActive?: boolean;
   timePenalty?: number;
-  shuffleNextRound?: boolean;
+  blindNextRound?: boolean;
 }
 
 export interface Powerups {

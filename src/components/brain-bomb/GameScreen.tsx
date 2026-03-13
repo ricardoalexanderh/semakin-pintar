@@ -25,6 +25,8 @@ interface RoundState {
   answerIdx: number | null;
   round: number;
   frozen: boolean;
+  blind: boolean;
+  blindAnswers: number[];
 }
 
 interface SyncState {
@@ -60,7 +62,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
       powerups: { shield: 1, freeze: 1, clone: 1 },
       shieldActive: false,
       timePenalty: 0,
-      shuffleNextRound: false,
+      blindNextRound: false,
     })),
   );
 
@@ -78,6 +80,8 @@ const GameScreen: React.FC<GameScreenProps> = ({
     answerIdx: null,
     round: 1,
     frozen: false,
+    blind: false,
+    blindAnswers: [],
   }));
 
   const [overlay, setOverlay] = useState<OverlayType>('none');
@@ -89,6 +93,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const freezeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const blindTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Refs to always access latest state from callbacks/timeouts (avoids stale closures)
   const playersRef = useRef(players);
@@ -166,7 +171,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
         if (sabotageType === 'skip') {
           handleSkipSabotage(true);
         } else {
-          handleSabotage(sabotageType as 'shuffle' | 'timebomb', targetId, true);
+          handleSabotage(sabotageType as 'blind' | 'timebomb', targetId, true);
         }
       }
     }
@@ -398,24 +403,24 @@ const GameScreen: React.FC<GameScreenProps> = ({
     } while (cp[nextIdx].eliminated);
 
     const nextPlayer = cp[nextIdx];
-    let newQuestion = getRandomQuestion(settings.activeSubs, settings.difficulty);
-
-    // Apply shuffle sabotage: randomize answer positions
-    if (nextPlayer.shuffleNextRound) {
-      const indices = newQuestion.a.map((_, i) => i);
-      // Fisher-Yates shuffle
-      for (let i = indices.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [indices[i], indices[j]] = [indices[j], indices[i]];
-      }
-      const shuffledAnswers = indices.map((i) => newQuestion.a[i]);
-      const newCorrect = indices.indexOf(newQuestion.correct);
-      newQuestion = { ...newQuestion, a: shuffledAnswers, correct: newCorrect };
-    }
+    const newQuestion = getRandomQuestion(settings.activeSubs, settings.difficulty);
 
     // Apply time penalty sabotage
     const penalty = nextPlayer.timePenalty || 0;
     const adjustedTime = Math.max(5, maxTime - penalty);
+
+    // Apply blind sabotage: pick 2 random wrong answers to hide
+    const isBlind = !!nextPlayer.blindNextRound;
+    let blindAnswers: number[] = [];
+    if (isBlind) {
+      const wrongIndices = newQuestion.a.map((_, i) => i).filter((i) => i !== newQuestion.correct);
+      // Pick 2 random wrong answers to hide
+      for (let i = wrongIndices.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [wrongIndices[i], wrongIndices[j]] = [wrongIndices[j], wrongIndices[i]];
+      }
+      blindAnswers = wrongIndices.slice(0, 2);
+    }
 
     const newRound: RoundState = {
       currentPlayerIdx: nextIdx,
@@ -426,15 +431,28 @@ const GameScreen: React.FC<GameScreenProps> = ({
       answerIdx: null,
       round: curRound.round + 1,
       frozen: false,
+      blind: isBlind,
+      blindAnswers,
     };
     setRound(newRound);
+
+    // Reveal blind answers after 3 seconds
+    if (isBlind) {
+      blindTimeoutRef.current = setTimeout(() => {
+        setRound((prev) => {
+          const revealed = { ...prev, blind: false, blindAnswers: [] };
+          broadcastState(playersRef.current, revealed, overlayRef.current, explosionInfoRef.current, chainQuestionRef.current);
+          return revealed;
+        });
+      }, 3000);
+    }
 
     // Clear effects and reset round state
     const newPlayers = cp.map((p, i) => ({
       ...p,
       usedPowerupThisRound: false,
       timePenalty: i === nextIdx ? 0 : p.timePenalty,
-      shuffleNextRound: i === nextIdx ? false : p.shuffleNextRound,
+      blindNextRound: i === nextIdx ? false : p.blindNextRound,
     }));
     setPlayers(newPlayers);
     broadcastState(newPlayers, newRound, 'none', { name: '', message: '' }, null);
@@ -585,6 +603,8 @@ const GameScreen: React.FC<GameScreenProps> = ({
       answerIdx: null,
       round: curRound.round + 1,
       frozen: false,
+      blind: false,
+      blindAnswers: [],
     };
     setRound(newRound);
     const newPlayers = curPlayers.map((p) => ({ ...p, usedPowerupThisRound: false }));
@@ -592,7 +612,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
     broadcastState(newPlayers, newRound, 'none', { name: '', message: '' }, null);
   };
 
-  const handleSabotage = (type: 'shuffle' | 'timebomb', targetId: string, fromRemote = false) => {
+  const handleSabotage = (type: 'blind' | 'timebomb', targetId: string, fromRemote = false) => {
     // Guest sends sabotage selection to host via WebRTC
     if (!isHost && !fromRemote) {
       if (gameRoom) {
@@ -607,7 +627,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
     if (!target) return;
 
     playSound('powerup', sound);
-    showToast(`\uD83D\uDC80 ${type === 'shuffle' ? 'Shuffle' : 'Time Bomb'} sent to ${target.name}!`);
+    showToast(`\uD83D\uDC80 ${type === 'blind' ? 'Blind' : 'Time Bomb'} sent to ${target.name}!`);
 
     const curRound = roundRef.current;
     const newPlayers = playersRef.current.map((p, i) => {
@@ -618,7 +638,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
       // Apply effect to target
       if (p.id === targetId) {
         if (type === 'timebomb') return { ...p, timePenalty: (p.timePenalty || 0) + 10 };
-        if (type === 'shuffle') return { ...p, shuffleNextRound: true };
+        if (type === 'blind') return { ...p, blindNextRound: true };
       }
       return p;
     });
@@ -650,6 +670,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
       if (freezeTimeoutRef.current) clearTimeout(freezeTimeoutRef.current);
+      if (blindTimeoutRef.current) clearTimeout(blindTimeoutRef.current);
     };
   }, []);
 
@@ -661,9 +682,9 @@ const GameScreen: React.FC<GameScreenProps> = ({
   const bombDanger = pct <= 0.3;
 
   return (
-    <div style={{ padding: 16, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, position: 'relative' }}>
+    <div style={{ padding: 'clamp(8px, 2vw, 16px)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 'clamp(4px, 1.5vw, 12px)', position: 'relative', height: '100dvh', overflow: 'hidden', boxSizing: 'border-box' }}>
       {/* Players bar */}
-      <div style={{ display: 'flex', gap: 8, width: '100%', maxWidth: 500, justifyContent: 'center', flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: 'clamp(4px, 1vw, 8px)', width: '100%', maxWidth: 500, justifyContent: 'center', flexWrap: 'wrap' }}>
         {players.map((p, i) => (
           <div key={p.id} style={playerChip(i === round.currentPlayerIdx, p.eliminated, p.color)}>
             <span>{p.avatar}</span>
@@ -679,11 +700,11 @@ const GameScreen: React.FC<GameScreenProps> = ({
 
       {/* Current player banner */}
       <div style={{
-        width: '100%', maxWidth: 500, padding: '12px 20px',
+        width: '100%', maxWidth: 500, padding: 'clamp(6px, 1.5vw, 12px) clamp(10px, 3vw, 20px)',
         background: `linear-gradient(135deg, rgba(255,61,61,0.15), rgba(255,149,0,0.1))`,
         border: `1px solid ${currentPlayer?.color || C.accent}55`,
         borderRadius: 14, display: 'flex', alignItems: 'center', justifyContent: 'center',
-        gap: 10, fontWeight: 800, fontSize: '0.9rem',
+        gap: 10, fontWeight: 800, fontSize: 'clamp(0.75rem, 2.5vw, 0.9rem)',
       }}>
         <span style={{ fontSize: '1.3rem' }}>{currentPlayer?.avatar}</span>
         <span>{currentPlayer?.name}'s turn</span>
@@ -692,7 +713,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
 
       {/* Bomb + Timer */}
       <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, width: '100%', maxWidth: 500 }}>
-        <div style={{ width: 120, height: 120, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ width: 'clamp(70px, 18vw, 120px)', height: 'clamp(70px, 18vw, 120px)', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           {/* Timer ring */}
           <div style={{ position: 'absolute', inset: -10 }}>
             <svg viewBox="0 0 140 140" style={{ width: '100%', height: '100%', transform: 'rotate(-90deg)' }}>
@@ -705,7 +726,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
           </div>
           {/* Bomb emoji */}
           <div style={{
-            fontSize: '5rem',
+            fontSize: 'clamp(3rem, 10vw, 5rem)',
             animation: bombDanger ? 'bb-bomb-panic 0.3s ease-in-out infinite' : 'bb-bomb-tick 1s ease-in-out infinite',
             filter: `drop-shadow(0 0 ${bombDanger ? 40 : 20}px rgba(255,${bombDanger ? '23,68' : '61,61'},${bombDanger ? '0.9' : '0.5'}))`,
             transition: 'filter 0.3s',
@@ -716,7 +737,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
         {/* Timer text */}
         <div style={{
           fontFamily: "'Bebas Neue', sans-serif",
-          fontSize: '2.5rem', letterSpacing: 2, color: timerColor,
+          fontSize: 'clamp(1.5rem, 6vw, 2.5rem)', letterSpacing: 2, color: timerColor,
           textAlign: 'center',
           animation: bombDanger ? 'bb-pulse-text 0.3s ease infinite alternate' : 'none',
         }}>
@@ -727,8 +748,8 @@ const GameScreen: React.FC<GameScreenProps> = ({
 
       {/* Question Card */}
       <div style={{
-        background: C.card, border: `1.5px solid ${C.border}`, borderRadius: 20,
-        padding: 24, width: '100%', maxWidth: 500, textAlign: 'center',
+        background: C.card, border: `1.5px solid ${C.border}`, borderRadius: 'clamp(12px, 3vw, 20px)',
+        padding: 'clamp(12px, 3vw, 24px)', width: '100%', maxWidth: 500, textAlign: 'center',
         position: 'relative', overflow: 'hidden',
       }}>
         {/* Top accent line */}
@@ -742,7 +763,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
           display: 'inline-flex', alignItems: 'center', gap: 6,
           padding: '4px 12px', borderRadius: 99, fontSize: '0.65rem',
           fontWeight: 800, letterSpacing: 2, textTransform: 'uppercase',
-          marginBottom: 14, background: 'rgba(255,255,255,0.06)',
+          marginBottom: 'clamp(6px, 1.5vw, 14px)', background: 'rgba(255,255,255,0.06)',
           color: getCategoryColor(round.question),
         }}>
           {getCategoryIcon(round.question)} {getCategoryName(round.question)}
@@ -751,14 +772,15 @@ const GameScreen: React.FC<GameScreenProps> = ({
         {/* Question text */}
         <div style={{
           fontSize: 'clamp(1.1rem, 4vw, 1.4rem)', fontWeight: 800,
-          lineHeight: 1.4, marginBottom: 20, color: C.white,
+          lineHeight: 1.4, marginBottom: 'clamp(10px, 2.5vw, 20px)', color: C.white,
         }}>
           {round.question.q}
         </div>
 
         {/* Answer grid */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'clamp(6px, 1.5vw, 10px)' }}>
           {round.question.a.map((ans, i) => {
+            const isBlinded = round.blind && round.blindAnswers.includes(i);
             let bg: string = C.surface;
             let borderC: string = C.border;
             let col: string = C.white;
@@ -782,23 +804,23 @@ const GameScreen: React.FC<GameScreenProps> = ({
               <button
                 key={i}
                 onClick={() => handleAnswer(i)}
-                disabled={round.answered || !isLocalTurn}
+                disabled={round.answered || !isLocalTurn || isBlinded}
                 style={{
-                  padding: '14px 10px',
-                  background: bg,
-                  border: `1.5px solid ${borderC}`,
-                  borderRadius: 14,
-                  color: col,
+                  padding: 'clamp(8px, 2vw, 14px) clamp(6px, 1.5vw, 10px)',
+                  background: isBlinded ? C.surface : bg,
+                  border: `1.5px solid ${isBlinded ? C.border : borderC}`,
+                  borderRadius: 'clamp(8px, 2vw, 14px)',
+                  color: isBlinded ? 'transparent' : col,
                   fontFamily: "'Nunito', sans-serif",
-                  fontSize: '0.95rem',
+                  fontSize: 'clamp(0.8rem, 2.5vw, 0.95rem)',
                   fontWeight: 800,
-                  cursor: round.answered || !isLocalTurn ? 'default' : 'pointer',
+                  cursor: round.answered || !isLocalTurn || isBlinded ? 'default' : 'pointer',
                   textAlign: 'center',
                   animation: anim || 'none',
-                  opacity: (round.answered || !isLocalTurn) && round.answerIdx === null && i !== round.question.correct ? 0.6 : 1,
+                  opacity: isBlinded ? 0.3 : ((round.answered || !isLocalTurn) && round.answerIdx === null && i !== round.question.correct ? 0.6 : 1),
                 }}
               >
-                {ans}
+                {isBlinded ? '\uD83D\uDE48' : ans}
               </button>
             );
           })}
@@ -920,10 +942,10 @@ const GameScreen: React.FC<GameScreenProps> = ({
                   {activePlayers.filter((p) => p.id !== currentPlayer?.id).map((p) => (
                     <React.Fragment key={p.id}>
                       <button
-                        onClick={() => handleSabotage('shuffle', p.id)}
+                        onClick={() => handleSabotage('blind', p.id)}
                         style={sabotageOptionStyle}
                       >
-                        <span>{'\uD83D\uDD00'}</span> Shuffle {p.name}'s answers
+                        <span>{'\uD83D\uDE48'}</span> Blind {p.name}'s answers
                       </button>
                       <button
                         onClick={() => handleSabotage('timebomb', p.id)}

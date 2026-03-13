@@ -147,6 +147,14 @@ const BrainBombGame: React.FC = () => {
       (peerId) => {
         // Peer disconnected
         console.log('[Brain Bomb] Peer disconnected:', peerId);
+        // If guest loses connection to host, return to menu
+        if (!isHost) {
+          setPhase('menu');
+          setRoomCode('');
+          setHasJoined(false);
+          setFinalPlayers([]);
+          alert('Host has left the game.');
+        }
       },
       () => {
         // WebRTC peer is ready (connected to signaling server)
