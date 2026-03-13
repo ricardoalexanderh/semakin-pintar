@@ -88,12 +88,14 @@ const GameScreen: React.FC<GameScreenProps> = ({
   const [explosionInfo, setExplosionInfo] = useState({ name: '', message: '' });
   const [chainQuestion, setChainQuestion] = useState<Question | null>(null);
   const [chainAnswered, setChainAnswered] = useState(false);
+  const [chainRespondents, setChainRespondents] = useState<Set<string>>(new Set());
   const [toast, setToast] = useState('');
   const [toastVisible, setToastVisible] = useState(false);
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const freezeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const blindTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const chainTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Refs to always access latest state from callbacks/timeouts (avoids stale closures)
   const playersRef = useRef(players);
@@ -106,6 +108,8 @@ const GameScreen: React.FC<GameScreenProps> = ({
   explosionInfoRef.current = explosionInfo;
   const chainQuestionRef = useRef(chainQuestion);
   chainQuestionRef.current = chainQuestion;
+  const chainRespondentsRef = useRef(chainRespondents);
+  chainRespondentsRef.current = chainRespondents;
 
   const sound = settings.enableSound;
   const currentPlayer = players[round.currentPlayerIdx];
@@ -321,12 +325,46 @@ const GameScreen: React.FC<GameScreenProps> = ({
   const bombExplodesRef = useRef(bombExplodes);
   bombExplodesRef.current = bombExplodes;
 
+  // Host: finish the chain reaction and move on
+  const finishChainReaction = useCallback(() => {
+    if (chainTimeoutRef.current) { clearTimeout(chainTimeoutRef.current); chainTimeoutRef.current = null; }
+    setTimeout(() => {
+      setOverlay('none');
+      setChainQuestion(null);
+      setChainRespondents(new Set());
+      const remaining = playersRef.current.filter((p) => !p.eliminated);
+      if (remaining.length <= 1) {
+        broadcastGameOver(playersRef.current);
+        return;
+      }
+      passToNextRef.current();
+    }, 1200);
+  }, [broadcastGameOver]);
+  const finishChainRef = useRef(finishChainReaction);
+  finishChainRef.current = finishChainReaction;
+
+  // Host: check if all active players have answered the chain
+  const checkChainComplete = useCallback((respondents: Set<string>) => {
+    const active = playersRef.current.filter((p) => !p.eliminated);
+    if (respondents.size >= active.length) {
+      finishChainRef.current();
+    }
+  }, []);
+
   const triggerChainReaction = (currentPlayers?: Player[]) => {
     const q = getRandomQuestion(settings.activeSubs, settings.difficulty);
     setChainQuestion(q);
     setChainAnswered(false);
+    setChainRespondents(new Set());
     setOverlay('chain');
     broadcastState(currentPlayers ?? playersRef.current, roundRef.current, 'chain', explosionInfoRef.current, q);
+
+    // Fallback timeout: if not all players answer within 15s, proceed anyway
+    if (isHost) {
+      chainTimeoutRef.current = setTimeout(() => {
+        finishChainRef.current();
+      }, 15000);
+    }
   };
   triggerChainReactionRef.current = triggerChainReaction;
 
@@ -343,6 +381,12 @@ const GameScreen: React.FC<GameScreenProps> = ({
         return next;
       });
     }
+    // Track this player's response
+    const updated = new Set(chainRespondentsRef.current);
+    updated.add(playerId);
+    setChainRespondents(updated);
+    chainRespondentsRef.current = updated;
+    checkChainComplete(updated);
   };
 
   const handleChainAnswer = (idx: number) => {
@@ -372,17 +416,13 @@ const GameScreen: React.FC<GameScreenProps> = ({
       showToast('Correct! You survived the chain!');
     }
 
+    // Host: track own response and check if all done
     if (isHost) {
-      setTimeout(() => {
-        setOverlay('none');
-        setChainQuestion(null);
-        const remaining = playersRef.current.filter((p) => !p.eliminated);
-        if (remaining.length <= 1) {
-          broadcastGameOver(playersRef.current);
-          return;
-        }
-        passToNextRef.current();
-      }, 1200);
+      const updated = new Set(chainRespondentsRef.current);
+      updated.add(localPlayerId);
+      setChainRespondents(updated);
+      chainRespondentsRef.current = updated;
+      checkChainComplete(updated);
     }
   };
 
@@ -671,6 +711,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
       if (timerRef.current) clearInterval(timerRef.current);
       if (freezeTimeoutRef.current) clearTimeout(freezeTimeoutRef.current);
       if (blindTimeoutRef.current) clearTimeout(blindTimeoutRef.current);
+      if (chainTimeoutRef.current) clearTimeout(chainTimeoutRef.current);
     };
   }, []);
 
@@ -817,7 +858,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
                   cursor: round.answered || !isLocalTurn || isBlinded ? 'default' : 'pointer',
                   textAlign: 'center',
                   animation: anim || 'none',
-                  opacity: isBlinded ? 0.3 : ((round.answered || !isLocalTurn) && round.answerIdx === null && i !== round.question.correct ? 0.6 : 1),
+                  opacity: isBlinded ? 0.3 : (round.answered && round.answerIdx !== null && i !== round.question.correct && i !== round.answerIdx ? 0.6 : 1),
                 }}
               >
                 {isBlinded ? '\uD83D\uDE48' : ans}
@@ -856,17 +897,35 @@ const GameScreen: React.FC<GameScreenProps> = ({
         </div>
       )}
 
-      {/* Waiting player view */}
+      {/* Waiting player overlay on question card */}
       {!isLocalTurn && !round.answered && overlay === 'none' && (
         <div style={{
-          ...lobbyCardStyle, textAlign: 'center', maxWidth: 500,
-          border: `1px solid ${C.accent}33`,
+          position: 'absolute',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          zIndex: 10,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: 'clamp(12px, 2vh, 24px)',
+          background: 'linear-gradient(to top, rgba(13,13,15,0.95) 60%, rgba(13,13,15,0))',
+          pointerEvents: 'none',
         }}>
-          <div style={{ fontSize: '0.85rem', color: C.muted, marginBottom: 8 }}>Waiting for</div>
-          <div style={{ fontSize: '1.5rem', fontWeight: 800 }}>
-            {currentPlayer?.avatar} {currentPlayer?.name}
+          <div style={{
+            background: C.card,
+            border: `1.5px solid ${C.accent}44`,
+            borderRadius: 16,
+            padding: '12px 24px',
+            textAlign: 'center',
+            boxShadow: '0 4px 24px rgba(0,0,0,0.5)',
+            animation: 'bb-pulse-text 2s ease infinite alternate',
+          }}>
+            <div style={{ fontSize: '0.75rem', color: C.muted, letterSpacing: 1, textTransform: 'uppercase' as const, marginBottom: 4 }}>Not your turn</div>
+            <div style={{ fontSize: '1.1rem', fontWeight: 800 }}>
+              {currentPlayer?.avatar} {currentPlayer?.name} is answering...
+            </div>
           </div>
-          <div style={{ fontSize: '0.85rem', color: C.muted, marginTop: 8 }}>to answer...</div>
         </div>
       )}
 
@@ -898,28 +957,40 @@ const GameScreen: React.FC<GameScreenProps> = ({
             <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '2rem', letterSpacing: 3, color: C.accent4, marginBottom: 8 }}>
               {'\u26A1'} CHAIN REACTION!
             </div>
-            <div style={{ fontSize: '0.8rem', color: C.muted, marginBottom: 4 }}>Everyone answers &mdash; slowest loses a life!</div>
-            <div style={{ fontSize: '1.2rem', fontWeight: 800, margin: '16px 0', padding: 16, background: C.surface, borderRadius: 12 }}>
-              {chainQuestion.q}
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-              {chainQuestion.a.map((a, i) => (
-                <button
-                  key={i}
-                  onClick={() => handleChainAnswer(i)}
-                  disabled={chainAnswered}
-                  style={{
-                    padding: 12, background: C.surface,
-                    border: `1.5px solid ${C.border}`, borderRadius: 12,
-                    color: C.white, fontFamily: "'Nunito', sans-serif",
-                    fontSize: '0.9rem', fontWeight: 800, cursor: chainAnswered ? 'default' : 'pointer',
-                    opacity: chainAnswered ? 0.6 : 1,
-                  }}
-                >
-                  {a}
-                </button>
-              ))}
-            </div>
+            <div style={{ fontSize: '0.8rem', color: C.muted, marginBottom: 4 }}>Everyone answers &mdash; wrong answer loses a life!</div>
+            {!chainAnswered ? (
+              <>
+                <div style={{ fontSize: '1.2rem', fontWeight: 800, margin: '16px 0', padding: 16, background: C.surface, borderRadius: 12 }}>
+                  {chainQuestion.q}
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                  {chainQuestion.a.map((a, i) => (
+                    <button
+                      key={i}
+                      onClick={() => handleChainAnswer(i)}
+                      style={{
+                        padding: 12, background: C.surface,
+                        border: `1.5px solid ${C.border}`, borderRadius: 12,
+                        color: C.white, fontFamily: "'Nunito', sans-serif",
+                        fontSize: '0.9rem', fontWeight: 800, cursor: 'pointer',
+                      }}
+                    >
+                      {a}
+                    </button>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <div style={{ padding: '24px 0', textAlign: 'center' }}>
+                <div style={{ fontSize: '2rem', marginBottom: 8 }}>{'\u2705'}</div>
+                <div style={{ fontSize: '1rem', fontWeight: 800, color: C.muted }}>
+                  Waiting for other players...
+                </div>
+                <div style={{ fontSize: '0.75rem', color: C.muted, marginTop: 8 }}>
+                  {chainRespondents.size} / {activePlayers.length} answered
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

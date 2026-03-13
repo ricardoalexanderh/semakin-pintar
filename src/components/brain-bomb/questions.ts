@@ -293,7 +293,7 @@ export const SUB_DEFS: Record<string, { icon: string; label: string; color: stri
       ['logic_patterns', 'Patterns'],
       ['logic_truefalse', 'True / False'],
       ['logic_oddone', 'Odd One Out'],
-      ['logic_syllogism', 'Syllogisms'],
+      ['logic_syllogism', 'Logic Puzzles'],
     ],
   },
   ct: {
