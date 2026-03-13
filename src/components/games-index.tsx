@@ -213,6 +213,19 @@ const GamesIndex: React.FC = () => {
       duration: '2-10 minutes',
       category: 'Fun Math Games'
     },
+    {
+      id: 'brain-bomb',
+      name: 'Brain Bomb',
+      description: 'Multiplayer party trivia - pass the bomb!',
+      longDescription: 'A multiplayer party game for 2-8 players! A ticking bomb is passed between players who must answer trivia questions to survive. Wrong answer or time runs out = BOOM! Features math, logic, word, and memory challenges across multiple difficulty levels with power-ups and sabotage cards.',
+      icon: <span className="text-2xl">💣</span>,
+      available: true,
+      gradient: 'from-red-500 to-orange-500',
+      path: '/games/brain-bomb',
+      difficulty: 'Easy to Hard',
+      duration: '5-20 minutes',
+      category: 'Brain Training'
+    },
     /*{
       id: 'math-drop',
       name: 'Math Drop',

@@ -35,6 +35,7 @@ Semakin Pintar is a comprehensive educational games platform designed to make le
 - **Pair Shift** - Pick any two adjacent cards and slide them as a pair to sort in minimum moves
 
 #### Brain Training
+- **Brain Bomb** - Multiplayer party game for 2-8 players! A ticking bomb is passed between players who must answer trivia questions to survive. Features math, logic, word, and memory challenges with power-ups, sabotage cards, and chain reactions
 - **Mirror Dash** - Control two ships at once across mirrored lanes! Navigate both sides simultaneously — dodge obstacles, grab power-ups, and make split-second decisions
 - **Stack Climber** - Jump on blocks that follow the current number rule to launch yourself higher; wrong blocks cost a life while fall speed increases as you climb
 

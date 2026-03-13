@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { ArrowLeft, Home } from 'lucide-react';
 import Breadcrumb from './breadcrumb';
 import FloatingButtons from './floating-buttons';
@@ -9,13 +9,18 @@ interface GamesLayoutProps {
 }
 
 const GamesLayout: React.FC<GamesLayoutProps> = ({ children }) => {
+  const location = useLocation();
+
   useEffect(() => {
+    // Skip auto-scroll for Brain Bomb (fullscreen game with its own layout)
+    if (location.pathname === '/games/brain-bomb') return;
+
     // Scroll to bottom on game entry to hide mobile browser address bar
     const timer = setTimeout(() => {
       window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
     }, 150);
     return () => clearTimeout(timer);
-  }, []);
+  }, [location.pathname]);
 
   return (
     <div className="min-h-screen relative">
