@@ -156,6 +156,10 @@ const GameScreen: React.FC<GameScreenProps> = ({
       setOverlay(state.overlay);
       setExplosionInfo(state.explosionInfo);
       setChainQuestion(state.chainQuestion);
+      // Reset chainAnswered when a new chain reaction starts (guest doesn't run triggerChainReaction)
+      if (state.overlay === 'chain' && state.chainQuestion) {
+        setChainAnswered(false);
+      }
     } else if (isHost) {
       // Host receives actions from guests
       if (msg.type === 'answer-submitted') {
@@ -314,7 +318,9 @@ const GameScreen: React.FC<GameScreenProps> = ({
       }
 
       // Chain reaction?
-      if (settings.enableChainReaction && Math.random() > 0.4) {
+      const chainRoll = Math.random();
+      console.log('[Brain Bomb] Chain check:', { enableChainReaction: settings.enableChainReaction, chainRoll, willTrigger: settings.enableChainReaction && chainRoll > 0.4, remaining: remaining.length });
+      if (settings.enableChainReaction && chainRoll > 0.4) {
         triggerChainReactionRef.current(newPlayers);
       } else {
         passToNextRef.current(newPlayers);
@@ -331,6 +337,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
     setTimeout(() => {
       setOverlay('none');
       setChainQuestion(null);
+      setChainAnswered(false);
       setChainRespondents(new Set());
       const remaining = playersRef.current.filter((p) => !p.eliminated);
       if (remaining.length <= 1) {
