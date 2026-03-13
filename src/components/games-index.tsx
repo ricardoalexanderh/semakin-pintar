@@ -211,7 +211,7 @@ const GamesIndex: React.FC = () => {
       path: '/games/stack-climber',
       difficulty: 'Easy to Hard',
       duration: '2-10 minutes',
-      category: 'Fun Math Games'
+      category: 'Brain Training'
     },
     {
       id: 'brain-bomb',
