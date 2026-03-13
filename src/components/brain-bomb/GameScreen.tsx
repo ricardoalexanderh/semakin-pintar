@@ -482,7 +482,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
     const newQuestion = getRandomQuestion(settings.activeSubs, settings.difficulty, settings.enableProgressiveDifficulty ? curRound.round + 1 : undefined);
 
     // Add bonus seconds instead of resetting to full timer
-    const bonusSeconds = { easy: 12, medium: 8, hard: 5 }[settings.difficulty];
+    const bonusSeconds = { easy: 10, medium: 5, hard: 3 }[settings.difficulty];
     const baseTime = Math.min(curRound.timeLeft + bonusSeconds, maxTime);
     // Apply time penalty sabotage
     const penalty = nextPlayer.timePenalty || 0;
@@ -673,7 +673,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
 
     // Pass the bomb directly to the target player with a new question
     const newQuestion = getRandomQuestion(settings.activeSubs, settings.difficulty, settings.enableProgressiveDifficulty ? curRound.round + 1 : undefined);
-    const bonusSecs = { easy: 12, medium: 8, hard: 5 }[settings.difficulty];
+    const bonusSecs = { easy: 10, medium: 5, hard: 3 }[settings.difficulty];
     const redirectTime = Math.min(curRound.timeLeft + bonusSecs, maxTime);
     const newRound: RoundState = {
       currentPlayerIdx: targetIdx,
