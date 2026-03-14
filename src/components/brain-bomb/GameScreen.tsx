@@ -30,7 +30,6 @@ interface RoundState {
   isBonus?: boolean;
   decoy?: boolean;
   decoyAnswer?: string;
-  throwOriginIdx?: number;
 }
 
 interface SyncState {
@@ -106,6 +105,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
   const [throwFromName, setThrowFromName] = useState('');
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pendingToastRef = useRef<string | undefined>(undefined);
   const chainTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const chainTimeLeftRef = useRef(0);
   const freezeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -141,10 +141,8 @@ const GameScreen: React.FC<GameScreenProps> = ({
   // Broadcast a toast to all players (host shows locally + sends to guests)
   const broadcastToast = useCallback((msg: string) => {
     showToast(msg);
-    if (isHost && gameRoom) {
-      gameRoom.broadcast('toast', { message: msg });
-    }
-  }, [showToast, isHost, gameRoom]);
+    pendingToastRef.current = msg;
+  }, [showToast]);
 
   // --- Sync: Host broadcasts state after changes ---
   const broadcastState = useCallback((
@@ -159,7 +157,9 @@ const GameScreen: React.FC<GameScreenProps> = ({
     throwFromName?: string,
   ) => {
     if (!isHost || !gameRoom) return;
-    const state: SyncState = { players: p, round: r, overlay: ov, explosionInfo: ei, chainQuestion: cq, chainTimeLeft: chainTimeLeftRef.current, gameOver, toastMessage, throwTargetId, throwFromName };
+    const toastMsg = toastMessage || pendingToastRef.current;
+    pendingToastRef.current = undefined;
+    const state: SyncState = { players: p, round: r, overlay: ov, explosionInfo: ei, chainQuestion: cq, chainTimeLeft: chainTimeLeftRef.current, gameOver, toastMessage: toastMsg, throwTargetId, throwFromName };
     gameRoom.broadcast('game-state', state);
   }, [isHost, gameRoom]);
 
@@ -227,9 +227,6 @@ const GameScreen: React.FC<GameScreenProps> = ({
           showToast(state.toastMessage);
         }
       }
-    } else if (msg.type === 'toast' && !isHost) {
-      const { message } = msg.payload as { message: string };
-      showToast(message);
     } else if (isHost) {
       // Host receives actions from guests
       if (msg.type === 'answer-submitted') {
@@ -542,9 +539,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
       return;
     }
 
-    // After a throw, resume from the thrower's position instead of the target's
-    const resumeFrom = curRound.throwOriginIdx ?? curRound.currentPlayerIdx;
-    let nextIdx = resumeFrom;
+    let nextIdx = curRound.currentPlayerIdx;
     do {
       nextIdx = (nextIdx + 1) % cp.length;
     } while (cp[nextIdx].eliminated);
@@ -804,7 +799,6 @@ const GameScreen: React.FC<GameScreenProps> = ({
         frozen: false,
         blind: false,
         blindAnswers: [],
-        throwOriginIdx: curRound.currentPlayerIdx,
       };
       setRound(newRound);
       setOverlay('none');
