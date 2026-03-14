@@ -78,9 +78,9 @@ const GameOverScreen: React.FC<GameOverScreenProps> = ({
                 </div>
               </div>
               {p.eliminated ? (
-                <span style={{ fontSize: '0.65rem', color: C.danger, flexShrink: 0, textAlign: 'right' }}>{'\uD83D\uDC80'} Out</span>
+                <span style={{ fontSize: '0.65rem', color: C.danger, flexShrink: 0, textAlign: 'right' }}>{'\uD83D\uDC80'} Eliminated</span>
               ) : (
-                <span style={{ fontSize: '0.65rem', color: C.green, flexShrink: 0, textAlign: 'right' }}>{'\uD83C\uDFC6'} Won</span>
+                <span style={{ fontSize: '0.65rem', color: C.green, flexShrink: 0, textAlign: 'right' }}>{'\uD83C\uDFC6'} Survived</span>
               )}
             </div>
           ))}
