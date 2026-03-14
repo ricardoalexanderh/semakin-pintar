@@ -716,30 +716,35 @@ const GameScreen: React.FC<GameScreenProps> = ({
     const target = curPlayers[targetIdx];
     if (!target) return;
 
-    broadcastToast(`\uD83C\uDFAF Bomb thrown to ${target.name}!`);
-    setOverlay('none');
+    // Show "bomb incoming" notification before starting the target's turn
+    const thrower = curPlayers[curRound.currentPlayerIdx];
+    const ei = { name: target.name, message: `\uD83C\uDFAF ${thrower?.name} threw the bomb to ${target.name}!` };
+    setExplosionInfo(ei);
+    setOverlay('explosion');
+    broadcastState(curPlayers, curRound, 'explosion', ei, chainQuestionRef.current);
 
-    // Pass the bomb directly to the target player with a new question
-    // Pass the same question to the target (so throw is strategic for hard questions)
-    const sameQuestion = curRound.question;
-    const bonusSecs = { easy: 10, medium: 5, hard: 3 }[settings.difficulty];
-    const redirectTime = Math.min(curRound.timeLeft + bonusSecs, maxTime);
-    const newRound: RoundState = {
-      currentPlayerIdx: targetIdx,
-      question: sameQuestion,
-      timeLeft: redirectTime,
-      maxTime,
-      answered: false,
-      answerIdx: null,
-      round: curRound.round + 1,
-      frozen: false,
-      blind: false,
-      blindAnswers: [],
-    };
-    setRound(newRound);
-    const newPlayers = curPlayers.map((p) => ({ ...p, usedPowerupThisRound: false }));
-    setPlayers(newPlayers);
-    broadcastState(newPlayers, newRound, 'none', { name: '', message: '' }, null);
+    setTimeout(() => {
+      // Pass the same question to the target (strategic throw for hard questions)
+      const sameQuestion = curRound.question;
+      const bonusSecs = { easy: 10, medium: 5, hard: 3 }[settings.difficulty];
+      const redirectTime = Math.min(curRound.timeLeft + bonusSecs, maxTime);
+      const newRound: RoundState = {
+        currentPlayerIdx: targetIdx,
+        question: sameQuestion,
+        timeLeft: redirectTime,
+        maxTime,
+        answered: false,
+        answerIdx: null,
+        round: curRound.round + 1,
+        frozen: false,
+        blind: false,
+        blindAnswers: [],
+      };
+      setRound(newRound);
+      const newPlayers = curPlayers.map((p) => ({ ...p, usedPowerupThisRound: false }));
+      setPlayers(newPlayers);
+      broadcastState(newPlayers, newRound, 'none', { name: '', message: '' }, null);
+    }, 2000);
   };
 
   const handleSabotage = (type: 'blind' | 'timebomb' | 'decoy', targetId: string, fromRemote = false) => {
@@ -1206,7 +1211,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
                     onClick={() => handleCloneTarget(p.id)}
                     style={sabotageOptionStyle}
                   >
-                    {p.avatar} Throw to <strong>{p.name}</strong>
+                    <span>{p.avatar} Throw to <strong>{p.name}</strong></span>
                   </button>
                 ))
               ) : (

@@ -170,6 +170,7 @@ const BrainBombGame: React.FC = () => {
           setPlayers(payload.players);
           setPhase('countdown');
         } else if (msg.type === 'return-lobby') {
+          bgmRef.current?.pause();
           setPhase('lobby');
           setFinalPlayers([]);
         } else if (['game-state', 'answer-submitted', 'powerup-used', 'chain-answer', 'clone-target', 'sabotage-applied'].includes(msg.type)) {
@@ -187,6 +188,7 @@ const BrainBombGame: React.FC = () => {
         console.log('[Brain Bomb] Peer disconnected:', peerId);
         // If guest loses connection to host, return to menu
         if (!isHost) {
+          bgmRef.current?.pause();
           setPhase('menu');
           setRoomCode('');
           setHasJoined(false);
