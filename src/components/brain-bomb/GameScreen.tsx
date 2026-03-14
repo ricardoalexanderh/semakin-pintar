@@ -128,6 +128,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
   chainQuestionRef.current = chainQuestion;
   const chainRespondentsRef = useRef(chainRespondents);
   chainRespondentsRef.current = chainRespondents;
+  const chainWrongAnswersRef = useRef<Set<string>>(new Set());
   chainTimeLeftRef.current = chainTimeLeft;
 
   const sound = settings.enableSound;
@@ -414,14 +415,19 @@ const GameScreen: React.FC<GameScreenProps> = ({
   const finishChainReaction = useCallback(() => {
     if (chainTimeoutRef.current) { clearTimeout(chainTimeoutRef.current); chainTimeoutRef.current = null; }
     if (chainTimerRef.current) { clearInterval(chainTimerRef.current); chainTimerRef.current = null; }
-    // Penalize players who didn't answer the chain (-1 life)
+    // Penalize players who didn't answer OR answered wrong (-1 life)
     const respondents = chainRespondentsRef.current;
+    const wrongAnswers = chainWrongAnswersRef.current;
     const penalized = playersRef.current.map((p) => {
-      if (p.eliminated || respondents.has(p.id)) return p;
+      if (p.eliminated) return p;
+      const didntAnswer = !respondents.has(p.id);
+      const answeredWrong = wrongAnswers.has(p.id);
+      if (!didntAnswer && !answeredWrong) return p;
       const newLives = Math.max(0, p.lives - 1);
       return { ...p, lives: newLives, eliminated: newLives <= 0 };
     });
     setPlayers(penalized);
+    chainWrongAnswersRef.current = new Set();
 
     // Brief delay so players see the result, then proceed
     setTimeout(() => {
@@ -461,6 +467,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
     chainQuestionRef.current = q;
     setChainAnswered(false);
     setChainRespondents(new Set());
+    chainWrongAnswersRef.current = new Set();
     setChainTimeLeft(chainTime);
     chainTimeLeftRef.current = chainTime;
     setOverlay('chain');
@@ -492,14 +499,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
     const cq = chainQuestionRef.current;
     if (!cq) return;
     if (idx !== cq.correct) {
-      setPlayers((prev) => {
-        const next = prev.map((p) => {
-          if (p.id !== playerId) return p;
-          const newLives = Math.max(0, p.lives - 1);
-          return { ...p, lives: newLives, eliminated: newLives <= 0 };
-        });
-        return next;
-      });
+      chainWrongAnswersRef.current.add(playerId);
     }
     // Track this player's response
     const updated = new Set(chainRespondentsRef.current);
@@ -522,14 +522,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
       playSound('wrong', sound);
       showToast('Wrong! -1 life for you!');
       if (isHost) {
-        setPlayers((prev) => {
-          const next = prev.map((p) => {
-            if (p.id !== localPlayerId) return p;
-            const newLives = Math.max(0, p.lives - 1);
-            return { ...p, lives: newLives, eliminated: newLives <= 0 };
-          });
-          return next;
-        });
+        chainWrongAnswersRef.current.add(localPlayerId);
       }
     } else {
       playSound('correct', sound);
