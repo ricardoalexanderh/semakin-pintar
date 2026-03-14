@@ -498,7 +498,6 @@ const GameScreen: React.FC<GameScreenProps> = ({
     } while (cp[nextIdx].eliminated);
 
     const nextPlayer = cp[nextIdx];
-    const curPlayer = cp[curRound.currentPlayerIdx];
     const newQuestion = getRandomQuestion(settings.activeSubs, settings.difficulty, settings.enableProgressiveDifficulty ? curRound.round + 1 : undefined);
 
     // Save current player's remaining time + bonus for their next turn (only on correct answer)
