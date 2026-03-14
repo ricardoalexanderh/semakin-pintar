@@ -29,22 +29,22 @@ const GameOverScreen: React.FC<GameOverScreenProps> = ({
   const winner = sorted[0];
 
   return (
-    <div style={{ padding: 'clamp(12px, 3vw, 24px)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 'clamp(10px, 2vh, 16px)', justifyContent: 'center', height: 'calc(100dvh - 4rem)', boxSizing: 'border-box', overflow: 'auto' }}>
+    <div style={{ padding: 24, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16, justifyContent: 'center', minHeight: '80vh' }}>
       {/* Winner display */}
-      <div style={{ textAlign: 'center', flexShrink: 0 }}>
-        <span style={{ fontSize: 'clamp(2.5rem, 8vw, 4rem)', display: 'block', marginBottom: 4, animation: 'bb-trophy-bounce 1s ease-in-out infinite' }}>
+      <div style={{ textAlign: 'center', marginBottom: 8 }}>
+        <span style={{ fontSize: '4rem', display: 'block', marginBottom: 8, animation: 'bb-trophy-bounce 1s ease-in-out infinite' }}>
           {'\uD83C\uDFC6'}
         </span>
         <div style={{
           fontFamily: "'Space Mono', monospace",
-          fontSize: '0.6rem', letterSpacing: 4, color: C.muted,
-          textTransform: 'uppercase', marginBottom: 2,
+          fontSize: '0.65rem', letterSpacing: 4, color: C.muted,
+          textTransform: 'uppercase', marginBottom: 4,
         }}>
           Winner
         </div>
         <div style={{
           fontFamily: "'Bebas Neue', sans-serif",
-          fontSize: 'clamp(2rem, 8vw, 3.5rem)', letterSpacing: 4,
+          fontSize: '3.5rem', letterSpacing: 4,
           background: `linear-gradient(135deg, ${C.yellow}, ${C.accent2})`,
           WebkitBackgroundClip: 'text',
           WebkitTextFillColor: 'transparent',
@@ -54,32 +54,35 @@ const GameOverScreen: React.FC<GameOverScreenProps> = ({
       </div>
 
       {/* Leaderboard */}
-      <div style={{ ...lobbyCard, flex: '1 1 auto', minHeight: 0, overflow: 'auto', width: '100%', maxWidth: 500 }}>
+      <div style={lobbyCard}>
         <h3 style={cardTitle}>{'\uD83D\uDCCA'} Final Standings</h3>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {sorted.map((p, i) => (
             <div key={p.id} style={{
-              display: 'flex', alignItems: 'center', gap: 12,
+              display: 'flex', alignItems: 'flex-start', gap: 12,
               padding: '10px 14px', background: C.surface,
               borderRadius: 12, border: `1px solid ${C.border}`,
+              flexWrap: 'wrap',
             }}>
               <span style={{
                 fontFamily: "'Bebas Neue', sans-serif",
                 fontSize: '1.2rem', color: i === 0 ? C.yellow : C.muted,
-                width: 24, flexShrink: 0,
+                width: 24,
               }}>
                 {i + 1}
               </span>
-              <span style={{ fontSize: '1.3rem', flexShrink: 0 }}>{p.avatar}</span>
-              <span style={{ flex: 1, fontWeight: 800, color: p.color, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</span>
-              <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '0.75rem', color: C.muted, flexShrink: 0 }}>
-                Score: {p.score}
-              </span>
-              {p.eliminated ? (
-                <span style={{ fontSize: '0.7rem', color: C.danger, flexShrink: 0 }}>{'\uD83D\uDC80'} Eliminated</span>
-              ) : (
-                <span style={{ fontSize: '0.7rem', color: C.green, flexShrink: 0 }}>{'\uD83C\uDFC6'} Survived</span>
-              )}
+              <span style={{ fontSize: '1.3rem' }}>{p.avatar}</span>
+              <span style={{ flex: 1, fontWeight: 800, color: p.color }}>{p.name}</span>
+              <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', paddingLeft: 36 }}>
+                <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '0.75rem', color: C.muted }}>
+                  {'\u2B50'} Score: {p.score}
+                </span>
+                {p.eliminated ? (
+                  <span style={{ fontSize: '0.7rem', color: C.danger }}>{'\uD83D\uDC80'} Eliminated</span>
+                ) : (
+                  <span style={{ fontSize: '0.7rem', color: C.green }}>{'\uD83C\uDFC6'} Survived</span>
+                )}
+              </div>
             </div>
           ))}
         </div>
@@ -88,7 +91,7 @@ const GameOverScreen: React.FC<GameOverScreenProps> = ({
       {/* Play Again */}
       <button
         onClick={onPlayAgain}
-        style={{ ...startBtn, flexShrink: 0, width: '100%', maxWidth: 500 }}
+        style={startBtn}
       >
         {'\uD83D\uDD04'} PLAY AGAIN
       </button>
