@@ -122,6 +122,8 @@ const BrainBombGame: React.FC = () => {
         bgmRef.current.currentTime = 0;
         bgmRef.current.play().catch(() => {});
       }
+      // Auto-scroll to bottom so all players can see the game screen
+      setTimeout(() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }), 300);
     }
   }, [phase]);
 
