@@ -118,6 +118,8 @@ export const playerChip = (isActive: boolean, isEliminated: boolean, color: stri
   boxShadow: isActive ? `0 0 20px ${color}44` : 'none',
   transform: isActive ? 'scale(1.05)' : 'scale(1)',
   transition: 'all 0.3s',
+  maxWidth: 'clamp(120px, 30vw, 180px)',
+  overflow: 'hidden',
 });
 
 export const overlayBase: CSSProperties = {

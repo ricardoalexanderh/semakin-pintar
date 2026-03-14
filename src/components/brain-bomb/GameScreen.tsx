@@ -907,8 +907,8 @@ const GameScreen: React.FC<GameScreenProps> = ({
         {players.map((p, i) => (
           <div key={p.id} style={playerChip(i === round.currentPlayerIdx, p.eliminated, p.color)}>
             <span>{p.avatar}</span>
-            <span>{p.name.split(' ')[0]}</span>
-            <span style={{ display: 'flex', gap: 2, fontSize: '0.6rem' }}>
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name.split(' ')[0]}</span>
+            <span style={{ display: 'flex', gap: 2, fontSize: '0.6rem', flexShrink: 0 }}>
               {Array.from({ length: DIFFICULTY_CONFIG[settings.difficulty].lives }, (_, li) => (
                 <span key={li}>{li < p.lives ? '\u2764\uFE0F' : '\uD83D\uDDA4'}</span>
               ))}
