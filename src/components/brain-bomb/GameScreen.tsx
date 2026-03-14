@@ -43,6 +43,7 @@ interface SyncState {
   toastMessage?: string;
   throwTargetId?: string;
   throwFromName?: string;
+  chainRespondentCount?: number;
 }
 
 type OverlayType = 'none' | 'explosion' | 'chain' | 'sabotage' | 'clone';
@@ -159,7 +160,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
     if (!isHost || !gameRoom) return;
     const toastMsg = toastMessage || pendingToastRef.current;
     pendingToastRef.current = undefined;
-    const state: SyncState = { players: p, round: r, overlay: ov, explosionInfo: ei, chainQuestion: cq, chainTimeLeft: chainTimeLeftRef.current, gameOver, toastMessage: toastMsg, throwTargetId, throwFromName };
+    const state: SyncState = { players: p, round: r, overlay: ov, explosionInfo: ei, chainQuestion: cq, chainTimeLeft: chainTimeLeftRef.current, gameOver, toastMessage: toastMsg, throwTargetId, throwFromName, chainRespondentCount: chainRespondentsRef.current.size };
     gameRoom.broadcast('game-state', state);
   }, [isHost, gameRoom]);
 
@@ -209,6 +210,11 @@ const GameScreen: React.FC<GameScreenProps> = ({
       setExplosionInfo(state.explosionInfo);
       setChainQuestion(state.chainQuestion);
       if (state.chainTimeLeft != null) setChainTimeLeft(state.chainTimeLeft);
+      // Sync chain respondent count from host
+      if (state.chainRespondentCount != null && state.chainRespondentCount !== chainRespondents.size) {
+        const dummy = new Set(Array.from({ length: state.chainRespondentCount }, (_, i) => `r${i}`));
+        setChainRespondents(dummy);
+      }
       // Reset chainAnswered only when a NEW chain reaction starts (not on every timer sync)
       if (state.overlay === 'chain' && state.chainQuestion && overlay !== 'chain') {
         setChainAnswered(false);
@@ -591,7 +597,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
       currentPlayerIdx: nextIdx,
       question: newQuestion,
       timeLeft: adjustedTime,
-      maxTime,
+      maxTime: adjustedTime,
       answered: false,
       answerIdx: null,
       round: nextRound,
@@ -654,7 +660,8 @@ const GameScreen: React.FC<GameScreenProps> = ({
 
     if (isCorrect) {
       if (curPlayers[curRound.currentPlayerIdx]?.id === localPlayerId) playSound('correct', sound);
-      const earnedSabotage = settings.enableSabotage && !curPlayers[curRound.currentPlayerIdx].usedPowerupThisRound && curRound.timeLeft > maxTime * 0.85;
+      const startTime = curRound.maxTime;
+      const earnedSabotage = settings.enableSabotage && !curPlayers[curRound.currentPlayerIdx].usedPowerupThisRound && curRound.timeLeft > startTime * 0.85;
       const maxLives = settings.mode === 'sudden' ? 1 : DIFFICULTY_CONFIG[settings.difficulty].lives;
       const bonusLife = !!curRound.isBonus;
       const newPlayers = curPlayers.map((p, i) => {
