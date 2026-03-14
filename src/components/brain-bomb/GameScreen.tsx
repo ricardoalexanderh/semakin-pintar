@@ -41,6 +41,7 @@ interface SyncState {
   chainTimeLeft?: number;
   gameOver?: boolean;
   toastMessage?: string;
+  throwTargetId?: string;
 }
 
 type OverlayType = 'none' | 'explosion' | 'chain' | 'sabotage' | 'clone';
@@ -99,6 +100,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
   const [chainTimeLeft, setChainTimeLeft] = useState(0);
   const [toast, setToast] = useState('');
   const [toastVisible, setToastVisible] = useState(false);
+  const [throwNotif, setThrowNotif] = useState(false);
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const chainTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -150,9 +152,10 @@ const GameScreen: React.FC<GameScreenProps> = ({
     cq: Question | null,
     gameOver = false,
     toastMessage?: string,
+    throwTargetId?: string,
   ) => {
     if (!isHost || !gameRoom) return;
-    const state: SyncState = { players: p, round: r, overlay: ov, explosionInfo: ei, chainQuestion: cq, chainTimeLeft: chainTimeLeftRef.current, gameOver, toastMessage };
+    const state: SyncState = { players: p, round: r, overlay: ov, explosionInfo: ei, chainQuestion: cq, chainTimeLeft: chainTimeLeftRef.current, gameOver, toastMessage, throwTargetId };
     gameRoom.broadcast('game-state', state);
   }, [isHost, gameRoom]);
 
@@ -206,8 +209,14 @@ const GameScreen: React.FC<GameScreenProps> = ({
       if (state.overlay === 'chain' && state.chainQuestion) {
         setChainAnswered(false);
       }
-      // Show toast if included in game-state
-      if (state.toastMessage) {
+      // Throw notification: centered overlay for target, toast for others
+      if (state.throwTargetId) {
+        if (state.throwTargetId === localPlayerId) {
+          setThrowNotif(true);
+        } else if (state.toastMessage) {
+          showToast(state.toastMessage);
+        }
+      } else if (state.toastMessage) {
         showToast(state.toastMessage);
       }
     } else if (msg.type === 'toast' && !isHost) {
@@ -757,13 +766,18 @@ const GameScreen: React.FC<GameScreenProps> = ({
     setRound(pausedRound);
     setOverlay('none');
 
-    // Show notification to all players via game-state sync
+    // Show centered overlay for the target, toast for others
     const thrower = curPlayers[curRound.currentPlayerIdx];
     const throwMsg = `\uD83C\uDFAF ${thrower?.name} threw the bomb to ${target.name}!`;
-    showToast(throwMsg);
-    broadcastState(curPlayers, pausedRound, 'none', explosionInfoRef.current, chainQuestionRef.current, false, throwMsg);
+    if (target.id === localPlayerId) {
+      setThrowNotif(true);
+    } else {
+      showToast(throwMsg);
+    }
+    broadcastState(curPlayers, pausedRound, 'none', explosionInfoRef.current, chainQuestionRef.current, false, throwMsg, target.id);
 
     setTimeout(() => {
+      setThrowNotif(false);
       // Pass the same question to the target (strategic throw for hard questions)
       const sameQuestion = curRound.question;
       const bonusSecs = { easy: 10, medium: 5, hard: 3 }[settings.difficulty];
@@ -1099,6 +1113,21 @@ const GameScreen: React.FC<GameScreenProps> = ({
       )}
 
       {/* ===== OVERLAYS ===== */}
+
+      {/* Bomb throw notification — centered for the receiver */}
+      {throwNotif && (
+        <div style={{ ...overlayBase, background: 'rgba(255,149,0,0.15)' }}>
+          <div style={{ fontSize: '5rem', animation: 'bb-pop-in 0.4s ease' }}>{'\uD83C\uDFAF'}</div>
+          <div style={{
+            fontFamily: "'Bebas Neue', sans-serif", fontSize: '2.5rem',
+            letterSpacing: 4, color: C.accent2,
+            textShadow: '0 0 30px rgba(255,149,0,0.6)', textAlign: 'center',
+          }}>
+            BOMB INCOMING!
+          </div>
+          <div style={{ fontSize: '0.9rem', fontWeight: 700, color: C.muted }}>Get ready to answer...</div>
+        </div>
+      )}
 
       {/* Explosion */}
       {overlay === 'explosion' && (
