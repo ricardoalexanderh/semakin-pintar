@@ -21,6 +21,7 @@ interface RoundState {
   question: Question;
   timeLeft: number;
   maxTime: number;
+  startTime: number;
   answered: boolean;
   answerIdx: number | null;
   round: number;
@@ -86,6 +87,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
       : { q: '...', a: ['...', '...', '...', '...'], correct: 0, diff: settings.difficulty },
     timeLeft: maxTime,
     maxTime,
+    startTime: maxTime,
     answered: false,
     answerIdx: null,
     round: 1,
@@ -606,7 +608,8 @@ const GameScreen: React.FC<GameScreenProps> = ({
       currentPlayerIdx: nextIdx,
       question: newQuestion,
       timeLeft: adjustedTime,
-      maxTime: adjustedTime,
+      maxTime,
+      startTime: adjustedTime,
       answered: false,
       answerIdx: null,
       round: nextRound,
@@ -669,7 +672,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
 
     if (isCorrect) {
       if (curPlayers[curRound.currentPlayerIdx]?.id === localPlayerId) playSound('correct', sound);
-      const startTime = curRound.maxTime;
+      const startTime = curRound.startTime;
       const earnedSabotage = settings.enableSabotage && !curPlayers[curRound.currentPlayerIdx].usedPowerupThisRound && curRound.timeLeft > startTime * 0.85;
       const maxLives = settings.mode === 'sudden' ? 1 : DIFFICULTY_CONFIG[settings.difficulty].lives;
       const bonusLife = !!curRound.isBonus;
@@ -689,7 +692,9 @@ const GameScreen: React.FC<GameScreenProps> = ({
       }
 
       if (earnedSabotage && newPlayers.filter((p) => !p.eliminated).length > 1) {
-        // Show sabotage picker — turn waits until player picks or skips
+        // Broadcast answered state immediately so guests see green highlight
+        broadcastState(newPlayers, newRound, overlayRef.current, explosionInfoRef.current, chainQuestionRef.current);
+        // Show sabotage picker after delay
         setTimeout(() => {
           setOverlay('sabotage');
           broadcastState(newPlayers, newRound, 'sabotage', explosionInfoRef.current, chainQuestionRef.current);
@@ -809,6 +814,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
         question: sameQuestion,
         timeLeft: redirectTime,
         maxTime,
+        startTime: redirectTime,
         answered: false,
         answerIdx: null,
         round: curRound.round + 1,
