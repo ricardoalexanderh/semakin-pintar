@@ -209,8 +209,8 @@ const GameScreen: React.FC<GameScreenProps> = ({
       setExplosionInfo(state.explosionInfo);
       setChainQuestion(state.chainQuestion);
       if (state.chainTimeLeft != null) setChainTimeLeft(state.chainTimeLeft);
-      // Reset chainAnswered when a new chain reaction starts (guest doesn't run triggerChainReaction)
-      if (state.overlay === 'chain' && state.chainQuestion) {
+      // Reset chainAnswered only when a NEW chain reaction starts (not on every timer sync)
+      if (state.overlay === 'chain' && state.chainQuestion && overlay !== 'chain') {
         setChainAnswered(false);
       }
       // Throw notification: centered overlay for target, toast for others
