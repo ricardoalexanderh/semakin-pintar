@@ -29,6 +29,17 @@ const TURN_URL = import.meta.env.VITE_TURN_URL || '';
 const TURN_USER = import.meta.env.VITE_TURN_USER || '';
 const TURN_PASS = import.meta.env.VITE_TURN_PASS || '';
 
+// Default free ICE servers (used when no custom server is configured)
+const DEFAULT_ICE_SERVERS = [
+  // Google STUN — free, reliable, handles ~80% of connections
+  { urls: 'stun:stun.l.google.com:19302' },
+  { urls: 'stun:stun1.l.google.com:19302' },
+  { urls: 'stun:stun2.l.google.com:19302' },
+  // Free TURN fallbacks for strict NAT (~20% of connections)
+  { urls: 'turn:turn.bistri.com:80', username: 'homeo', credential: 'homeo' },
+  { urls: 'turn:turn.anyfirewall.com:443?transport=tcp', username: 'webrtc', credential: 'webrtc' },
+];
+
 function buildPeerOptions(): Record<string, unknown> {
   const opts: Record<string, unknown> = { debug: 0 };
 
@@ -40,13 +51,14 @@ function buildPeerOptions(): Record<string, unknown> {
     opts.secure = PEER_HOST !== 'localhost' && PEER_HOST !== '127.0.0.1';
   }
 
-  // Only set ICE servers if STUN or TURN is configured
-  const iceServers: Record<string, string>[] = [];
-  if (STUN_URL) iceServers.push({ urls: STUN_URL });
-  if (TURN_URL) iceServers.push({ urls: TURN_URL, username: TURN_USER, credential: TURN_PASS });
-
-  if (iceServers.length > 0) {
+  // Use custom ICE servers if configured, otherwise use free defaults
+  if (STUN_URL || TURN_URL) {
+    const iceServers: Record<string, string>[] = [];
+    if (STUN_URL) iceServers.push({ urls: STUN_URL });
+    if (TURN_URL) iceServers.push({ urls: TURN_URL, username: TURN_USER, credential: TURN_PASS });
     opts.config = { iceServers };
+  } else {
+    opts.config = { iceServers: DEFAULT_ICE_SERVERS };
   }
 
   return opts;
