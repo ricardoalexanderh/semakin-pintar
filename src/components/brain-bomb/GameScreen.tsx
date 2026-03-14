@@ -720,13 +720,12 @@ const GameScreen: React.FC<GameScreenProps> = ({
     if (timerRef.current) clearInterval(timerRef.current);
     const pausedRound = { ...curRound, answered: true };
     setRound(pausedRound);
+    setOverlay('none');
 
-    // Show "bomb incoming" notification before starting the target's turn
+    // Show toast notification to all players
     const thrower = curPlayers[curRound.currentPlayerIdx];
-    const ei = { name: target.name, message: `\uD83C\uDFAF ${thrower?.name} threw the bomb to ${target.name}!` };
-    setExplosionInfo(ei);
-    setOverlay('explosion');
-    broadcastState(curPlayers, pausedRound, 'explosion', ei, chainQuestionRef.current);
+    broadcastToast(`\uD83C\uDFAF ${thrower?.name} threw the bomb to ${target.name}!`);
+    broadcastState(curPlayers, pausedRound, 'none', explosionInfoRef.current, chainQuestionRef.current);
 
     setTimeout(() => {
       // Pass the same question to the target (strategic throw for hard questions)
@@ -746,6 +745,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
         blindAnswers: [],
       };
       setRound(newRound);
+      setOverlay('none');
       const newPlayers = curPlayers.map((p) => ({ ...p, usedPowerupThisRound: false }));
       setPlayers(newPlayers);
       broadcastState(newPlayers, newRound, 'none', { name: '', message: '' }, null);
