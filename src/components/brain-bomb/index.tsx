@@ -122,8 +122,11 @@ const BrainBombGame: React.FC = () => {
         bgmRef.current.currentTime = 0;
         bgmRef.current.play().catch(() => {});
       }
-      // Auto-scroll to top so game screen is fully visible (not blocked by browser bar)
-      setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 300);
+      // Scroll to top then down to hide mobile browser address bar
+      setTimeout(() => {
+        window.scrollTo({ top: 0 });
+        setTimeout(() => window.scrollTo({ top: 1, behavior: 'smooth' }), 100);
+      }, 300);
     }
   }, [phase]);
 

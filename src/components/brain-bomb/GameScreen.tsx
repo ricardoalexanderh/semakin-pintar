@@ -725,10 +725,10 @@ const GameScreen: React.FC<GameScreenProps> = ({
     setRound(pausedRound);
     setOverlay('none');
 
-    // Show toast notification to all players
+    // Show notification to all players — use explosionInfo so it syncs via game-state
     const thrower = curPlayers[curRound.currentPlayerIdx];
-    broadcastToast(`\uD83C\uDFAF ${thrower?.name} threw the bomb to ${target.name}!`);
-    broadcastState(curPlayers, pausedRound, 'none', explosionInfoRef.current, chainQuestionRef.current);
+    const throwMsg = `\uD83C\uDFAF ${thrower?.name} threw the bomb to ${target.name}!`;
+    broadcastToast(throwMsg);
 
     setTimeout(() => {
       // Pass the same question to the target (strategic throw for hard questions)
