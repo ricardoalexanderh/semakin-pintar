@@ -412,6 +412,15 @@ const GameScreen: React.FC<GameScreenProps> = ({
   const finishChainReaction = useCallback(() => {
     if (chainTimeoutRef.current) { clearTimeout(chainTimeoutRef.current); chainTimeoutRef.current = null; }
     if (chainTimerRef.current) { clearInterval(chainTimerRef.current); chainTimerRef.current = null; }
+    // Penalize players who didn't answer the chain (-1 life)
+    const respondents = chainRespondentsRef.current;
+    const penalized = playersRef.current.map((p) => {
+      if (p.eliminated || respondents.has(p.id)) return p;
+      const newLives = Math.max(0, p.lives - 1);
+      return { ...p, lives: newLives, eliminated: newLives <= 0 };
+    });
+    setPlayers(penalized);
+
     // Brief delay so players see the result, then proceed
     setTimeout(() => {
       setOverlay('none');
@@ -419,13 +428,13 @@ const GameScreen: React.FC<GameScreenProps> = ({
       setChainAnswered(false);
       setChainRespondents(new Set());
       setChainTimeLeft(0);
-      broadcastState(playersRef.current, roundRef.current, 'none', explosionInfoRef.current, null);
-      const remaining = playersRef.current.filter((p) => !p.eliminated);
+      broadcastState(penalized, roundRef.current, 'none', explosionInfoRef.current, null);
+      const remaining = penalized.filter((p) => !p.eliminated);
       if (remaining.length <= 1) {
-        broadcastGameOver(playersRef.current);
+        broadcastGameOver(penalized);
         return;
       }
-      passToNextRef.current();
+      passToNextRef.current(penalized);
     }, 800);
   }, [broadcastGameOver, broadcastState]);
   const finishChainRef = useRef(finishChainReaction);
