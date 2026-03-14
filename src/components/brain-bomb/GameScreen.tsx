@@ -729,7 +729,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
     setPlayers(newPlayers);
 
     if (type === 'shield') {
-      showToast('\uD83D\uDEE1\uFE0F Shield activated! Next explosion blocked!');
+      broadcastToast(`\uD83D\uDEE1\uFE0F ${cp.name} activated Shield!`);
       // Mark shield as active on the current player
       const shieldedPlayers = newPlayers.map((p, i) =>
         i === curRound.currentPlayerIdx ? { ...p, shieldActive: true } : p
@@ -737,7 +737,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
       setPlayers(shieldedPlayers);
       broadcastState(shieldedPlayers, curRound, overlayRef.current, explosionInfoRef.current, chainQuestionRef.current);
     } else if (type === 'freeze') {
-      showToast('\u2744\uFE0F Timer frozen for 5 seconds!');
+      broadcastToast(`\u2744\uFE0F ${cp.name} froze the timer!`);
       const newRound = { ...curRound, frozen: true };
       setRound(newRound);
       broadcastState(newPlayers, newRound, overlayRef.current, explosionInfoRef.current, chainQuestionRef.current);
