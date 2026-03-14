@@ -227,6 +227,7 @@ const BrainBombGame: React.FC = () => {
   useEffect(() => {
     if (phase !== 'countdown') return;
     setCountdown(3);
+    playSound('countdown', settings.enableSound);
     const interval = setInterval(() => {
       setCountdown((prev) => {
         if (prev <= 1) {
@@ -234,6 +235,7 @@ const BrainBombGame: React.FC = () => {
           setPhase('playing');
           return 0;
         }
+        playSound('countdown', settings.enableSound);
         return prev - 1;
       });
     }, 1000);
