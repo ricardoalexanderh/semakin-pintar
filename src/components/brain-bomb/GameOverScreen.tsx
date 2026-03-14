@@ -56,31 +56,29 @@ const GameOverScreen: React.FC<GameOverScreenProps> = ({
       {/* Leaderboard */}
       <div style={{ ...lobbyCard, flex: '1 1 auto', minHeight: 0, overflow: 'auto', width: '100%', maxWidth: 500 }}>
         <h3 style={cardTitle}>{'\uD83D\uDCCA'} Final Standings</h3>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {sorted.map((p, i) => (
             <div key={p.id} style={{
-              display: 'flex', alignItems: 'center', gap: 'clamp(6px, 2vw, 12px)',
-              padding: 'clamp(6px, 1.5vw, 10px) clamp(8px, 2vw, 14px)', background: C.surface,
-              borderRadius: 10, border: `1px solid ${C.border}`,
+              display: 'flex', alignItems: 'center', gap: 12,
+              padding: '10px 14px', background: C.surface,
+              borderRadius: 12, border: `1px solid ${C.border}`,
             }}>
               <span style={{
                 fontFamily: "'Bebas Neue', sans-serif",
-                fontSize: '1.1rem', color: i === 0 ? C.yellow : C.muted,
-                width: 20, flexShrink: 0,
+                fontSize: '1.2rem', color: i === 0 ? C.yellow : C.muted,
+                width: 24, flexShrink: 0,
               }}>
                 {i + 1}
               </span>
-              <span style={{ fontSize: '1.2rem', flexShrink: 0 }}>{p.avatar}</span>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontWeight: 800, color: p.color, fontSize: 'clamp(0.8rem, 3vw, 1rem)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</div>
-                <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '0.65rem', color: C.muted }}>
-                  Score: {p.score}
-                </div>
-              </div>
+              <span style={{ fontSize: '1.3rem', flexShrink: 0 }}>{p.avatar}</span>
+              <span style={{ flex: 1, fontWeight: 800, color: p.color, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</span>
+              <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '0.75rem', color: C.muted, flexShrink: 0 }}>
+                Score: {p.score}
+              </span>
               {p.eliminated ? (
-                <span style={{ fontSize: '0.65rem', color: C.danger, flexShrink: 0, textAlign: 'right' }}>{'\uD83D\uDC80'} Eliminated</span>
+                <span style={{ fontSize: '0.7rem', color: C.danger, flexShrink: 0 }}>{'\uD83D\uDC80'} Eliminated</span>
               ) : (
-                <span style={{ fontSize: '0.65rem', color: C.green, flexShrink: 0, textAlign: 'right' }}>{'\uD83C\uDFC6'} Survived</span>
+                <span style={{ fontSize: '0.7rem', color: C.green, flexShrink: 0 }}>{'\uD83C\uDFC6'} Survived</span>
               )}
             </div>
           ))}
