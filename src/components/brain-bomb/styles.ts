@@ -105,10 +105,11 @@ export const answerBtn: CSSProperties = {
 
 export const playerChip = (isActive: boolean, isEliminated: boolean, color: string): CSSProperties => ({
   display: 'flex',
+  flexDirection: 'column',
   alignItems: 'center',
-  gap: 6,
-  padding: '4px 8px',
-  borderRadius: 99,
+  gap: 2,
+  padding: '6px 10px',
+  borderRadius: 14,
   background: isActive ? `rgba(255,61,61,0.15)` : C.card,
   border: `1.5px solid ${isActive ? color : C.border}`,
   fontSize: 'clamp(0.65rem, 2vw, 0.8rem)',
@@ -118,7 +119,7 @@ export const playerChip = (isActive: boolean, isEliminated: boolean, color: stri
   boxShadow: isActive ? `0 0 20px ${color}44` : 'none',
   transform: isActive ? 'scale(1.05)' : 'scale(1)',
   transition: 'all 0.3s',
-  maxWidth: 'clamp(120px, 30vw, 180px)',
+  maxWidth: 'clamp(90px, 22vw, 130px)',
   overflow: 'hidden',
 });
 
