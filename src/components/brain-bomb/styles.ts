@@ -41,7 +41,7 @@ export const NOISE_BG: CSSProperties = {
 
 // Shared styles
 export const screenBase: CSSProperties = {
-  minHeight: '100vh',
+  minHeight: 'calc(100vh + 1px)',
   background: C.bg,
   fontFamily: "'Nunito', sans-serif",
   color: C.white,

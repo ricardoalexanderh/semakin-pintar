@@ -171,16 +171,37 @@ const GameScreen: React.FC<GameScreenProps> = ({
         onGameOver(state.players);
         return;
       }
+      // --- Guest sound effects: detect state changes, scoped to local player ---
+      const wasMyTurn = players[round.currentPlayerIdx]?.id === localPlayerId;
+      const isMyTurn = state.players[state.round.currentPlayerIdx]?.id === localPlayerId;
+
+      // Answer sound: only for the player who answered
+      if (state.round.answered && !round.answered && wasMyTurn) {
+        if (state.round.answerIdx === state.round.question.correct) {
+          playSound('correct', sound);
+        } else {
+          playSound('wrong', sound);
+        }
+      }
+      // Pass turn sound: play for the player receiving the turn
+      if (state.round.currentPlayerIdx !== round.currentPlayerIdx && state.overlay !== 'explosion' && state.overlay !== 'chain' && !state.round.answered && isMyTurn) {
+        playSound('pass', sound);
+      }
+      // Powerup / sabotage sound: play for the player who used it
+      if ((state.overlay === 'sabotage' && overlay !== 'sabotage') || (state.overlay === 'clone' && overlay !== 'clone')) {
+        if (wasMyTurn) playSound('powerup', sound);
+      }
+      // Explosion sound: play for all players
+      if (state.overlay === 'explosion' && overlay !== 'explosion') {
+        playSound('explosion', sound);
+      }
+
       setPlayers(state.players);
       setRound(state.round);
       setOverlay(state.overlay);
       setExplosionInfo(state.explosionInfo);
       setChainQuestion(state.chainQuestion);
       if (state.chainTimeLeft != null) setChainTimeLeft(state.chainTimeLeft);
-      // Play explosion sound on guest when explosion overlay appears
-      if (state.overlay === 'explosion' && overlay !== 'explosion') {
-        playSound('explosion', sound);
-      }
       // Reset chainAnswered when a new chain reaction starts (guest doesn't run triggerChainReaction)
       if (state.overlay === 'chain' && state.chainQuestion) {
         setChainAnswered(false);
@@ -298,7 +319,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
 
     // Shield blocks the explosion
     if (cp.shieldActive) {
-      playSound('powerup', sound);
+      if (cp.id === localPlayerId) playSound('powerup', sound);
       const shieldedPlayers = curPlayers.map((p, i) =>
         i === curRound.currentPlayerIdx ? { ...p, shieldActive: false } : p
       );
@@ -495,7 +516,6 @@ const GameScreen: React.FC<GameScreenProps> = ({
   };
 
   const passToNext = (currentPlayers?: Player[]) => {
-    playSound('pass', sound);
     const cp = currentPlayers ?? playersRef.current;
     const curRound = roundRef.current;
 
@@ -511,6 +531,8 @@ const GameScreen: React.FC<GameScreenProps> = ({
     } while (cp[nextIdx].eliminated);
 
     const nextPlayer = cp[nextIdx];
+    // Play pass sound for the player receiving the turn
+    if (nextPlayer.id === localPlayerId) playSound('pass', sound);
     const newQuestion = getRandomQuestion(settings.activeSubs, settings.difficulty, settings.enableProgressiveDifficulty ? curRound.round + 1 : undefined);
 
     // Save current player's remaining time + bonus for their next turn (only on correct answer)
@@ -617,7 +639,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
     setRound(newRound);
 
     if (isCorrect) {
-      playSound('correct', sound);
+      if (curPlayers[curRound.currentPlayerIdx]?.id === localPlayerId) playSound('correct', sound);
       const earnedSabotage = settings.enableSabotage && !curPlayers[curRound.currentPlayerIdx].usedPowerupThisRound && curRound.timeLeft > maxTime * 0.85;
       const maxLives = settings.mode === 'sudden' ? 1 : DIFFICULTY_CONFIG[settings.difficulty].lives;
       const bonusLife = !!curRound.isBonus;
@@ -649,7 +671,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
         }, 800);
       }
     } else {
-      playSound('wrong', sound);
+      if (curPlayers[curRound.currentPlayerIdx]?.id === localPlayerId) playSound('wrong', sound);
       broadcastState(curPlayers, newRound, overlayRef.current, explosionInfoRef.current, chainQuestionRef.current);
       setTimeout(() => bombExplodesRef.current(), 800);
     }
@@ -675,7 +697,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
     const cp = curPlayers[curRound.currentPlayerIdx];
     if (cp.powerups[type] <= 0) return;
 
-    playSound('powerup', sound);
+    if (cp.id === localPlayerId) playSound('powerup', sound);
 
     const newPlayers = curPlayers.map((p, i) => {
       if (i !== curRound.currentPlayerIdx) return p;
@@ -780,7 +802,8 @@ const GameScreen: React.FC<GameScreenProps> = ({
     const target = playersRef.current.find((p) => p.id === targetId);
     if (!target) return;
 
-    playSound('powerup', sound);
+    const curPlayer = playersRef.current[roundRef.current.currentPlayerIdx];
+    if (curPlayer?.id === localPlayerId) playSound('powerup', sound);
     const typeLabel = type === 'blind' ? 'Blind' : type === 'timebomb' ? 'Time Bomb' : 'Decoy';
     broadcastToast(`\uD83D\uDC80 ${typeLabel} sent to ${target.name}!`);
 
