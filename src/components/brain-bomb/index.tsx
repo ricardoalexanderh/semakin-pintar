@@ -122,10 +122,10 @@ const BrainBombGame: React.FC = () => {
         bgmRef.current.currentTime = 0;
         bgmRef.current.play().catch(() => {});
       }
-      // Scroll to top then down to hide mobile browser address bar
+      // Hide mobile browser address bar by scrolling
       setTimeout(() => {
-        window.scrollTo({ top: 0 });
-        setTimeout(() => window.scrollTo({ top: 1, behavior: 'smooth' }), 100);
+        document.documentElement.requestFullscreen?.().catch(() => {});
+        window.scrollTo(0, 1);
       }, 300);
     }
   }, [phase]);

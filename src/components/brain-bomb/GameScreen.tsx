@@ -40,6 +40,7 @@ interface SyncState {
   chainQuestion: Question | null;
   chainTimeLeft?: number;
   gameOver?: boolean;
+  toastMessage?: string;
 }
 
 type OverlayType = 'none' | 'explosion' | 'chain' | 'sabotage' | 'clone';
@@ -148,9 +149,10 @@ const GameScreen: React.FC<GameScreenProps> = ({
     ei: { name: string; message: string },
     cq: Question | null,
     gameOver = false,
+    toastMessage?: string,
   ) => {
     if (!isHost || !gameRoom) return;
-    const state: SyncState = { players: p, round: r, overlay: ov, explosionInfo: ei, chainQuestion: cq, chainTimeLeft: chainTimeLeftRef.current, gameOver };
+    const state: SyncState = { players: p, round: r, overlay: ov, explosionInfo: ei, chainQuestion: cq, chainTimeLeft: chainTimeLeftRef.current, gameOver, toastMessage };
     gameRoom.broadcast('game-state', state);
   }, [isHost, gameRoom]);
 
@@ -175,9 +177,17 @@ const GameScreen: React.FC<GameScreenProps> = ({
       setExplosionInfo(state.explosionInfo);
       setChainQuestion(state.chainQuestion);
       if (state.chainTimeLeft != null) setChainTimeLeft(state.chainTimeLeft);
+      // Play explosion sound on guest when explosion overlay appears
+      if (state.overlay === 'explosion' && overlay !== 'explosion') {
+        playSound('explosion', sound);
+      }
       // Reset chainAnswered when a new chain reaction starts (guest doesn't run triggerChainReaction)
       if (state.overlay === 'chain' && state.chainQuestion) {
         setChainAnswered(false);
+      }
+      // Show toast if included in game-state
+      if (state.toastMessage) {
+        showToast(state.toastMessage);
       }
     } else if (msg.type === 'toast' && !isHost) {
       const { message } = msg.payload as { message: string };
@@ -725,10 +735,11 @@ const GameScreen: React.FC<GameScreenProps> = ({
     setRound(pausedRound);
     setOverlay('none');
 
-    // Show notification to all players — use explosionInfo so it syncs via game-state
+    // Show notification to all players via game-state sync
     const thrower = curPlayers[curRound.currentPlayerIdx];
     const throwMsg = `\uD83C\uDFAF ${thrower?.name} threw the bomb to ${target.name}!`;
-    broadcastToast(throwMsg);
+    showToast(throwMsg);
+    broadcastState(curPlayers, pausedRound, 'none', explosionInfoRef.current, chainQuestionRef.current, false, throwMsg);
 
     setTimeout(() => {
       // Pass the same question to the target (strategic throw for hard questions)
