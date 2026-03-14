@@ -258,4 +258,8 @@ export const KEYFRAMES = `
   from { transform: translateX(-50%) translateY(-100px); }
   to { transform: translateX(-50%) translateY(0); }
 }
+@keyframes bb-blur-reveal {
+  0% { filter: blur(12px); }
+  100% { filter: blur(0px); }
+}
 `;

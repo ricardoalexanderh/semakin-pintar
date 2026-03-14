@@ -21,6 +21,7 @@ export interface Player {
   shieldActive?: boolean;
   timePenalty?: number;
   blindNextRound?: boolean;
+  decoyNextRound?: boolean;
 }
 
 export interface Powerups {
@@ -80,6 +81,7 @@ export type PeerMessageType =
   | 'chain-answer'
   | 'sabotage-applied'
   | 'clone-target'
+  | 'toast'
   | 'lobby-settings'
   | 'game-over'
   | 'return-lobby';

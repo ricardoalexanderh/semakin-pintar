@@ -70,30 +70,14 @@ export class GameRoom {
 
     this.peer = new Peer(peerjsId, {
       debug: 0, // silent
-      config: {
-        iceServers: [
-          { urls: 'stun:stun.l.google.com:19302' },
-          { urls: 'stun:stun1.l.google.com:19302' },
-          { urls: 'stun:stun2.l.google.com:19302' },
-          { urls: 'stun:stun3.l.google.com:19302' },
-          { urls: 'stun:stun4.l.google.com:19302' },
-          {
-            urls: 'turn:openrelay.metered.ca:80',
-            username: 'openrelayproject',
-            credential: 'openrelayproject',
-          },
-          {
-            urls: 'turn:openrelay.metered.ca:443',
-            username: 'openrelayproject',
-            credential: 'openrelayproject',
-          },
-          {
-            urls: 'turn:openrelay.metered.ca:443?transport=tcp',
-            username: 'openrelayproject',
-            credential: 'openrelayproject',
-          },
-        ],
-      },
+      // TODO: Add your own STUN/TURN servers for cross-network play.
+      // Without custom ICE servers, P2P only works reliably on local networks.
+      // config: {
+      //   iceServers: [
+      //     { urls: 'stun:your-stun-server.com:3478' },
+      //     { urls: 'turn:your-turn-server.com:3478', username: 'user', credential: 'pass' },
+      //   ],
+      // },
     });
 
     this.peer.on('open', () => {

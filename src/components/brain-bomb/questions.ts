@@ -691,15 +691,18 @@ export function resetUsedQuestions(): void {
 // Determine effective difficulty based on round progression
 function getEffectiveDifficulty(baseDifficulty: Difficulty, round?: number): Difficulty {
   if (round == null) return baseDifficulty;
-  // Progressive: mix in harder questions as rounds increase
-  // Rounds 1-4: base difficulty, 5-8: chance of +1, 9+: chance of +2
+  // Progressive: mix in harder questions as rounds increase (gradual ramp)
   const levels: Difficulty[] = ['easy', 'medium', 'hard'];
   const baseIdx = levels.indexOf(baseDifficulty);
   let bump = 0;
-  if (round >= 9) {
-    bump = Math.random() < 0.6 ? 2 : Math.random() < 0.7 ? 1 : 0;
-  } else if (round >= 5) {
-    bump = Math.random() < 0.5 ? 1 : 0;
+  if (round >= 19) {
+    const r = Math.random();
+    bump = r < 0.25 ? 2 : r < 0.75 ? 1 : 0;
+  } else if (round >= 13) {
+    const r = Math.random();
+    bump = r < 0.15 ? 2 : r < 0.55 ? 1 : 0;
+  } else if (round >= 7) {
+    bump = Math.random() < 0.3 ? 1 : 0;
   }
   return levels[Math.min(baseIdx + bump, 2)];
 }

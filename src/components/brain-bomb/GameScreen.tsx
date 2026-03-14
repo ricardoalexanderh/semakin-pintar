@@ -27,6 +27,9 @@ interface RoundState {
   frozen: boolean;
   blind: boolean;
   blindAnswers: number[];
+  isBonus?: boolean;
+  decoy?: boolean;
+  decoyAnswer?: string;
 }
 
 interface SyncState {
@@ -64,6 +67,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
       shieldActive: false,
       timePenalty: 0,
       blindNextRound: false,
+      decoyNextRound: false,
     })),
   );
 
@@ -127,6 +131,14 @@ const GameScreen: React.FC<GameScreenProps> = ({
     setTimeout(() => setToastVisible(false), 2500);
   }, []);
 
+  // Broadcast a toast to all players (host shows locally + sends to guests)
+  const broadcastToast = useCallback((msg: string) => {
+    showToast(msg);
+    if (isHost && gameRoom) {
+      gameRoom.broadcast('toast', { message: msg });
+    }
+  }, [showToast, isHost, gameRoom]);
+
   // --- Sync: Host broadcasts state after changes ---
   const broadcastState = useCallback((
     p: Player[],
@@ -166,6 +178,9 @@ const GameScreen: React.FC<GameScreenProps> = ({
       if (state.overlay === 'chain' && state.chainQuestion) {
         setChainAnswered(false);
       }
+    } else if (msg.type === 'toast' && !isHost) {
+      const { message } = msg.payload as { message: string };
+      showToast(message);
     } else if (isHost) {
       // Host receives actions from guests
       if (msg.type === 'answer-submitted') {
@@ -185,7 +200,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
         if (sabotageType === 'skip') {
           handleSkipSabotage(true);
         } else {
-          handleSabotage(sabotageType as 'blind' | 'timebomb', targetId, true);
+          handleSabotage(sabotageType as 'blind' | 'timebomb' | 'decoy', targetId, true);
         }
       }
     }
@@ -488,17 +503,29 @@ const GameScreen: React.FC<GameScreenProps> = ({
     const penalty = nextPlayer.timePenalty || 0;
     const adjustedTime = Math.max(5, baseTime - penalty);
 
-    // Apply blind sabotage: pick 2 random wrong answers to hide
+    // Apply blind sabotage: blur ALL answers (gradually becomes visible)
     const isBlind = !!nextPlayer.blindNextRound;
-    let blindAnswers: number[] = [];
-    if (isBlind) {
-      const wrongIndices = newQuestion.a.map((_, i) => i).filter((i) => i !== newQuestion.correct);
-      // Pick 2 random wrong answers to hide
-      for (let i = wrongIndices.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [wrongIndices[i], wrongIndices[j]] = [wrongIndices[j], wrongIndices[i]];
+    const blindAnswers = isBlind ? newQuestion.a.map((_, i) => i) : [];
+
+    // Lucky Question: every 8 rounds, bonus round grants +1 life on correct answer
+    const nextRound = curRound.round + 1;
+    const isBonus = nextRound > 0 && nextRound % 8 === 0;
+
+    // Apply decoy sabotage: add a fake 5th answer
+    const hasDecoy = !!nextPlayer.decoyNextRound;
+    let decoyAnswer = '';
+    if (hasDecoy) {
+      // Generate a plausible fake answer from a different question in the same category
+      const otherQ = getRandomQuestion(settings.activeSubs, settings.difficulty);
+      const otherAnswers = otherQ.a.filter((a) => !newQuestion.a.includes(a));
+      if (otherAnswers.length > 0) {
+        decoyAnswer = otherAnswers[Math.floor(Math.random() * otherAnswers.length)];
+      } else {
+        // Fallback: slightly modify a wrong answer
+        const wrongAnswers = newQuestion.a.filter((_, i) => i !== newQuestion.correct);
+        const base = wrongAnswers[Math.floor(Math.random() * wrongAnswers.length)];
+        decoyAnswer = base + '?';
       }
-      blindAnswers = wrongIndices.slice(0, 2);
     }
 
     const newRound: RoundState = {
@@ -508,14 +535,17 @@ const GameScreen: React.FC<GameScreenProps> = ({
       maxTime,
       answered: false,
       answerIdx: null,
-      round: curRound.round + 1,
+      round: nextRound,
       frozen: false,
       blind: isBlind,
       blindAnswers,
+      isBonus,
+      decoy: hasDecoy,
+      decoyAnswer: hasDecoy ? decoyAnswer : undefined,
     };
     setRound(newRound);
 
-    // Reveal blind answers after 3 seconds
+    // Clear blind state after 5 seconds (CSS animation handles gradual reveal)
     if (isBlind) {
       blindTimeoutRef.current = setTimeout(() => {
         setRound((prev) => {
@@ -523,7 +553,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
           broadcastState(playersRef.current, revealed, overlayRef.current, explosionInfoRef.current, chainQuestionRef.current);
           return revealed;
         });
-      }, 3000);
+      }, 5000);
     }
 
     // Clear effects and reset round state
@@ -532,6 +562,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
       usedPowerupThisRound: false,
       timePenalty: i === nextIdx ? 0 : p.timePenalty,
       blindNextRound: i === nextIdx ? false : p.blindNextRound,
+      decoyNextRound: i === nextIdx ? false : p.decoyNextRound,
     }));
     setPlayers(newPlayers);
     broadcastState(newPlayers, newRound, 'none', { name: '', message: '' }, null);
@@ -563,7 +594,9 @@ const GameScreen: React.FC<GameScreenProps> = ({
 
     if (isCorrect) {
       playSound('correct', sound);
-      const earnedSabotage = settings.enableSabotage && !curPlayers[curRound.currentPlayerIdx].usedPowerupThisRound && curRound.timeLeft > maxTime * 0.7;
+      const earnedSabotage = settings.enableSabotage && !curPlayers[curRound.currentPlayerIdx].usedPowerupThisRound && curRound.timeLeft > maxTime * 0.85;
+      const maxLives = settings.mode === 'sudden' ? 1 : DIFFICULTY_CONFIG[settings.difficulty].lives;
+      const bonusLife = !!curRound.isBonus;
       const newPlayers = curPlayers.map((p, i) => {
         if (i !== curRound.currentPlayerIdx) return p;
         const newScore = p.score + 10 + curRound.timeLeft;
@@ -571,9 +604,13 @@ const GameScreen: React.FC<GameScreenProps> = ({
           ...p,
           score: newScore,
           sabotages: earnedSabotage ? p.sabotages + 1 : p.sabotages,
+          lives: bonusLife ? Math.min(p.lives + 1, maxLives) : p.lives,
         };
       });
       setPlayers(newPlayers);
+      if (bonusLife) {
+        broadcastToast(`\u2B50 Lucky Question! ${curPlayers[curRound.currentPlayerIdx].name} gains +1 life!`);
+      }
 
       if (earnedSabotage && newPlayers.filter((p) => !p.eliminated).length > 1) {
         // Show sabotage picker — turn waits until player picks or skips
@@ -668,16 +705,17 @@ const GameScreen: React.FC<GameScreenProps> = ({
     const target = curPlayers[targetIdx];
     if (!target) return;
 
-    showToast(`\uD83C\uDFAF Bomb thrown to ${target.name}!`);
+    broadcastToast(`\uD83C\uDFAF Bomb thrown to ${target.name}!`);
     setOverlay('none');
 
     // Pass the bomb directly to the target player with a new question
-    const newQuestion = getRandomQuestion(settings.activeSubs, settings.difficulty, settings.enableProgressiveDifficulty ? curRound.round + 1 : undefined);
+    // Pass the same question to the target (so throw is strategic for hard questions)
+    const sameQuestion = curRound.question;
     const bonusSecs = { easy: 10, medium: 5, hard: 3 }[settings.difficulty];
     const redirectTime = Math.min(curRound.timeLeft + bonusSecs, maxTime);
     const newRound: RoundState = {
       currentPlayerIdx: targetIdx,
-      question: newQuestion,
+      question: sameQuestion,
       timeLeft: redirectTime,
       maxTime,
       answered: false,
@@ -693,7 +731,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
     broadcastState(newPlayers, newRound, 'none', { name: '', message: '' }, null);
   };
 
-  const handleSabotage = (type: 'blind' | 'timebomb', targetId: string, fromRemote = false) => {
+  const handleSabotage = (type: 'blind' | 'timebomb' | 'decoy', targetId: string, fromRemote = false) => {
     // Guest sends sabotage selection to host via WebRTC
     if (!isHost && !fromRemote) {
       if (gameRoom) {
@@ -708,7 +746,8 @@ const GameScreen: React.FC<GameScreenProps> = ({
     if (!target) return;
 
     playSound('powerup', sound);
-    showToast(`\uD83D\uDC80 ${type === 'blind' ? 'Blind' : 'Time Bomb'} sent to ${target.name}!`);
+    const typeLabel = type === 'blind' ? 'Blind' : type === 'timebomb' ? 'Time Bomb' : 'Decoy';
+    broadcastToast(`\uD83D\uDC80 ${typeLabel} sent to ${target.name}!`);
 
     const curRound = roundRef.current;
     const newPlayers = playersRef.current.map((p, i) => {
@@ -723,6 +762,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
           return { ...p, timePenalty: (p.timePenalty || 0) + penalty };
         }
         if (type === 'blind') return { ...p, blindNextRound: true };
+        if (type === 'decoy') return { ...p, decoyNextRound: true };
       }
       return p;
     });
@@ -834,15 +874,24 @@ const GameScreen: React.FC<GameScreenProps> = ({
 
       {/* Question Card */}
       <div style={{
-        background: C.card, border: `1.5px solid ${C.border}`, borderRadius: 'clamp(12px, 3vw, 20px)',
+        background: C.card, border: `1.5px solid ${round.isBonus ? '#ffd700' : C.border}`, borderRadius: 'clamp(12px, 3vw, 20px)',
         padding: 'clamp(14px, 2vh, 24px)', width: '100%', maxWidth: 500, textAlign: 'center', boxSizing: 'border-box' as const,
         position: 'relative', overflow: 'hidden',
+        boxShadow: round.isBonus ? '0 0 30px rgba(255,215,0,0.3)' : 'none',
       }}>
         {/* Top accent line */}
         <div style={{
           position: 'absolute', top: 0, left: 0, right: 0, height: 3,
-          background: `linear-gradient(90deg, ${C.accent}, ${C.accent2})`,
+          background: round.isBonus ? 'linear-gradient(90deg, #ffd700, #ffaa00)' : `linear-gradient(90deg, ${C.accent}, ${C.accent2})`,
         }} />
+        {round.isBonus && (
+          <div style={{
+            fontFamily: "'Bebas Neue', sans-serif", fontSize: '1rem', letterSpacing: 2,
+            color: '#ffd700', marginBottom: 6, animation: 'bb-pulse-text 0.8s ease infinite alternate',
+          }}>
+            {'\u2B50'} LUCKY QUESTION &mdash; Correct = +1 Life! {'\u2B50'}
+          </div>
+        )}
 
         {/* Category badge */}
         <div style={{
@@ -865,51 +914,68 @@ const GameScreen: React.FC<GameScreenProps> = ({
 
         {/* Answer grid */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'clamp(6px, 1vh, 10px)' }}>
-          {round.question.a.map((ans, i) => {
-            const isBlinded = round.blind && round.blindAnswers.includes(i);
-            let bg: string = C.surface;
-            let borderC: string = C.border;
-            let col: string = C.white;
-            let anim = '';
-
-            if (round.answered && round.answerIdx !== null) {
-              if (i === round.question.correct) {
-                bg = 'rgba(0,230,118,0.15)';
-                borderC = C.green;
-                col = C.green;
-                anim = 'bb-correct-pop 0.4s ease';
-              } else if (i === round.answerIdx && i !== round.question.correct) {
-                bg = 'rgba(255,23,68,0.15)';
-                borderC = C.danger;
-                col = C.danger;
-                anim = 'bb-wrong-shake 0.4s ease';
-              }
+          {/* Combine real answers with optional decoy */}
+          {(() => {
+            const allAnswers: { text: string; idx: number; isDecoy: boolean }[] = round.question.a.map((ans, i) => ({
+              text: ans, idx: i, isDecoy: false,
+            }));
+            if (round.decoy && round.decoyAnswer) {
+              // Insert decoy at a random-ish but stable position (based on round number)
+              const insertPos = round.round % (allAnswers.length + 1);
+              allAnswers.splice(insertPos, 0, { text: round.decoyAnswer, idx: -1, isDecoy: true });
             }
+            return allAnswers.map((item, renderIdx) => {
+              const isBlinded = round.blind && round.blindAnswers.includes(item.idx);
+              let bg: string = C.surface;
+              let borderC: string = C.border;
+              let col: string = C.white;
+              let anim = '';
 
-            return (
-              <button
-                key={i}
-                onClick={() => handleAnswer(i)}
-                disabled={round.answered || !isLocalTurn || isBlinded}
-                style={{
-                  padding: 'clamp(10px, 1.5vh, 14px) clamp(8px, 2vw, 10px)',
-                  background: isBlinded ? C.surface : bg,
-                  border: `1.5px solid ${isBlinded ? C.border : borderC}`,
-                  borderRadius: 'clamp(8px, 2vw, 14px)',
-                  color: isBlinded ? 'transparent' : col,
-                  fontFamily: "'Nunito', sans-serif",
-                  fontSize: 'clamp(0.8rem, 2.5vw, 0.95rem)',
-                  fontWeight: 800,
-                  cursor: round.answered || !isLocalTurn || isBlinded ? 'default' : 'pointer',
-                  textAlign: 'center',
-                  animation: anim || 'none',
-                  opacity: isBlinded ? 0.3 : (round.answered && round.answerIdx !== null && i !== round.question.correct && i !== round.answerIdx ? 0.6 : 1),
-                }}
-              >
-                {isBlinded ? '\uD83D\uDE48' : ans}
-              </button>
-            );
-          })}
+              if (round.answered && round.answerIdx !== null) {
+                if (!item.isDecoy && item.idx === round.question.correct) {
+                  bg = 'rgba(0,230,118,0.15)';
+                  borderC = C.green;
+                  col = C.green;
+                  anim = 'bb-correct-pop 0.4s ease';
+                } else if (
+                  (item.isDecoy && round.answerIdx === -1) ||
+                  (!item.isDecoy && item.idx === round.answerIdx && item.idx !== round.question.correct)
+                ) {
+                  bg = 'rgba(255,23,68,0.15)';
+                  borderC = C.danger;
+                  col = C.danger;
+                  anim = 'bb-wrong-shake 0.4s ease';
+                }
+              }
+
+              return (
+                <button
+                  key={item.isDecoy ? 'decoy' : item.idx}
+                  onClick={() => handleAnswer(item.isDecoy ? -1 : item.idx)}
+                  disabled={round.answered || !isLocalTurn}
+                  style={{
+                    padding: 'clamp(10px, 1.5vh, 14px) clamp(8px, 2vw, 10px)',
+                    background: bg,
+                    border: `1.5px solid ${borderC}`,
+                    borderRadius: 'clamp(8px, 2vw, 14px)',
+                    color: col,
+                    fontFamily: "'Nunito', sans-serif",
+                    fontSize: 'clamp(0.8rem, 2.5vw, 0.95rem)',
+                    fontWeight: 800,
+                    cursor: round.answered || !isLocalTurn ? 'default' : 'pointer',
+                    textAlign: 'center',
+                    animation: isBlinded ? 'bb-blur-reveal 5s ease-out forwards' : (anim || 'none'),
+                    opacity: round.answered && round.answerIdx !== null && !item.isDecoy && item.idx !== round.question.correct && item.idx !== round.answerIdx ? 0.6 : 1,
+                    filter: isBlinded ? 'blur(12px)' : 'none',
+                    // 5th decoy answer spans full width
+                    ...(round.decoy && renderIdx === allAnswers.length - 1 && allAnswers.length % 2 !== 0 ? { gridColumn: '1 / -1' } : {}),
+                  }}
+                >
+                  {item.text}
+                </button>
+              );
+            });
+          })()}
         </div>
       </div>
 
@@ -1082,6 +1148,12 @@ const GameScreen: React.FC<GameScreenProps> = ({
                       >
                         <span>{'\u23F1\uFE0F'}</span> -{({ easy: 8, medium: 5, hard: 3 })[settings.difficulty]}s from {p.name}'s timer
                       </button>
+                      <button
+                        onClick={() => handleSabotage('decoy', p.id)}
+                        style={sabotageOptionStyle}
+                      >
+                        <span>{'\uD83C\uDFAD'}</span> Add fake answer to {p.name}'s question
+                      </button>
                     </React.Fragment>
                   ))}
                   <button
@@ -1112,17 +1184,25 @@ const GameScreen: React.FC<GameScreenProps> = ({
             <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '2rem', letterSpacing: 3, color: C.accent3, marginBottom: 8 }}>
               {'\uD83C\uDFAF'} THROW!
             </div>
-            <div style={{ fontSize: '0.85rem', color: C.muted }}>Pick a player to throw the bomb to!</div>
+            <div style={{ fontSize: '0.85rem', color: C.muted }}>
+              {isLocalTurn ? 'Pick a player to throw the bomb to!' : `${currentPlayer?.name} is throwing the bomb...`}
+            </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 16 }}>
-              {activePlayers.filter((p) => p.id !== localPlayerId).map((p) => (
-                <button
-                  key={p.id}
-                  onClick={() => handleCloneTarget(p.id)}
-                  style={sabotageOptionStyle}
-                >
-                  {p.avatar} Throw to <strong>{p.name}</strong>
-                </button>
-              ))}
+              {isLocalTurn ? (
+                activePlayers.filter((p) => p.id !== localPlayerId).map((p) => (
+                  <button
+                    key={p.id}
+                    onClick={() => handleCloneTarget(p.id)}
+                    style={sabotageOptionStyle}
+                  >
+                    {p.avatar} Throw to <strong>{p.name}</strong>
+                  </button>
+                ))
+              ) : (
+                <div style={{ fontSize: '0.9rem', color: C.muted, padding: 16 }}>
+                  Waiting for {currentPlayer?.name} to choose...
+                </div>
+              )}
             </div>
           </div>
         </div>
