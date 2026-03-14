@@ -11,6 +11,47 @@ import type { PeerMessage } from './types';
 // Prefix for PeerJS IDs to avoid collisions
 const PEER_PREFIX = 'brain-bomb-';
 
+// Optional server configuration via environment variables.
+// When empty/unset, PeerJS uses its free cloud signaling server (works on same network).
+// Set these in your .env file to enable cross-network play:
+//   VITE_PEER_HOST=your-server.com
+//   VITE_PEER_PORT=9000
+//   VITE_PEER_PATH=/myapp
+//   VITE_STUN_URL=stun:your-server.com:3478
+//   VITE_TURN_URL=turn:your-server.com:3478
+//   VITE_TURN_USER=myuser
+//   VITE_TURN_PASS=mypassword
+const PEER_HOST = import.meta.env.VITE_PEER_HOST || '';
+const PEER_PORT = parseInt(import.meta.env.VITE_PEER_PORT || '0', 10);
+const PEER_PATH = import.meta.env.VITE_PEER_PATH || '/';
+const STUN_URL = import.meta.env.VITE_STUN_URL || '';
+const TURN_URL = import.meta.env.VITE_TURN_URL || '';
+const TURN_USER = import.meta.env.VITE_TURN_USER || '';
+const TURN_PASS = import.meta.env.VITE_TURN_PASS || '';
+
+function buildPeerOptions(): Record<string, unknown> {
+  const opts: Record<string, unknown> = { debug: 0 };
+
+  // Only set host/port/path if a custom PeerJS server is configured
+  if (PEER_HOST) {
+    opts.host = PEER_HOST;
+    opts.port = PEER_PORT || 9000;
+    opts.path = PEER_PATH;
+    opts.secure = PEER_HOST !== 'localhost' && PEER_HOST !== '127.0.0.1';
+  }
+
+  // Only set ICE servers if STUN or TURN is configured
+  const iceServers: Record<string, string>[] = [];
+  if (STUN_URL) iceServers.push({ urls: STUN_URL });
+  if (TURN_URL) iceServers.push({ urls: TURN_URL, username: TURN_USER, credential: TURN_PASS });
+
+  if (iceServers.length > 0) {
+    opts.config = { iceServers };
+  }
+
+  return opts;
+}
+
 // Generate a short room code (6 chars)
 export function generateRoomCode(): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -68,17 +109,7 @@ export class GameRoom {
       ? `${PEER_PREFIX}${this.roomCode}`
       : `${PEER_PREFIX}${this.peerId}`;
 
-    this.peer = new Peer(peerjsId, {
-      debug: 0, // silent
-      // TODO: Add your own STUN/TURN servers for cross-network play.
-      // Without custom ICE servers, P2P only works reliably on local networks.
-      // config: {
-      //   iceServers: [
-      //     { urls: 'stun:your-stun-server.com:3478' },
-      //     { urls: 'turn:your-turn-server.com:3478', username: 'user', credential: 'pass' },
-      //   ],
-      // },
-    });
+    this.peer = new Peer(peerjsId, buildPeerOptions() as ConstructorParameters<typeof Peer>[1]);
 
     this.peer.on('open', () => {
       if (this.destroyed) return;
