@@ -22,6 +22,7 @@ export interface Player {
   timePenalty?: number;
   blindNextRound?: boolean;
   decoyNextRound?: boolean;
+  savedTime?: number;
 }
 
 export interface Powerups {

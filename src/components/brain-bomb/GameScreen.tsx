@@ -68,6 +68,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
       timePenalty: 0,
       blindNextRound: false,
       decoyNextRound: false,
+      savedTime: settings.mode === 'sudden' ? DIFFICULTY_CONFIG[settings.difficulty].timer : (settings.timer || DIFFICULTY_CONFIG[settings.difficulty].timer),
     })),
   );
 
@@ -494,14 +495,21 @@ const GameScreen: React.FC<GameScreenProps> = ({
     } while (cp[nextIdx].eliminated);
 
     const nextPlayer = cp[nextIdx];
+    const curPlayer = cp[curRound.currentPlayerIdx];
     const newQuestion = getRandomQuestion(settings.activeSubs, settings.difficulty, settings.enableProgressiveDifficulty ? curRound.round + 1 : undefined);
 
-    // Add bonus seconds instead of resetting to full timer
+    // Save current player's remaining time + bonus for their next turn (only on correct answer)
     const bonusSeconds = { easy: 10, medium: 5, hard: 3 }[settings.difficulty];
-    const baseTime = Math.min(curRound.timeLeft + bonusSeconds, maxTime);
+    const wasCorrect = curRound.answerIdx !== null && curRound.answerIdx === curRound.question.correct;
+    const savedTimeForCurrent = wasCorrect
+      ? Math.min(curRound.timeLeft + bonusSeconds, maxTime)
+      : maxTime; // Reset to full on explosion
+
+    // Next player uses their own saved time (from their previous turn)
+    const nextPlayerTime = nextPlayer.savedTime ?? maxTime;
     // Apply time penalty sabotage
     const penalty = nextPlayer.timePenalty || 0;
-    const adjustedTime = Math.max(5, baseTime - penalty);
+    const adjustedTime = Math.max(5, nextPlayerTime - penalty);
 
     // Apply blind sabotage: blur ALL answers (gradually becomes visible)
     const isBlind = !!nextPlayer.blindNextRound;
@@ -556,13 +564,14 @@ const GameScreen: React.FC<GameScreenProps> = ({
       }, 5000);
     }
 
-    // Clear effects and reset round state
+    // Clear effects, reset round state, and save per-player timer
     const newPlayers = cp.map((p, i) => ({
       ...p,
       usedPowerupThisRound: false,
       timePenalty: i === nextIdx ? 0 : p.timePenalty,
       blindNextRound: i === nextIdx ? false : p.blindNextRound,
       decoyNextRound: i === nextIdx ? false : p.decoyNextRound,
+      savedTime: i === curRound.currentPlayerIdx ? savedTimeForCurrent : p.savedTime,
     }));
     setPlayers(newPlayers);
     broadcastState(newPlayers, newRound, 'none', { name: '', message: '' }, null);
