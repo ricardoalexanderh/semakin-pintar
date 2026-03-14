@@ -30,6 +30,7 @@ interface RoundState {
   isBonus?: boolean;
   decoy?: boolean;
   decoyAnswer?: string;
+  throwOriginIdx?: number;
 }
 
 interface SyncState {
@@ -534,7 +535,9 @@ const GameScreen: React.FC<GameScreenProps> = ({
       return;
     }
 
-    let nextIdx = curRound.currentPlayerIdx;
+    // After a throw, resume from the thrower's position instead of the target's
+    const resumeFrom = curRound.throwOriginIdx ?? curRound.currentPlayerIdx;
+    let nextIdx = resumeFrom;
     do {
       nextIdx = (nextIdx + 1) % cp.length;
     } while (cp[nextIdx].eliminated);
@@ -793,6 +796,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
         frozen: false,
         blind: false,
         blindAnswers: [],
+        throwOriginIdx: curRound.currentPlayerIdx,
       };
       setRound(newRound);
       setOverlay('none');
