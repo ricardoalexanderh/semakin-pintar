@@ -396,10 +396,13 @@ const GameScreen: React.FC<GameScreenProps> = ({
     const cp = (currentPlayers ?? playersRef.current)[roundRef.current.currentPlayerIdx];
     const chainTime = cp?.savedTime ?? chainMaxTime;
     setChainQuestion(q);
+    chainQuestionRef.current = q;
     setChainAnswered(false);
     setChainRespondents(new Set());
     setChainTimeLeft(chainTime);
+    chainTimeLeftRef.current = chainTime;
     setOverlay('chain');
+    overlayRef.current = 'chain';
     broadcastState(currentPlayers ?? playersRef.current, roundRef.current, 'chain', explosionInfoRef.current, q);
 
     // Start visible countdown timer for chain reaction
