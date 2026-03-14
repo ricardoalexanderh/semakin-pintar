@@ -716,12 +716,17 @@ const GameScreen: React.FC<GameScreenProps> = ({
     const target = curPlayers[targetIdx];
     if (!target) return;
 
+    // Stop timer and mark round as answered so bomb doesn't explode during notification
+    if (timerRef.current) clearInterval(timerRef.current);
+    const pausedRound = { ...curRound, answered: true };
+    setRound(pausedRound);
+
     // Show "bomb incoming" notification before starting the target's turn
     const thrower = curPlayers[curRound.currentPlayerIdx];
     const ei = { name: target.name, message: `\uD83C\uDFAF ${thrower?.name} threw the bomb to ${target.name}!` };
     setExplosionInfo(ei);
     setOverlay('explosion');
-    broadcastState(curPlayers, curRound, 'explosion', ei, chainQuestionRef.current);
+    broadcastState(curPlayers, pausedRound, 'explosion', ei, chainQuestionRef.current);
 
     setTimeout(() => {
       // Pass the same question to the target (strategic throw for hard questions)
