@@ -94,6 +94,7 @@ export class GameRoom {
   private onPeerDisconnected: ConnectionHandler;
   private onReady: ReadyHandler;
   private destroyed = false;
+  private initRetries = 0;
 
   constructor(
     roomCode: string,
@@ -140,14 +141,29 @@ export class GameRoom {
       if (this.destroyed) return;
       console.warn('[Brain Bomb WebRTC] Peer error:', err.type, err.message);
 
-      // If host ID is taken, the room code is already in use
-      if (err.type === 'unavailable-id' && this.isHost) {
-        console.warn('[Brain Bomb WebRTC] Room code already in use');
+      // If host ID is taken (e.g. from React StrictMode double-mount), retry after a delay
+      if (err.type === 'unavailable-id' && this.isHost && this.initRetries < 3) {
+        this.initRetries++;
+        console.warn('[Brain Bomb WebRTC] Room ID taken, retrying...', this.initRetries);
+        try { this.peer?.destroy(); } catch { /* already destroyed */ }
+        this.peer = null;
+        setTimeout(() => {
+          if (!this.destroyed) this.init();
+        }, 800 * this.initRetries);
+        return;
       }
 
-      // If peer not found, host doesn't exist yet
-      if (err.type === 'peer-unavailable' && !this.isHost) {
-        console.warn('[Brain Bomb WebRTC] Host not found for room:', this.roomCode);
+      // If peer not found, host might not be ready yet — retry connection
+      if (err.type === 'peer-unavailable' && !this.isHost && this.initRetries < 3) {
+        this.initRetries++;
+        console.warn('[Brain Bomb WebRTC] Host not found, retrying...', this.initRetries);
+        setTimeout(() => {
+          if (!this.destroyed && this.peer && !this.peer.destroyed) {
+            const hostId = `${PEER_PREFIX}${this.roomCode}`;
+            const conn = this.peer.connect(hostId, { reliable: true });
+            this.setupConnection(conn);
+          }
+        }, 1000 * this.initRetries);
       }
     });
 
