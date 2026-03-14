@@ -106,6 +106,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
   const [toastVisible, setToastVisible] = useState(false);
   const [throwNotif, setThrowNotif] = useState(false);
   const [throwFromName, setThrowFromName] = useState('');
+  const [yourTurnNotif, setYourTurnNotif] = useState(false);
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const pendingToastRef = useRef<string | undefined>(undefined);
@@ -135,6 +136,17 @@ const GameScreen: React.FC<GameScreenProps> = ({
   const currentPlayer = players[round.currentPlayerIdx];
   const isLocalTurn = currentPlayer?.id === localPlayerId;
   const activePlayers = players.filter((p) => !p.eliminated);
+
+  // Show "YOUR TURN" overlay when it becomes the local player's turn (skip on throw, which has its own overlay)
+  const prevRoundRef = useRef(round.round);
+  useEffect(() => {
+    if (isLocalTurn && round.round !== prevRoundRef.current && !throwNotif && overlay === 'none') {
+      setYourTurnNotif(true);
+      playSound('pass', sound);
+      setTimeout(() => setYourTurnNotif(false), 1200);
+    }
+    prevRoundRef.current = round.round;
+  }, [round.round, isLocalTurn, throwNotif, overlay, sound]);
 
   const showToast = useCallback((msg: string) => {
     setToast(msg);
@@ -1136,6 +1148,21 @@ const GameScreen: React.FC<GameScreenProps> = ({
       )}
 
       {/* ===== OVERLAYS ===== */}
+
+      {/* Your turn notification */}
+      {yourTurnNotif && (
+        <div style={{ ...overlayBase, background: 'rgba(0,200,100,0.12)', pointerEvents: 'none' }}>
+          <div style={{ fontSize: '4rem' }}>{'\uD83C\uDFAF'}</div>
+          <div style={{
+            fontFamily: "'Bebas Neue', sans-serif", fontSize: '2.5rem',
+            letterSpacing: 4, color: C.green,
+            textShadow: '0 0 30px rgba(0,200,100,0.6)', textAlign: 'center',
+          }}>
+            YOUR TURN!
+          </div>
+          <div style={{ fontSize: '0.85rem', fontWeight: 700, color: C.muted, marginTop: 4 }}>Answer quickly!</div>
+        </div>
+      )}
 
       {/* Bomb throw notification — centered for the receiver */}
       {throwNotif && (
