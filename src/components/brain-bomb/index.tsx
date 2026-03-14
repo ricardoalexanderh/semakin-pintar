@@ -445,7 +445,7 @@ const BrainBombGame: React.FC = () => {
                     cursor: manualCode.trim().length >= 4 ? 'pointer' : 'not-allowed',
                   }}
                 >
-                  {'\uD83D\uDCA3'} JOIN ROOM
+                  {'\uD83E\uDDE0'} JOIN ROOM
                 </button>
               </div>
             </div>
