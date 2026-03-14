@@ -392,10 +392,13 @@ const GameScreen: React.FC<GameScreenProps> = ({
 
   const triggerChainReaction = (currentPlayers?: Player[]) => {
     const q = getRandomQuestion(settings.activeSubs, settings.difficulty, settings.enableProgressiveDifficulty ? roundRef.current.round : undefined);
+    // Use the exploded player's saved time (their turn start time) as chain timer
+    const cp = (currentPlayers ?? playersRef.current)[roundRef.current.currentPlayerIdx];
+    const chainTime = cp?.savedTime ?? chainMaxTime;
     setChainQuestion(q);
     setChainAnswered(false);
     setChainRespondents(new Set());
-    setChainTimeLeft(chainMaxTime);
+    setChainTimeLeft(chainTime);
     setOverlay('chain');
     broadcastState(currentPlayers ?? playersRef.current, roundRef.current, 'chain', explosionInfoRef.current, q);
 
