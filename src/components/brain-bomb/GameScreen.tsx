@@ -1033,7 +1033,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
           <div key={p.id} style={playerChip(i === round.currentPlayerIdx, p.eliminated, p.color)}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 4, overflow: 'hidden' }}>
               <span>{p.avatar}</span>
-              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name.split(' ')[0]}</span>
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
             </div>
             <div style={{ display: 'flex', gap: 2, fontSize: '0.6rem', justifyContent: 'center' }}>
               {Array.from({ length: DIFFICULTY_CONFIG[settings.difficulty].lives }, (_, li) => (
