@@ -497,7 +497,7 @@ const BrainBombGame: React.FC = () => {
                   cursor: roomReady ? 'pointer' : 'not-allowed',
                 }}
               >
-                {roomReady ? '\uD83D\uDCA3' : '\u23F3'} {roomReady ? 'JOIN' : 'CONNECTING...'}
+                {roomReady ? '\uD83E\uDDE0' : '\u23F3'} {roomReady ? 'JOIN' : 'CONNECTING...'}
               </button>
             </div>
           </div>
