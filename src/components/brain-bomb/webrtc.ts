@@ -30,20 +30,22 @@ const TURN_USER = import.meta.env.VITE_TURN_USER || '';
 const TURN_PASS = import.meta.env.VITE_TURN_PASS || '';
 
 // Default free ICE servers (used when no custom server is configured)
-const DEFAULT_ICE_SERVERS = [
+// Multiple TURN providers for redundancy — free servers can go down anytime.
+// If all fail, configure your own via VITE_TURN_* env vars.
+const DEFAULT_ICE_SERVERS: RTCIceServer[] = [
   // Google STUN — free, reliable, handles ~80% of connections
   { urls: 'stun:stun.l.google.com:19302' },
   { urls: 'stun:stun1.l.google.com:19302' },
-  // Metered Open Relay — free TURN fallbacks for strict NAT / carrier-grade NAT
-  // Ports 80/443 bypass corporate firewalls; TCP+TLS variants handle restrictive ISPs
-  // If these stop working, configure your own via VITE_TURN_* env vars
+  // Metered Open Relay — ports 80/443, TCP+TLS for restrictive ISPs
   { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
   { urls: 'turn:openrelay.metered.ca:80?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' },
   { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
   { urls: 'turns:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' },
+  // numb.viagenie.ca — long-running free TURN server
+  { urls: 'turn:numb.viagenie.ca:3478', username: 'webrtc@live.com', credential: 'muazkh' },
 ];
 
-function buildPeerOptions(): Record<string, unknown> {
+function buildPeerOptions(forceRelay = false): Record<string, unknown> {
   const opts: Record<string, unknown> = { debug: 0 };
 
   // Only set host/port/path if a custom PeerJS server is configured
@@ -55,14 +57,22 @@ function buildPeerOptions(): Record<string, unknown> {
   }
 
   // Use custom ICE servers if configured, otherwise use free defaults
+  let iceServers: RTCIceServer[];
   if (STUN_URL || TURN_URL) {
-    const iceServers: Record<string, string>[] = [];
+    iceServers = [];
     if (STUN_URL) iceServers.push({ urls: STUN_URL });
     if (TURN_URL) iceServers.push({ urls: TURN_URL, username: TURN_USER, credential: TURN_PASS });
-    opts.config = { iceServers };
   } else {
-    opts.config = { iceServers: DEFAULT_ICE_SERVERS };
+    iceServers = DEFAULT_ICE_SERVERS;
   }
+
+  const config: Record<string, unknown> = { iceServers };
+  // Force relay mode: all traffic goes through TURN servers.
+  // Used as fallback when direct P2P fails (certain ISPs/NATs block it).
+  if (forceRelay) {
+    config.iceTransportPolicy = 'relay';
+  }
+  opts.config = config;
 
   return opts;
 }
@@ -100,6 +110,7 @@ export class GameRoom {
   private onError: ErrorHandler;
   private destroyed = false;
   private initRetries = 0;
+  private forceRelay = false;
 
   constructor(
     roomCode: string,
@@ -129,7 +140,7 @@ export class GameRoom {
       ? `${PEER_PREFIX}${this.roomCode}`
       : `${PEER_PREFIX}${this.peerId}`;
 
-    this.peer = new Peer(peerjsId, buildPeerOptions() as ConstructorParameters<typeof Peer>[1]);
+    this.peer = new Peer(peerjsId, buildPeerOptions(this.forceRelay) as ConstructorParameters<typeof Peer>[1]);
 
     this.peer.on('open', () => {
       if (this.destroyed) return;
@@ -189,9 +200,21 @@ export class GameRoom {
     // Timeout if DataChannel never opens (ICE negotiation stalled)
     const timeout = !this.isHost ? setTimeout(() => {
       if (!conn.open && !this.destroyed) {
-        console.warn('[Brain Bomb WebRTC] Connection timed out');
         try { conn.close(); } catch { /* */ }
-        this.onError('connection-failed', 'Connection timed out. The host may be unreachable.');
+        // If not already in relay mode, retry with forced TURN relay
+        if (!this.forceRelay) {
+          console.warn('[Brain Bomb WebRTC] Direct connection timed out, retrying with forced relay mode...');
+          this.forceRelay = true;
+          this.initRetries = 0;
+          // Generate new peer ID to avoid signaling server conflicts
+          this.peerId = generatePeerId();
+          try { this.peer?.destroy(); } catch { /* */ }
+          this.peer = null;
+          this.init();
+        } else {
+          console.warn('[Brain Bomb WebRTC] Relay connection also timed out');
+          this.onError('connection-failed', 'Connection timed out. The host may be unreachable.');
+        }
       }
     }, 15000) : null;
 
