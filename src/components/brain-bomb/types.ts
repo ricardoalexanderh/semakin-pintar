@@ -80,6 +80,7 @@ export type PeerMessageType =
   | 'answer-submitted'
   | 'powerup-used'
   | 'chain-answer'
+  | 'lucky-answer'
   | 'sabotage-applied'
   | 'clone-target'
   | 'toast'
