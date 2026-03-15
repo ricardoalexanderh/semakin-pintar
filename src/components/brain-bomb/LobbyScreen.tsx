@@ -190,6 +190,7 @@ const LobbyScreen: React.FC<LobbyScreenProps> = ({
                     color: C.white, fontFamily: "'Nunito', sans-serif",
                     fontSize: '0.8rem', fontWeight: 800, cursor: 'pointer',
                     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                    whiteSpace: 'nowrap',
                   }}
                 >
                   {'\uD83D\uDCE4'} Share Link
@@ -202,6 +203,7 @@ const LobbyScreen: React.FC<LobbyScreenProps> = ({
                     color: C.white, fontFamily: "'Nunito', sans-serif",
                     fontSize: '0.8rem', fontWeight: 800, cursor: 'pointer',
                     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                    whiteSpace: 'nowrap',
                   }}
                 >
                   {'\uD83D\uDCCB'} Copy Code
