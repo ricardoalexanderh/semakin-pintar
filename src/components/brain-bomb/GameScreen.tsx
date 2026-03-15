@@ -147,7 +147,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
     if (isLocalTurn && round.round !== prevRoundRef.current && !throwNotif && overlay === 'none') {
       setYourTurnNotif(true);
       playSound('pass', sound);
-      setTimeout(() => setYourTurnNotif(false), 1200);
+      setTimeout(() => setYourTurnNotif(false), 800);
     }
     prevRoundRef.current = round.round;
   }, [round.round, isLocalTurn, throwNotif, overlay, sound]);
