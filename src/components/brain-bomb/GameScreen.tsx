@@ -664,7 +664,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
           broadcastToast(`\u2B50 ${playersRef.current.find((p) => p.id === localPlayerId)?.name || 'You'} wins the Lucky Question! +1 life!`);
           if (chainTimerRef.current) { clearInterval(chainTimerRef.current); chainTimerRef.current = null; }
           finishLuckyRef.current();
-        }, 150);
+        }, 500);
       }
     }
   };
