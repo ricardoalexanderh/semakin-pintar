@@ -11,57 +11,33 @@ import type { PeerMessage } from './types';
 // Prefix for PeerJS IDs to avoid collisions
 const PEER_PREFIX = 'brain-bomb-';
 
-// Optional server configuration via environment variables.
-// When empty/unset, PeerJS uses its free cloud signaling server (works on same network).
-// Set these in your .env file to enable cross-network play:
-//   VITE_PEER_HOST=your-server.com
-//   VITE_PEER_PORT=9000
-//   VITE_PEER_PATH=/myapp
-//   VITE_STUN_URL=stun:your-server.com:3478
-//   VITE_TURN_URL=turn:your-server.com:3478
-//   VITE_TURN_USER=myuser
-//   VITE_TURN_PASS=mypassword
-const PEER_HOST = import.meta.env.VITE_PEER_HOST || '';
-const PEER_PORT = parseInt(import.meta.env.VITE_PEER_PORT || '0', 10);
-const PEER_PATH = import.meta.env.VITE_PEER_PATH || '/';
-const STUN_URL = import.meta.env.VITE_STUN_URL || '';
-const TURN_URL = import.meta.env.VITE_TURN_URL || '';
+// TURN server credentials from environment variables
+const TURN_HOST = import.meta.env.VITE_TURN_HOST || 'sg.relay.metered.ca';
 const TURN_USER = import.meta.env.VITE_TURN_USER || '';
 const TURN_PASS = import.meta.env.VITE_TURN_PASS || '';
 
-// Default free ICE servers (used when no custom server is configured)
-const DEFAULT_ICE_SERVERS = [
-  // Google STUN — free, reliable, handles ~80% of connections
-  { urls: 'stun:stun.l.google.com:19302' },
-  { urls: 'stun:stun1.l.google.com:19302' },
-  { urls: 'stun:stun2.l.google.com:19302' },
-  // Free TURN fallbacks for strict NAT (~20% of connections)
-  { urls: 'turn:turn.bistri.com:80', username: 'homeo', credential: 'homeo' },
-  { urls: 'turn:turn.anyfirewall.com:443?transport=tcp', username: 'webrtc', credential: 'webrtc' },
-];
-
-function buildPeerOptions(): Record<string, unknown> {
-  const opts: Record<string, unknown> = { debug: 0 };
-
-  // Only set host/port/path if a custom PeerJS server is configured
-  if (PEER_HOST) {
-    opts.host = PEER_HOST;
-    opts.port = PEER_PORT || 9000;
-    opts.path = PEER_PATH;
-    opts.secure = PEER_HOST !== 'localhost' && PEER_HOST !== '127.0.0.1';
+function buildIceServers(): RTCIceServer[] {
+  const servers: RTCIceServer[] = [
+    { urls: 'stun:stun.relay.metered.ca:80' },
+    { urls: 'stun:stun.l.google.com:19302' },
+  ];
+  if (TURN_USER && TURN_PASS) {
+    servers.push(
+      { urls: `turn:${TURN_HOST}:80`, username: TURN_USER, credential: TURN_PASS },
+      { urls: `turn:${TURN_HOST}:80?transport=tcp`, username: TURN_USER, credential: TURN_PASS },
+      { urls: `turn:${TURN_HOST}:443`, username: TURN_USER, credential: TURN_PASS },
+      { urls: `turns:${TURN_HOST}:443?transport=tcp`, username: TURN_USER, credential: TURN_PASS },
+    );
   }
+  return servers;
+}
 
-  // Use custom ICE servers if configured, otherwise use free defaults
-  if (STUN_URL || TURN_URL) {
-    const iceServers: Record<string, string>[] = [];
-    if (STUN_URL) iceServers.push({ urls: STUN_URL });
-    if (TURN_URL) iceServers.push({ urls: TURN_URL, username: TURN_USER, credential: TURN_PASS });
-    opts.config = { iceServers };
-  } else {
-    opts.config = { iceServers: DEFAULT_ICE_SERVERS };
+function buildPeerOptions(forceRelay = false): Record<string, unknown> {
+  const config: Record<string, unknown> = { iceServers: buildIceServers() };
+  if (forceRelay) {
+    config.iceTransportPolicy = 'relay';
   }
-
-  return opts;
+  return { debug: 0, config };
 }
 
 // Generate a short room code (6 chars)
@@ -82,6 +58,7 @@ export function generatePeerId(): string {
 type MessageHandler = (msg: PeerMessage) => void;
 type ConnectionHandler = (peerId: string) => void;
 type ReadyHandler = () => void;
+type ErrorHandler = (errorType: 'room-not-found' | 'connection-failed', message: string) => void;
 
 export class GameRoom {
   roomCode: string;
@@ -93,8 +70,10 @@ export class GameRoom {
   private onPeerConnected: ConnectionHandler;
   private onPeerDisconnected: ConnectionHandler;
   private onReady: ReadyHandler;
+  private onError: ErrorHandler;
   private destroyed = false;
   private initRetries = 0;
+  private forceRelay = false;
 
   constructor(
     roomCode: string,
@@ -103,6 +82,7 @@ export class GameRoom {
     onPeerConnected: ConnectionHandler,
     onPeerDisconnected: ConnectionHandler,
     onReady?: ReadyHandler,
+    onError?: ErrorHandler,
   ) {
     this.roomCode = roomCode;
     this.peerId = generatePeerId();
@@ -111,6 +91,7 @@ export class GameRoom {
     this.onPeerConnected = onPeerConnected;
     this.onPeerDisconnected = onPeerDisconnected;
     this.onReady = onReady || (() => {});
+    this.onError = onError || (() => {});
 
     this.init();
   }
@@ -122,7 +103,7 @@ export class GameRoom {
       ? `${PEER_PREFIX}${this.roomCode}`
       : `${PEER_PREFIX}${this.peerId}`;
 
-    this.peer = new Peer(peerjsId, buildPeerOptions() as ConstructorParameters<typeof Peer>[1]);
+    this.peer = new Peer(peerjsId, buildPeerOptions(this.forceRelay) as ConstructorParameters<typeof Peer>[1]);
 
     this.peer.on('open', () => {
       if (this.destroyed) return;
@@ -154,7 +135,7 @@ export class GameRoom {
       }
 
       // If peer not found, host might not be ready yet — retry connection
-      if (err.type === 'peer-unavailable' && !this.isHost && this.initRetries < 3) {
+      if (err.type === 'peer-unavailable' && !this.isHost && this.initRetries < 5) {
         this.initRetries++;
         console.warn('[Brain Bomb WebRTC] Host not found, retrying...', this.initRetries);
         setTimeout(() => {
@@ -163,7 +144,9 @@ export class GameRoom {
             const conn = this.peer.connect(hostId, { reliable: true });
             this.setupConnection(conn);
           }
-        }, 1000 * this.initRetries);
+        }, 1500 * this.initRetries);
+      } else if (err.type === 'peer-unavailable' && !this.isHost && this.initRetries >= 5) {
+        this.onError('room-not-found', `Could not find room ${this.roomCode}. Check the code and try again.`);
       }
     });
 
@@ -177,7 +160,29 @@ export class GameRoom {
   }
 
   private setupConnection(conn: DataConnection) {
+    // Timeout if DataChannel never opens (ICE negotiation stalled)
+    const timeout = !this.isHost ? setTimeout(() => {
+      if (!conn.open && !this.destroyed) {
+        try { conn.close(); } catch { /* */ }
+        // If not already in relay mode, retry with forced TURN relay
+        if (!this.forceRelay) {
+          console.warn('[Brain Bomb WebRTC] Direct connection timed out, retrying with forced relay mode...');
+          this.forceRelay = true;
+          this.initRetries = 0;
+          // Generate new peer ID to avoid signaling server conflicts
+          this.peerId = generatePeerId();
+          try { this.peer?.destroy(); } catch { /* */ }
+          this.peer = null;
+          this.init();
+        } else {
+          console.warn('[Brain Bomb WebRTC] Relay connection also timed out');
+          this.onError('connection-failed', 'Connection timed out. The host may be unreachable.');
+        }
+      }
+    }, 15000) : null;
+
     conn.on('open', () => {
+      if (timeout) clearTimeout(timeout);
       if (this.destroyed) return;
       const remotePeerId = conn.peer.replace(PEER_PREFIX, '');
       this.connections.set(remotePeerId, conn);
@@ -210,9 +215,13 @@ export class GameRoom {
       }
     });
 
-    conn.on('error', () => {
+    conn.on('error', (err) => {
+      console.warn('[Brain Bomb WebRTC] Connection error:', err);
       const remotePeerId = conn.peer.replace(PEER_PREFIX, '');
       this.connections.delete(remotePeerId);
+      if (!this.destroyed) {
+        this.onPeerDisconnected(remotePeerId);
+      }
     });
   }
 

@@ -1,5 +1,5 @@
 // ===== Brain Bomb — Lobby Screen =====
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import type { Player, Difficulty, GameMode, LobbySettings } from './types';
 import { DIFFICULTY_CONFIG } from './types';
 import { SUB_DEFS } from './questions';
@@ -65,12 +65,64 @@ const LobbyScreen: React.FC<LobbyScreenProps> = ({
   const canStart = players.length >= 2 && enabledSubCount > 0;
 
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
+  const [shareStatus, setShareStatus] = useState<string | null>(null);
   useEffect(() => {
     let cancelled = false;
     generateQRCodeDataURL(roomCode).then((url) => {
       if (!cancelled) setQrDataUrl(url);
     });
     return () => { cancelled = true; };
+  }, [roomCode]);
+
+  const joinUrl = `${window.location.origin}${window.location.pathname}?room=${roomCode}`;
+
+  const handleShare = useCallback(async () => {
+    try {
+      // Try Web Share API with QR image file
+      if (navigator.share) {
+        const shareData: ShareData = {
+          title: 'Join Brain Bomb!',
+          text: `Join my Brain Bomb game!\nRoom code: ${roomCode}`,
+          url: joinUrl,
+        };
+        // Try to include QR image as file (supported on mobile)
+        if (qrDataUrl && navigator.canShare) {
+          try {
+            const res = await fetch(qrDataUrl);
+            const blob = await res.blob();
+            const file = new File([blob], `brain-bomb-${roomCode}.png`, { type: 'image/png' });
+            const withFile = { ...shareData, files: [file] };
+            if (navigator.canShare(withFile)) {
+              await navigator.share(withFile);
+              return;
+            }
+          } catch { /* fall through to share without file */ }
+        }
+        await navigator.share(shareData);
+        return;
+      }
+      // Fallback: copy URL to clipboard
+      await navigator.clipboard.writeText(joinUrl);
+      setShareStatus('Copied!');
+      setTimeout(() => setShareStatus(null), 2000);
+    } catch (err) {
+      if ((err as Error).name !== 'AbortError') {
+        // User didn't cancel — try clipboard fallback
+        try {
+          await navigator.clipboard.writeText(joinUrl);
+          setShareStatus('Copied!');
+          setTimeout(() => setShareStatus(null), 2000);
+        } catch { /* ignore */ }
+      }
+    }
+  }, [roomCode, joinUrl, qrDataUrl]);
+
+  const handleCopyCode = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(roomCode);
+      setShareStatus('Code copied!');
+      setTimeout(() => setShareStatus(null), 2000);
+    } catch { /* ignore */ }
   }, [roomCode]);
 
   return (
@@ -128,6 +180,39 @@ const LobbyScreen: React.FC<LobbyScreenProps> = ({
                 Scan QR or enter code to join
               </div>
             </div>
+            {isHost && (
+              <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                <button
+                  onClick={handleShare}
+                  style={{
+                    flex: 1, padding: '10px 16px', background: C.surface,
+                    border: `1.5px solid ${C.border}`, borderRadius: 10,
+                    color: C.white, fontFamily: "'Nunito', sans-serif",
+                    fontSize: '0.8rem', fontWeight: 800, cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                  }}
+                >
+                  {'\uD83D\uDCE4'} Share Link
+                </button>
+                <button
+                  onClick={handleCopyCode}
+                  style={{
+                    flex: 1, padding: '10px 16px', background: C.surface,
+                    border: `1.5px solid ${C.border}`, borderRadius: 10,
+                    color: C.white, fontFamily: "'Nunito', sans-serif",
+                    fontSize: '0.8rem', fontWeight: 800, cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                  }}
+                >
+                  {'\uD83D\uDCCB'} Copy Code
+                </button>
+              </div>
+            )}
+            {shareStatus && (
+              <div style={{ fontSize: '0.75rem', color: C.green, fontWeight: 700, marginTop: 4 }}>
+                {shareStatus}
+              </div>
+            )}
           </div>
         </div>
 

@@ -42,7 +42,7 @@ const DEFAULT_SETTINGS: LobbySettings = {
   enableChainReaction: true,
   enableSabotage: true,
   enableSound: true,
-  enableProgressiveDifficulty: false,
+  enableProgressiveDifficulty: true,
   activeSubs: {},
 };
 
@@ -197,6 +197,13 @@ const BrainBombGame: React.FC = () => {
       () => {
         // WebRTC peer is ready (connected to signaling server)
         setRoomReady(true);
+      },
+      (_errorType, message) => {
+        // Connection error — inform user and return to menu
+        alert(message);
+        setPhase('menu');
+        setRoomCode('');
+        setHasJoined(false);
       },
     );
 
