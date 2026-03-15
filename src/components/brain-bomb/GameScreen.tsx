@@ -1466,25 +1466,25 @@ const GameScreen: React.FC<GameScreenProps> = ({
                         onClick={() => { setSelectedSabotageType('blind'); setSabotageStep('target'); }}
                         style={sabotageOptionStyle}
                       >
-                        <span>{'\uD83D\uDE48'}</span> Blind &mdash; <span style={{ color: C.muted, fontWeight: 600 }}>Blur all answer options</span>
+                        <span>{'\uD83D\uDE48'}</span> <span style={{ whiteSpace: 'nowrap' }}>Blind &mdash; <span style={{ color: C.muted, fontWeight: 600 }}>Blur all answer options</span></span>
                       </button>
                       <button
                         onClick={() => { setSelectedSabotageType('timebomb'); setSabotageStep('target'); }}
                         style={sabotageOptionStyle}
                       >
-                        <span>{'\u23F1\uFE0F'}</span> Time Bomb &mdash; <span style={{ color: C.muted, fontWeight: 600 }}>-{({ easy: 8, medium: 5, hard: 3 })[settings.difficulty]}s from timer</span>
+                        <span>{'\u23F1\uFE0F'}</span> <span style={{ whiteSpace: 'nowrap' }}>Time Bomb &mdash; <span style={{ color: C.muted, fontWeight: 600 }}>-{({ easy: 8, medium: 5, hard: 3 })[settings.difficulty]}s from timer</span></span>
                       </button>
                       <button
                         onClick={() => { setSelectedSabotageType('decoy'); setSabotageStep('target'); }}
                         style={sabotageOptionStyle}
                       >
-                        <span>{'\uD83C\uDFAD'}</span> Decoy &mdash; <span style={{ color: C.muted, fontWeight: 600 }}>Add a fake answer</span>
+                        <span>{'\uD83C\uDFAD'}</span> <span style={{ whiteSpace: 'nowrap' }}>Decoy &mdash; <span style={{ color: C.muted, fontWeight: 600 }}>Add a fake answer</span></span>
                       </button>
                       <button
                         onClick={() => handleSkipSabotage()}
                         style={{ ...sabotageOptionStyle, color: C.muted, borderColor: C.muted }}
                       >
-                        Skip sabotage
+                        <span>{'\u23ED\uFE0F'}</span> Skip
                       </button>
                     </>
                   ) : (
