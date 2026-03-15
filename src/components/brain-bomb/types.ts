@@ -1,7 +1,7 @@
 // ===== Brain Bomb — Type Definitions =====
 
 export type Difficulty = 'easy' | 'medium' | 'hard';
-export type GameMode = 'classic' | 'team' | 'speed' | 'sudden';
+export type GameMode = 'classic' | 'sudden';
 export type GamePhase = 'menu' | 'lobby' | 'countdown' | 'playing' | 'chainReaction' | 'gameover';
 export type PeerRole = 'host' | 'guest';
 
