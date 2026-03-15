@@ -198,6 +198,13 @@ const BrainBombGame: React.FC = () => {
         // WebRTC peer is ready (connected to signaling server)
         setRoomReady(true);
       },
+      (_errorType, message) => {
+        // Connection error — inform user and return to menu
+        alert(message);
+        setPhase('menu');
+        setRoomCode('');
+        setHasJoined(false);
+      },
     );
 
     return () => {
