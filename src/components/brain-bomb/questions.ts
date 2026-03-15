@@ -319,7 +319,7 @@ export const SUB_DEFS: Record<string, { icon: string; label: string; color: stri
     ],
   },
   memory: {
-    icon: '\uD83C\uDFAF',
+    icon: '\uD83E\uDDE9',
     label: 'Memory',
     color: 'memory',
     subs: [

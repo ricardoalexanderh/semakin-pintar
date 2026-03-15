@@ -45,9 +45,10 @@ interface SyncState {
   throwTargetId?: string;
   throwFromName?: string;
   chainRespondentCount?: number;
+  luckyWinnerId?: string;
 }
 
-type OverlayType = 'none' | 'explosion' | 'chain' | 'sabotage' | 'clone';
+type OverlayType = 'none' | 'explosion' | 'chain' | 'sabotage' | 'clone' | 'lucky';
 
 const GameScreen: React.FC<GameScreenProps> = ({
   players: initialPlayers,
@@ -107,6 +108,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
   const [throwNotif, setThrowNotif] = useState(false);
   const [throwFromName, setThrowFromName] = useState('');
   const [yourTurnNotif, setYourTurnNotif] = useState(false);
+  const [luckyWinnerId, setLuckyWinnerId] = useState<string | null>(null);
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const pendingToastRef = useRef<string | undefined>(undefined);
@@ -131,6 +133,8 @@ const GameScreen: React.FC<GameScreenProps> = ({
   chainRespondentsRef.current = chainRespondents;
   const chainWrongAnswersRef = useRef<Set<string>>(new Set());
   chainTimeLeftRef.current = chainTimeLeft;
+  const luckyWinnerIdRef = useRef<string | null>(null);
+  luckyWinnerIdRef.current = luckyWinnerId;
 
   const sound = settings.enableSound;
   const currentPlayer = players[round.currentPlayerIdx];
@@ -175,7 +179,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
     if (!isHost || !gameRoom) return;
     const toastMsg = toastMessage || pendingToastRef.current;
     pendingToastRef.current = undefined;
-    const state: SyncState = { players: p, round: r, overlay: ov, explosionInfo: ei, chainQuestion: cq, chainTimeLeft: chainTimeLeftRef.current, gameOver, toastMessage: toastMsg, throwTargetId, throwFromName, chainRespondentCount: chainRespondentsRef.current.size };
+    const state: SyncState = { players: p, round: r, overlay: ov, explosionInfo: ei, chainQuestion: cq, chainTimeLeft: chainTimeLeftRef.current, gameOver, toastMessage: toastMsg, throwTargetId, throwFromName, chainRespondentCount: chainRespondentsRef.current.size, luckyWinnerId: luckyWinnerIdRef.current || undefined };
     gameRoom.broadcast('game-state', state);
   }, [isHost, gameRoom]);
 
@@ -207,7 +211,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
         }
       }
       // Pass turn sound: play for the player receiving the turn
-      if (state.round.currentPlayerIdx !== round.currentPlayerIdx && state.overlay !== 'explosion' && state.overlay !== 'chain' && !state.round.answered && isMyTurn) {
+      if (state.round.currentPlayerIdx !== round.currentPlayerIdx && state.overlay !== 'explosion' && state.overlay !== 'chain' && state.overlay !== 'lucky' && !state.round.answered && isMyTurn) {
         playSound('pass', sound);
       }
       // Powerup / sabotage sound: play for the player who used it
@@ -230,9 +234,15 @@ const GameScreen: React.FC<GameScreenProps> = ({
         const dummy = new Set(Array.from({ length: state.chainRespondentCount }, (_, i) => `r${i}`));
         setChainRespondents(dummy);
       }
-      // Reset chainAnswered only when a NEW chain reaction starts (not on every timer sync)
-      if (state.overlay === 'chain' && state.chainQuestion && overlay !== 'chain') {
+      // Reset chainAnswered only when a NEW chain/lucky starts (not on every timer sync)
+      if ((state.overlay === 'chain' || state.overlay === 'lucky') && state.chainQuestion && overlay !== 'chain' && overlay !== 'lucky') {
         setChainAnswered(false);
+      }
+      // Sync lucky winner
+      if (state.luckyWinnerId) {
+        setLuckyWinnerId(state.luckyWinnerId);
+      } else if (state.overlay !== 'lucky') {
+        setLuckyWinnerId(null);
       }
       // Throw notification: centered overlay for target, toast for others
       if (state.throwTargetId) {
@@ -259,6 +269,9 @@ const GameScreen: React.FC<GameScreenProps> = ({
       } else if (msg.type === 'chain-answer') {
         const { answerIdx, playerId } = msg.payload as { answerIdx: number; playerId: string };
         handleRemoteChainAnswer(answerIdx, playerId);
+      } else if (msg.type === 'lucky-answer') {
+        const { answerIdx, playerId } = msg.payload as { answerIdx: number; playerId: string };
+        handleRemoteLuckyAnswer(answerIdx, playerId);
       } else if (msg.type === 'clone-target') {
         const { targetId } = msg.payload as { targetId: string };
         handleCloneTarget(targetId, true);
@@ -344,6 +357,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
   // Use refs for functions called from timeouts to avoid stale closures
   const passToNextRef = useRef<(cp?: Player[]) => void>(() => {});
   const triggerChainReactionRef = useRef<(cp?: Player[]) => void>(() => {});
+  const triggerLuckyQuestionRef = useRef<(cp?: Player[]) => void>(() => {});
 
   const bombExplodes = () => {
     if (timerRef.current) clearInterval(timerRef.current);
@@ -551,6 +565,105 @@ const GameScreen: React.FC<GameScreenProps> = ({
     }
   };
 
+  // === Lucky Question (all-player race for +1 life) ===
+  const finishLuckyQuestion = useCallback(() => {
+    if (chainTimeoutRef.current) { clearTimeout(chainTimeoutRef.current); chainTimeoutRef.current = null; }
+    if (chainTimerRef.current) { clearInterval(chainTimerRef.current); chainTimerRef.current = null; }
+
+    const winnerId = luckyWinnerIdRef.current;
+    const maxLives = settings.mode === 'sudden' ? 1 : DIFFICULTY_CONFIG[settings.difficulty].lives;
+    const updatedPlayers = winnerId
+      ? playersRef.current.map((p) => p.id === winnerId ? { ...p, lives: Math.min(p.lives + 1, maxLives) } : p)
+      : playersRef.current;
+    setPlayers(updatedPlayers);
+
+    setTimeout(() => {
+      setOverlay('none');
+      setChainQuestion(null);
+      setChainAnswered(false);
+      setChainRespondents(new Set());
+      setChainTimeLeft(0);
+      setLuckyWinnerId(null);
+      luckyWinnerIdRef.current = null;
+      broadcastState(updatedPlayers, roundRef.current, 'none', explosionInfoRef.current, null);
+      passToNextRef.current(updatedPlayers);
+    }, 2000);
+  }, [broadcastState, settings.mode, settings.difficulty]);
+  const finishLuckyRef = useRef(finishLuckyQuestion);
+  finishLuckyRef.current = finishLuckyQuestion;
+
+  const triggerLuckyQuestion = (currentPlayers?: Player[]) => {
+    const q = getRandomQuestion(settings.activeSubs, settings.difficulty, settings.enableProgressiveDifficulty ? roundRef.current.round : undefined);
+    setChainQuestion(q);
+    chainQuestionRef.current = q;
+    setChainAnswered(false);
+    setChainRespondents(new Set());
+    setLuckyWinnerId(null);
+    luckyWinnerIdRef.current = null;
+    setChainTimeLeft(maxTime);
+    chainTimeLeftRef.current = maxTime;
+    setOverlay('lucky');
+    overlayRef.current = 'lucky';
+    broadcastState(currentPlayers ?? playersRef.current, roundRef.current, 'lucky', explosionInfoRef.current, q);
+
+    if (isHost) {
+      if (chainTimerRef.current) clearInterval(chainTimerRef.current);
+      chainTimerRef.current = setInterval(() => {
+        setChainTimeLeft((prev) => {
+          if (prev <= 1) {
+            if (chainTimerRef.current) { clearInterval(chainTimerRef.current); chainTimerRef.current = null; }
+            finishLuckyRef.current();
+            return 0;
+          }
+          const next = prev - 1;
+          chainTimeLeftRef.current = next;
+          broadcastState(playersRef.current, roundRef.current, 'lucky', explosionInfoRef.current, chainQuestionRef.current);
+          return next;
+        });
+      }, 1000);
+    }
+  };
+  triggerLuckyQuestionRef.current = triggerLuckyQuestion;
+
+  const handleRemoteLuckyAnswer = (idx: number, playerId: string) => {
+    const cq = chainQuestionRef.current;
+    if (!cq || luckyWinnerIdRef.current) return; // already won
+    if (idx === cq.correct) {
+      // First correct answer wins!
+      setLuckyWinnerId(playerId);
+      luckyWinnerIdRef.current = playerId;
+      const winner = playersRef.current.find((p) => p.id === playerId);
+      broadcastToast(`\u2B50 ${winner?.name || 'Someone'} wins the Lucky Question! +1 life!`);
+      if (chainTimerRef.current) { clearInterval(chainTimerRef.current); chainTimerRef.current = null; }
+      finishLuckyRef.current();
+    }
+  };
+
+  const handleLuckyAnswer = (idx: number) => {
+    if (chainAnswered || !chainQuestion) return;
+    setChainAnswered(true);
+
+    if (!isHost && gameRoom) {
+      gameRoom.broadcast('lucky-answer', { answerIdx: idx, playerId: localPlayerId });
+    }
+
+    if (idx !== chainQuestion.correct) {
+      playSound('wrong', sound);
+      showToast('Wrong! No extra life for you.');
+    } else {
+      playSound('correct', sound);
+      // Host processes locally
+      if (isHost) {
+        if (luckyWinnerIdRef.current) return; // someone already won
+        setLuckyWinnerId(localPlayerId);
+        luckyWinnerIdRef.current = localPlayerId;
+        broadcastToast(`\u2B50 ${playersRef.current.find((p) => p.id === localPlayerId)?.name || 'You'} wins the Lucky Question! +1 life!`);
+        if (chainTimerRef.current) { clearInterval(chainTimerRef.current); chainTimerRef.current = null; }
+        finishLuckyRef.current();
+      }
+    }
+  };
+
   const passToNext = (currentPlayers?: Player[]) => {
     const cp = currentPlayers ?? playersRef.current;
     const curRound = roundRef.current;
@@ -588,9 +701,8 @@ const GameScreen: React.FC<GameScreenProps> = ({
     const isBlind = !!nextPlayer.blindNextRound;
     const blindAnswers = isBlind ? newQuestion.a.map((_, i) => i) : [];
 
-    // Lucky Question: every 8 rounds, bonus round grants +1 life on correct answer
     const nextRound = curRound.round + 1;
-    const isBonus = nextRound > 0 && nextRound % 8 === 0;
+    const isLuckyRound = nextRound > 0 && nextRound % 8 === 0;
 
     // Apply decoy sabotage: add a fake 5th answer
     const hasDecoy = !!nextPlayer.decoyNextRound;
@@ -621,7 +733,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
       frozen: false,
       blind: isBlind,
       blindAnswers,
-      isBonus,
+      isBonus: false,
       decoy: hasDecoy,
       decoyAnswer: hasDecoy ? decoyAnswer : undefined,
     };
@@ -649,6 +761,13 @@ const GameScreen: React.FC<GameScreenProps> = ({
     }));
     setPlayers(newPlayers);
     broadcastState(newPlayers, newRound, 'none', { name: '', message: '' }, null);
+
+    // Lucky Question: every 8 rounds, trigger all-player race for +1 life
+    if (isLuckyRound && isHost) {
+      setTimeout(() => {
+        triggerLuckyQuestionRef.current(newPlayers);
+      }, 500);
+    }
   };
   passToNextRef.current = passToNext;
 
@@ -679,8 +798,6 @@ const GameScreen: React.FC<GameScreenProps> = ({
       if (curPlayers[curRound.currentPlayerIdx]?.id === localPlayerId) playSound('correct', sound);
       const startTime = curRound.startTime;
       const earnedSabotage = settings.enableSabotage && !curPlayers[curRound.currentPlayerIdx].usedPowerupThisRound && curRound.timeLeft > startTime * 0.85;
-      const maxLives = settings.mode === 'sudden' ? 1 : DIFFICULTY_CONFIG[settings.difficulty].lives;
-      const bonusLife = !!curRound.isBonus;
       const newPlayers = curPlayers.map((p, i) => {
         if (i !== curRound.currentPlayerIdx) return p;
         const newScore = p.score + 10 + curRound.timeLeft;
@@ -688,13 +805,9 @@ const GameScreen: React.FC<GameScreenProps> = ({
           ...p,
           score: newScore,
           sabotages: earnedSabotage ? p.sabotages + 1 : p.sabotages,
-          lives: bonusLife ? Math.min(p.lives + 1, maxLives) : p.lives,
         };
       });
       setPlayers(newPlayers);
-      if (bonusLife) {
-        broadcastToast(`\u2B50 Lucky Question! ${curPlayers[curRound.currentPlayerIdx].name} gains +1 life!`);
-      }
 
       if (earnedSabotage && newPlayers.filter((p) => !p.eliminated).length > 1) {
         // Broadcast answered state immediately so guests see green highlight
@@ -799,7 +912,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
 
     // Show centered overlay for the target, toast for others
     const thrower = curPlayers[curRound.currentPlayerIdx];
-    const throwMsg = `\uD83C\uDFAF ${thrower?.name} threw the bomb to ${target.name}!`;
+    const throwMsg = `\uD83D\uDCA8 ${thrower?.name} threw the bomb to ${target.name}!`;
     if (target.id === localPlayerId) {
       setThrowNotif(true);
       setThrowFromName(thrower?.name || '');
@@ -981,24 +1094,15 @@ const GameScreen: React.FC<GameScreenProps> = ({
 
       {/* Question Card */}
       <div style={{
-        background: C.card, border: `1.5px solid ${round.isBonus ? '#ffd700' : C.border}`, borderRadius: 'clamp(12px, 3vw, 20px)',
+        background: C.card, border: `1.5px solid ${C.border}`, borderRadius: 'clamp(12px, 3vw, 20px)',
         padding: 'clamp(14px, 2vh, 24px)', width: '100%', maxWidth: 500, textAlign: 'center', boxSizing: 'border-box' as const,
         position: 'relative', overflow: 'hidden',
-        boxShadow: round.isBonus ? '0 0 30px rgba(255,215,0,0.3)' : 'none',
       }}>
         {/* Top accent line */}
         <div style={{
           position: 'absolute', top: 0, left: 0, right: 0, height: 3,
-          background: round.isBonus ? 'linear-gradient(90deg, #ffd700, #ffaa00)' : `linear-gradient(90deg, ${C.accent}, ${C.accent2})`,
+          background: `linear-gradient(90deg, ${C.accent}, ${C.accent2})`,
         }} />
-        {round.isBonus && (
-          <div style={{
-            fontFamily: "'Bebas Neue', sans-serif", fontSize: '1rem', letterSpacing: 2,
-            color: '#ffd700', marginBottom: 6, animation: 'bb-pulse-text 0.8s ease infinite alternate',
-          }}>
-            {'\u2B50'} LUCKY QUESTION &mdash; Correct = +1 Life! {'\u2B50'}
-          </div>
-        )}
 
         {/* Category badge */}
         <div style={{
@@ -1092,7 +1196,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
           {([
             { key: 'shield' as const, icon: '\uD83D\uDEE1\uFE0F', label: 'Shield' },
             { key: 'freeze' as const, icon: '\u2744\uFE0F', label: 'Freeze' },
-            { key: 'clone' as const, icon: '\uD83C\uDFAF', label: 'Throw' },
+            { key: 'clone' as const, icon: '\uD83D\uDCA8', label: 'Throw' },
           ]).map(({ key, icon, label }) => {
             const count = currentPlayer?.powerups[key] || 0;
             return (
@@ -1152,7 +1256,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
       {/* Your turn notification */}
       {yourTurnNotif && (
         <div style={{ ...overlayBase, background: 'rgba(0,200,100,0.12)', pointerEvents: 'none' }}>
-          <div style={{ fontSize: '4rem' }}>{'\uD83C\uDFAF'}</div>
+          <div style={{ fontSize: '4rem' }}>{'\u26A1'}</div>
           <div style={{
             fontFamily: "'Bebas Neue', sans-serif", fontSize: '2.5rem',
             letterSpacing: 4, color: C.green,
@@ -1257,6 +1361,73 @@ const GameScreen: React.FC<GameScreenProps> = ({
         </div>
       )}
 
+      {/* Lucky Question — all-player race */}
+      {overlay === 'lucky' && chainQuestion && (
+        <div style={{ ...overlayBase, background: 'rgba(255,215,0,0.15)' }}>
+          <div style={{
+            background: C.card, border: '2px solid #ffd700', borderRadius: 20,
+            padding: '28px 36px', textAlign: 'center', maxWidth: 380, width: '90%',
+            boxShadow: '0 0 60px rgba(255,215,0,0.3)', animation: 'bb-chain-pop 0.4s cubic-bezier(0.34,1.56,0.64,1)',
+          }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+              <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '2rem', letterSpacing: 3, color: '#ffd700', textAlign: 'center' }}>
+                {'\u2B50'} LUCKY QUESTION!
+              </div>
+              {chainTimeLeft > 0 && !luckyWinnerId && (
+                <div style={{
+                  fontFamily: "'Bebas Neue', sans-serif", fontSize: '1.5rem',
+                  color: chainTimeLeft <= 5 ? C.danger : '#ffd700',
+                  background: `${chainTimeLeft <= 5 ? C.danger : '#ffd700'}22`,
+                  padding: '4px 14px', borderRadius: 10, minWidth: 36, textAlign: 'center',
+                  animation: chainTimeLeft <= 5 ? 'bb-pulse-text 0.5s ease infinite alternate' : 'none',
+                }}>
+                  {chainTimeLeft}s
+                </div>
+              )}
+            </div>
+            <div style={{ fontSize: '0.8rem', color: C.muted, marginBottom: 4 }}>First correct answer wins +1 life!</div>
+            {luckyWinnerId ? (
+              <div style={{ padding: '24px 0', textAlign: 'center' }}>
+                <div style={{ fontSize: '3rem', marginBottom: 8 }}>{'\uD83C\uDFC6'}</div>
+                <div style={{ fontSize: '1.2rem', fontWeight: 800, color: '#ffd700' }}>
+                  {players.find((p) => p.id === luckyWinnerId)?.name || 'Someone'} wins!
+                </div>
+                <div style={{ fontSize: '0.85rem', color: C.muted, marginTop: 4 }}>+1 life earned!</div>
+              </div>
+            ) : !chainAnswered ? (
+              <>
+                <div style={{ fontSize: '1.2rem', fontWeight: 800, margin: '16px 0', padding: 16, background: C.surface, borderRadius: 12 }}>
+                  {chainQuestion.q}
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                  {chainQuestion.a.map((a, i) => (
+                    <button
+                      key={i}
+                      onClick={() => handleLuckyAnswer(i)}
+                      style={{
+                        padding: 12, background: C.surface,
+                        border: '1.5px solid #ffd70055', borderRadius: 12,
+                        color: C.white, fontFamily: "'Nunito', sans-serif",
+                        fontSize: '0.9rem', fontWeight: 800, cursor: 'pointer',
+                      }}
+                    >
+                      {a}
+                    </button>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <div style={{ padding: '24px 0', textAlign: 'center' }}>
+                <div style={{ fontSize: '2rem', marginBottom: 8 }}>{'\u23F3'}</div>
+                <div style={{ fontSize: '1rem', fontWeight: 800, color: C.muted }}>
+                  Waiting for the fastest answer...
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Sabotage */}
       {overlay === 'sabotage' && (
         <div style={{ ...overlayBase, background: 'rgba(255,149,0,0.15)' }}>
@@ -1266,7 +1437,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
             boxShadow: '0 0 60px rgba(255,149,0,0.3)', animation: 'bb-chain-pop 0.4s cubic-bezier(0.34,1.56,0.64,1)',
           }}>
             <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '2rem', letterSpacing: 3, color: C.accent2, marginBottom: 8 }}>
-              {'\uD83C\uDFAF'} SABOTAGE!
+              {'\uD83D\uDE08'} SABOTAGE!
             </div>
             <div style={{ fontSize: '0.85rem', color: C.muted }}>{currentPlayer?.name} answered fast &mdash; choose a sabotage!</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 16 }}>
@@ -1320,7 +1491,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
             boxShadow: '0 0 60px rgba(0,229,255,0.3)', animation: 'bb-chain-pop 0.4s cubic-bezier(0.34,1.56,0.64,1)',
           }}>
             <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '2rem', letterSpacing: 3, color: C.accent3, marginBottom: 8 }}>
-              {'\uD83C\uDFAF'} THROW!
+              {'\uD83D\uDCA8'} THROW!
             </div>
             <div style={{ fontSize: '0.85rem', color: C.muted }}>
               {isLocalTurn ? 'Pick a player to throw the bomb to!' : `${currentPlayer?.name} is throwing the bomb...`}
@@ -1385,7 +1556,7 @@ function getCategoryColor(_q: Question): string {
     '\uD83E\uDDE0': C.accent4,
     '\uD83D\uDCBB': C.accent3,
     '\uD83D\uDD24': C.green,
-    '\uD83C\uDFAF': C.yellow,
+    '\uD83E\uDDE9': C.yellow,
   };
   return map[icon] || C.white;
 }
@@ -1394,7 +1565,7 @@ function getCategoryIcon(q: Question): string {
   const text = q.q.toLowerCase();
   if (text.includes('binary') || text.includes('print') || text.includes('loop') || text.includes('bug') || text.includes('range') || text.includes('array')) return '\uD83D\uDCBB';
   if (text.includes('anagram') || text.includes('palindrome') || text.includes('analogy') || text.includes('odd one out')) return '\uD83D\uDD24';
-  if (text.includes('remember') || text.includes('previous') || text.includes('first question')) return '\uD83C\uDFAF';
+  if (text.includes('remember') || text.includes('previous') || text.includes('first question')) return '\uD83E\uDDE9';
   if (text.includes('pattern') || text.includes('true') || text.includes('false') || text.includes('syllogism') || text.includes('all ') || text.includes('if ')) return '\uD83E\uDDE0';
   return '\uD83D\uDD22';
 }
@@ -1406,7 +1577,7 @@ function getCategoryName(q: Question): string {
     '\uD83E\uDDE0': 'LOGIC',
     '\uD83D\uDCBB': 'COMP. THINKING',
     '\uD83D\uDD24': 'WORD',
-    '\uD83C\uDFAF': 'MEMORY',
+    '\uD83E\uDDE9': 'MEMORY',
   };
   return map[icon] || 'QUIZ';
 }
