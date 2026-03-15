@@ -11,67 +11,33 @@ import type { PeerMessage } from './types';
 // Prefix for PeerJS IDs to avoid collisions
 const PEER_PREFIX = 'brain-bomb-';
 
-// Optional server configuration via environment variables.
-// When empty/unset, PeerJS uses its free cloud signaling server (works on same network).
-// Set these in your .env file to enable cross-network play:
-//   VITE_PEER_HOST=your-server.com
-//   VITE_PEER_PORT=9000
-//   VITE_PEER_PATH=/myapp
-//   VITE_STUN_URL=stun:your-server.com:3478
-//   VITE_TURN_URL=turn:your-server.com:3478
-//   VITE_TURN_USER=myuser
-//   VITE_TURN_PASS=mypassword
-const PEER_HOST = import.meta.env.VITE_PEER_HOST || '';
-const PEER_PORT = parseInt(import.meta.env.VITE_PEER_PORT || '0', 10);
-const PEER_PATH = import.meta.env.VITE_PEER_PATH || '/';
-const STUN_URL = import.meta.env.VITE_STUN_URL || '';
-const TURN_URL = import.meta.env.VITE_TURN_URL || '';
+// TURN server credentials from environment variables
+const TURN_HOST = import.meta.env.VITE_TURN_HOST || 'sg.relay.metered.ca';
 const TURN_USER = import.meta.env.VITE_TURN_USER || '';
 const TURN_PASS = import.meta.env.VITE_TURN_PASS || '';
 
-// Default ICE servers
-const DEFAULT_ICE_SERVERS: RTCIceServer[] = [
-  // Metered STUN
-  { urls: 'stun:stun.relay.metered.ca:80' },
-  // Google STUN fallback
-  { urls: 'stun:stun.l.google.com:19302' },
-  // Metered TURN (Singapore region) — UDP, TCP, TLS for maximum ISP compatibility
-  { urls: 'turn:sg.relay.metered.ca:80', username: '4e152f35278ed6d911bbcf2b', credential: 'Pd0yhqTwOEFpTDXK' },
-  { urls: 'turn:sg.relay.metered.ca:80?transport=tcp', username: '4e152f35278ed6d911bbcf2b', credential: 'Pd0yhqTwOEFpTDXK' },
-  { urls: 'turn:sg.relay.metered.ca:443', username: '4e152f35278ed6d911bbcf2b', credential: 'Pd0yhqTwOEFpTDXK' },
-  { urls: 'turns:sg.relay.metered.ca:443?transport=tcp', username: '4e152f35278ed6d911bbcf2b', credential: 'Pd0yhqTwOEFpTDXK' },
-];
+function buildIceServers(): RTCIceServer[] {
+  const servers: RTCIceServer[] = [
+    { urls: 'stun:stun.relay.metered.ca:80' },
+    { urls: 'stun:stun.l.google.com:19302' },
+  ];
+  if (TURN_USER && TURN_PASS) {
+    servers.push(
+      { urls: `turn:${TURN_HOST}:80`, username: TURN_USER, credential: TURN_PASS },
+      { urls: `turn:${TURN_HOST}:80?transport=tcp`, username: TURN_USER, credential: TURN_PASS },
+      { urls: `turn:${TURN_HOST}:443`, username: TURN_USER, credential: TURN_PASS },
+      { urls: `turns:${TURN_HOST}:443?transport=tcp`, username: TURN_USER, credential: TURN_PASS },
+    );
+  }
+  return servers;
+}
 
 function buildPeerOptions(forceRelay = false): Record<string, unknown> {
-  const opts: Record<string, unknown> = { debug: 0 };
-
-  // Only set host/port/path if a custom PeerJS server is configured
-  if (PEER_HOST) {
-    opts.host = PEER_HOST;
-    opts.port = PEER_PORT || 9000;
-    opts.path = PEER_PATH;
-    opts.secure = PEER_HOST !== 'localhost' && PEER_HOST !== '127.0.0.1';
-  }
-
-  // Use custom ICE servers if configured, otherwise use free defaults
-  let iceServers: RTCIceServer[];
-  if (STUN_URL || TURN_URL) {
-    iceServers = [];
-    if (STUN_URL) iceServers.push({ urls: STUN_URL });
-    if (TURN_URL) iceServers.push({ urls: TURN_URL, username: TURN_USER, credential: TURN_PASS });
-  } else {
-    iceServers = DEFAULT_ICE_SERVERS;
-  }
-
-  const config: Record<string, unknown> = { iceServers };
-  // Force relay mode: all traffic goes through TURN servers.
-  // Used as fallback when direct P2P fails (certain ISPs/NATs block it).
+  const config: Record<string, unknown> = { iceServers: buildIceServers() };
   if (forceRelay) {
     config.iceTransportPolicy = 'relay';
   }
-  opts.config = config;
-
-  return opts;
+  return { debug: 0, config };
 }
 
 // Generate a short room code (6 chars)
