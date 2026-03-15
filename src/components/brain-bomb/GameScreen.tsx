@@ -141,6 +141,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
   const sound = settings.enableSound;
   const currentPlayer = players[round.currentPlayerIdx];
   const isLocalTurn = currentPlayer?.id === localPlayerId;
+  const isLocalEliminated = players.find((p) => p.id === localPlayerId)?.eliminated ?? false;
   const activePlayers = players.filter((p) => !p.eliminated);
 
   // Show "YOUR TURN" overlay when it becomes the local player's turn (skip on throw, which has its own overlay)
@@ -526,6 +527,9 @@ const GameScreen: React.FC<GameScreenProps> = ({
   const handleRemoteChainAnswer = (idx: number, playerId: string) => {
     const cq = chainQuestionRef.current;
     if (!cq) return;
+    // Reject answers from eliminated players
+    const player = playersRef.current.find((p) => p.id === playerId);
+    if (player?.eliminated) return;
     if (idx !== cq.correct) {
       chainWrongAnswersRef.current.add(playerId);
     }
@@ -539,6 +543,8 @@ const GameScreen: React.FC<GameScreenProps> = ({
 
   const handleChainAnswer = (idx: number) => {
     if (chainAnswered || !chainQuestion) return;
+    const localPlayer = playersRef.current.find((p) => p.id === localPlayerId);
+    if (localPlayer?.eliminated) return; // Eliminated players cannot answer
     setChainAnswered(true);
 
     if (!isHost && gameRoom) {
@@ -649,21 +655,44 @@ const GameScreen: React.FC<GameScreenProps> = ({
     broadcastToast(`\u2B50 ${p?.name || 'Someone'} wins the Lucky Question! +1 life!`);
     if (chainTimerRef.current) { clearInterval(chainTimerRef.current); chainTimerRef.current = null; }
     luckyPendingRef.current = null;
+    // Broadcast state immediately so guests see the winner before finishing
+    broadcastState(playersRef.current, roundRef.current, 'lucky', explosionInfoRef.current, chainQuestionRef.current);
     finishLuckyRef.current();
   };
 
   const handleRemoteLuckyAnswer = (idx: number, playerId: string, timestamp?: number) => {
     const cq = chainQuestionRef.current;
-    if (!cq || luckyWinnerIdRef.current) return;
+    if (!cq) return;
+    // Reject answers from eliminated players
+    const player = playersRef.current.find((p) => p.id === playerId);
+    if (player?.eliminated) return;
+    // Allow overriding even after finalization if the remote player was truly faster
     if (idx === cq.correct) {
-      resolveLuckyWinner(playerId, timestamp ?? Date.now());
-      // If host hasn't answered yet, finalize after a short window
-      setTimeout(() => finalizeLuckyWinner(), 300);
+      const ts = timestamp ?? Date.now();
+      if (luckyWinnerIdRef.current) {
+        // Already finalized — check if this remote player was actually faster
+        const pending = luckyPendingRef.current;
+        if (pending && ts < pending.timestamp) {
+          // Remote player was faster — override the winner
+          luckyPendingRef.current = { playerId, timestamp: ts };
+          setLuckyWinnerId(playerId);
+          luckyWinnerIdRef.current = playerId;
+          const p = playersRef.current.find((p) => p.id === playerId);
+          broadcastToast(`\u2B50 ${p?.name || 'Someone'} wins the Lucky Question! +1 life!`);
+          broadcastState(playersRef.current, roundRef.current, 'lucky', explosionInfoRef.current, chainQuestionRef.current);
+        }
+        return;
+      }
+      resolveLuckyWinner(playerId, ts);
+      // Wait a bit for any other answers, then finalize
+      setTimeout(() => finalizeLuckyWinner(), 600);
     }
   };
 
   const handleLuckyAnswer = (idx: number) => {
     if (chainAnswered || !chainQuestion) return;
+    const localPlayer = playersRef.current.find((p) => p.id === localPlayerId);
+    if (localPlayer?.eliminated) return; // Eliminated players cannot answer
     setChainAnswered(true);
     const answerTime = Date.now();
 
@@ -677,9 +706,9 @@ const GameScreen: React.FC<GameScreenProps> = ({
     } else {
       playSound('correct', sound);
       if (isHost) {
-        // Register host's answer with its timestamp, then wait for any guest answers to arrive
+        // Register host's answer with its timestamp, then wait longer for guest answers to arrive via WebRTC
         resolveLuckyWinner(localPlayerId, answerTime);
-        setTimeout(() => finalizeLuckyWinner(), 300);
+        setTimeout(() => finalizeLuckyWinner(), 600);
       }
     }
   };
@@ -705,7 +734,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
     const newQuestion = getRandomQuestion(settings.activeSubs, settings.difficulty, settings.enableProgressiveDifficulty ? curRound.round + 1 : undefined);
 
     // Save current player's remaining time + bonus for their next turn (only on correct answer)
-    const bonusSeconds = { easy: 10, medium: 5, hard: 3 }[settings.difficulty];
+    const bonusSeconds = { easy: 5, medium: 3, hard: 2 }[settings.difficulty];
     const wasCorrect = curRound.answerIdx !== null && curRound.answerIdx === curRound.question.correct;
     const savedTimeForCurrent = wasCorrect
       ? Math.min(curRound.timeLeft + bonusSeconds, maxTime)
@@ -947,8 +976,28 @@ const GameScreen: React.FC<GameScreenProps> = ({
       setThrowNotif(false);
       // Pass the same question to the target (strategic throw for hard questions)
       const sameQuestion = curRound.question;
-      const bonusSecs = { easy: 10, medium: 5, hard: 3 }[settings.difficulty];
-      const redirectTime = Math.min(curRound.timeLeft + bonusSecs, maxTime);
+      const bonusSecs = { easy: 5, medium: 3, hard: 2 }[settings.difficulty];
+      // Apply time penalty sabotage to the target
+      const penalty = target.timePenalty || 0;
+      const baseTime = Math.min(curRound.timeLeft + bonusSecs, maxTime);
+      const redirectTime = Math.max(5, baseTime - penalty);
+      // Apply blind sabotage
+      const isBlind = !!target.blindNextRound;
+      const blindAnswers = isBlind ? sameQuestion.a.map((_, i) => i) : [];
+      // Apply decoy sabotage
+      const hasDecoy = !!target.decoyNextRound;
+      let decoyAnswer = '';
+      if (hasDecoy) {
+        const otherQ = getRandomQuestion(settings.activeSubs, settings.difficulty);
+        const otherAnswers = otherQ.a.filter((a) => !sameQuestion.a.includes(a));
+        if (otherAnswers.length > 0) {
+          decoyAnswer = otherAnswers[Math.floor(Math.random() * otherAnswers.length)];
+        } else {
+          const wrongAnswers = sameQuestion.a.filter((_, i) => i !== sameQuestion.correct);
+          const base = wrongAnswers[Math.floor(Math.random() * wrongAnswers.length)];
+          decoyAnswer = base + '?';
+        }
+      }
       const newRound: RoundState = {
         currentPlayerIdx: targetIdx,
         question: sameQuestion,
@@ -959,12 +1008,21 @@ const GameScreen: React.FC<GameScreenProps> = ({
         answerIdx: null,
         round: curRound.round + 1,
         frozen: false,
-        blind: false,
-        blindAnswers: [],
+        blind: isBlind,
+        blindAnswers,
+        decoy: hasDecoy,
+        decoyAnswer: hasDecoy ? decoyAnswer : undefined,
       };
       setRound(newRound);
       setOverlay('none');
-      const newPlayers = curPlayers.map((p) => ({ ...p, usedPowerupThisRound: false }));
+      // Clear sabotage effects for the target, reset usedPowerupThisRound for all
+      const newPlayers = curPlayers.map((p, i) => ({
+        ...p,
+        usedPowerupThisRound: false,
+        timePenalty: i === targetIdx ? 0 : p.timePenalty,
+        blindNextRound: i === targetIdx ? false : p.blindNextRound,
+        decoyNextRound: i === targetIdx ? false : p.decoyNextRound,
+      }));
       setPlayers(newPlayers);
       broadcastState(newPlayers, newRound, 'none', { name: '', message: '' }, null);
     }, 2000);
@@ -1351,7 +1409,14 @@ const GameScreen: React.FC<GameScreenProps> = ({
               )}
             </div>
             <div style={{ fontSize: '0.8rem', color: C.muted, marginBottom: 4 }}>Everyone answers &mdash; wrong answer loses a life!</div>
-            {!chainAnswered ? (
+            {isLocalEliminated ? (
+              <div style={{ padding: '24px 0', textAlign: 'center' }}>
+                <div style={{ fontSize: '2rem', marginBottom: 8 }}>{'\uD83D\uDC80'}</div>
+                <div style={{ fontSize: '1rem', fontWeight: 800, color: C.muted }}>
+                  You&apos;re eliminated &mdash; spectating...
+                </div>
+              </div>
+            ) : !chainAnswered ? (
               <>
                 <div style={{ fontSize: '1.2rem', fontWeight: 800, margin: '16px 0', padding: 16, background: C.surface, borderRadius: 12 }}>
                   {chainQuestion.q}
@@ -1412,7 +1477,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
                 </div>
               )}
             </div>
-            <div style={{ fontSize: '0.8rem', color: C.muted, marginBottom: 4 }}>First correct answer wins +1 life!</div>
+            <div style={{ fontSize: '0.8rem', color: C.muted, marginBottom: 4 }}>{isLocalEliminated ? 'You\u2019re eliminated \u2014 spectating...' : 'First correct answer wins +1 life!'}</div>
             {luckyWinnerId ? (
               <div style={{ padding: '24px 0', textAlign: 'center' }}>
                 <div style={{ fontSize: '3rem', marginBottom: 8 }}>{'\uD83C\uDFC6'}</div>
@@ -1420,6 +1485,13 @@ const GameScreen: React.FC<GameScreenProps> = ({
                   {players.find((p) => p.id === luckyWinnerId)?.name || 'Someone'} wins!
                 </div>
                 <div style={{ fontSize: '0.85rem', color: C.muted, marginTop: 4 }}>+1 life earned!</div>
+              </div>
+            ) : isLocalEliminated ? (
+              <div style={{ padding: '24px 0', textAlign: 'center' }}>
+                <div style={{ fontSize: '2rem', marginBottom: 8 }}>{'\uD83D\uDC80'}</div>
+                <div style={{ fontSize: '1rem', fontWeight: 800, color: C.muted }}>
+                  Watching from the sidelines...
+                </div>
               </div>
             ) : !chainAnswered ? (
               <>
