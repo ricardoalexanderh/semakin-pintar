@@ -272,8 +272,8 @@ const GameScreen: React.FC<GameScreenProps> = ({
         const { answerIdx, playerId } = msg.payload as { answerIdx: number; playerId: string };
         handleRemoteChainAnswer(answerIdx, playerId);
       } else if (msg.type === 'lucky-answer') {
-        const { answerIdx, playerId } = msg.payload as { answerIdx: number; playerId: string };
-        handleRemoteLuckyAnswer(answerIdx, playerId);
+        const { answerIdx, playerId, timestamp } = msg.payload as { answerIdx: number; playerId: string; timestamp?: number };
+        handleRemoteLuckyAnswer(answerIdx, playerId, timestamp);
       } else if (msg.type === 'clone-target') {
         const { targetId } = msg.payload as { targetId: string };
         handleCloneTarget(targetId, true);
@@ -602,6 +602,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
     setChainRespondents(new Set());
     setLuckyWinnerId(null);
     luckyWinnerIdRef.current = null;
+    luckyPendingRef.current = null;
     setChainTimeLeft(maxTime);
     chainTimeLeftRef.current = maxTime;
     setOverlay('lucky');
@@ -627,26 +628,47 @@ const GameScreen: React.FC<GameScreenProps> = ({
   };
   triggerLuckyQuestionRef.current = triggerLuckyQuestion;
 
-  const handleRemoteLuckyAnswer = (idx: number, playerId: string) => {
+  // Track the earliest correct lucky answer (timestamp + playerId) so host can fairly resolve ties
+  const luckyPendingRef = useRef<{ playerId: string; timestamp: number } | null>(null);
+
+  const resolveLuckyWinner = (candidateId: string, candidateTimestamp: number) => {
+    if (luckyWinnerIdRef.current) return; // already resolved
+    const pending = luckyPendingRef.current;
+    // Pick the earlier timestamp, or keep existing if tied
+    if (pending && pending.timestamp <= candidateTimestamp) return; // existing pending is earlier
+    luckyPendingRef.current = { playerId: candidateId, timestamp: candidateTimestamp };
+  };
+
+  const finalizeLuckyWinner = () => {
+    if (luckyWinnerIdRef.current) return;
+    const winner = luckyPendingRef.current;
+    if (!winner) return;
+    setLuckyWinnerId(winner.playerId);
+    luckyWinnerIdRef.current = winner.playerId;
+    const p = playersRef.current.find((p) => p.id === winner.playerId);
+    broadcastToast(`\u2B50 ${p?.name || 'Someone'} wins the Lucky Question! +1 life!`);
+    if (chainTimerRef.current) { clearInterval(chainTimerRef.current); chainTimerRef.current = null; }
+    luckyPendingRef.current = null;
+    finishLuckyRef.current();
+  };
+
+  const handleRemoteLuckyAnswer = (idx: number, playerId: string, timestamp?: number) => {
     const cq = chainQuestionRef.current;
-    if (!cq || luckyWinnerIdRef.current) return; // already won
+    if (!cq || luckyWinnerIdRef.current) return;
     if (idx === cq.correct) {
-      // First correct answer wins!
-      setLuckyWinnerId(playerId);
-      luckyWinnerIdRef.current = playerId;
-      const winner = playersRef.current.find((p) => p.id === playerId);
-      broadcastToast(`\u2B50 ${winner?.name || 'Someone'} wins the Lucky Question! +1 life!`);
-      if (chainTimerRef.current) { clearInterval(chainTimerRef.current); chainTimerRef.current = null; }
-      finishLuckyRef.current();
+      resolveLuckyWinner(playerId, timestamp ?? Date.now());
+      // If host hasn't answered yet, finalize after a short window
+      setTimeout(() => finalizeLuckyWinner(), 300);
     }
   };
 
   const handleLuckyAnswer = (idx: number) => {
     if (chainAnswered || !chainQuestion) return;
     setChainAnswered(true);
+    const answerTime = Date.now();
 
     if (!isHost && gameRoom) {
-      gameRoom.broadcast('lucky-answer', { answerIdx: idx, playerId: localPlayerId });
+      gameRoom.broadcast('lucky-answer', { answerIdx: idx, playerId: localPlayerId, timestamp: answerTime });
     }
 
     if (idx !== chainQuestion.correct) {
@@ -654,17 +676,10 @@ const GameScreen: React.FC<GameScreenProps> = ({
       showToast('Wrong! No extra life for you.');
     } else {
       playSound('correct', sound);
-      // Host processes locally — delay to allow in-flight guest answers to arrive first
-      // (host processes synchronously, guests arrive via async WebRTC, so host always wins without this delay)
       if (isHost) {
-        setTimeout(() => {
-          if (luckyWinnerIdRef.current) return; // a guest already won
-          setLuckyWinnerId(localPlayerId);
-          luckyWinnerIdRef.current = localPlayerId;
-          broadcastToast(`\u2B50 ${playersRef.current.find((p) => p.id === localPlayerId)?.name || 'You'} wins the Lucky Question! +1 life!`);
-          if (chainTimerRef.current) { clearInterval(chainTimerRef.current); chainTimerRef.current = null; }
-          finishLuckyRef.current();
-        }, 500);
+        // Register host's answer with its timestamp, then wait for any guest answers to arrive
+        resolveLuckyWinner(localPlayerId, answerTime);
+        setTimeout(() => finalizeLuckyWinner(), 300);
       }
     }
   };
