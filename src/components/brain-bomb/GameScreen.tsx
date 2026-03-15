@@ -1508,7 +1508,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
                         onClick={() => setSabotageStep('type')}
                         style={{ ...sabotageOptionStyle, color: C.muted, borderColor: C.muted, fontSize: '0.8rem' }}
                       >
-                        {'\u2190'} Back
+                        <span>{'\uD83D\uDD19'}</span> Back
                       </button>
                       {activePlayers.filter((p) => p.id !== currentPlayer?.id).map((p) => (
                         <button
