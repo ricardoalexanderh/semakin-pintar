@@ -119,7 +119,7 @@ export const playerChip = (isActive: boolean, isEliminated: boolean, color: stri
   boxShadow: isActive ? `0 0 20px ${color}44` : 'none',
   transform: isActive ? 'scale(1.05)' : 'scale(1)',
   transition: 'all 0.3s',
-  maxWidth: 'clamp(90px, 22vw, 130px)',
+  maxWidth: 'clamp(120px, 35vw, 180px)',
   overflow: 'hidden',
 });
 
