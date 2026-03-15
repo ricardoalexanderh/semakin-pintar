@@ -29,20 +29,17 @@ const TURN_URL = import.meta.env.VITE_TURN_URL || '';
 const TURN_USER = import.meta.env.VITE_TURN_USER || '';
 const TURN_PASS = import.meta.env.VITE_TURN_PASS || '';
 
-// Default free ICE servers (used when no custom server is configured)
-// Multiple TURN providers for redundancy — free servers can go down anytime.
-// If all fail, configure your own via VITE_TURN_* env vars.
+// Default ICE servers
 const DEFAULT_ICE_SERVERS: RTCIceServer[] = [
-  // Google STUN — free, reliable, handles ~80% of connections
+  // Metered STUN
+  { urls: 'stun:stun.relay.metered.ca:80' },
+  // Google STUN fallback
   { urls: 'stun:stun.l.google.com:19302' },
-  { urls: 'stun:stun1.l.google.com:19302' },
-  // Metered Open Relay — ports 80/443, TCP+TLS for restrictive ISPs
-  { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
-  { urls: 'turn:openrelay.metered.ca:80?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' },
-  { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
-  { urls: 'turns:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' },
-  // numb.viagenie.ca — long-running free TURN server
-  { urls: 'turn:numb.viagenie.ca:3478', username: 'webrtc@live.com', credential: 'muazkh' },
+  // Metered TURN (Singapore region) — UDP, TCP, TLS for maximum ISP compatibility
+  { urls: 'turn:sg.relay.metered.ca:80', username: '4e152f35278ed6d911bbcf2b', credential: 'Pd0yhqTwOEFpTDXK' },
+  { urls: 'turn:sg.relay.metered.ca:80?transport=tcp', username: '4e152f35278ed6d911bbcf2b', credential: 'Pd0yhqTwOEFpTDXK' },
+  { urls: 'turn:sg.relay.metered.ca:443', username: '4e152f35278ed6d911bbcf2b', credential: 'Pd0yhqTwOEFpTDXK' },
+  { urls: 'turns:sg.relay.metered.ca:443?transport=tcp', username: '4e152f35278ed6d911bbcf2b', credential: 'Pd0yhqTwOEFpTDXK' },
 ];
 
 function buildPeerOptions(forceRelay = false): Record<string, unknown> {
