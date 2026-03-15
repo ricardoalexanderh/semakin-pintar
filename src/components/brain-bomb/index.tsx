@@ -168,6 +168,7 @@ const BrainBombGame: React.FC = () => {
           setPlayers(payload.players);
           setPhase('countdown');
         } else if (msg.type === 'return-lobby') {
+          bgmRef.current?.pause();
           setPhase('lobby');
           setFinalPlayers([]);
         } else if (['game-state', 'answer-submitted', 'powerup-used', 'chain-answer', 'clone-target', 'sabotage-applied'].includes(msg.type)) {
@@ -185,6 +186,7 @@ const BrainBombGame: React.FC = () => {
         console.log('[Brain Bomb] Peer disconnected:', peerId);
         // If guest loses connection to host, return to menu
         if (!isHost) {
+          bgmRef.current?.pause();
           setPhase('menu');
           setRoomCode('');
           setHasJoined(false);
@@ -225,6 +227,7 @@ const BrainBombGame: React.FC = () => {
   useEffect(() => {
     if (phase !== 'countdown') return;
     setCountdown(3);
+    playSound('countdown', settings.enableSound);
     const interval = setInterval(() => {
       setCountdown((prev) => {
         if (prev <= 1) {
@@ -232,6 +235,7 @@ const BrainBombGame: React.FC = () => {
           setPhase('playing');
           return 0;
         }
+        playSound('countdown', settings.enableSound);
         return prev - 1;
       });
     }, 1000);
@@ -441,7 +445,7 @@ const BrainBombGame: React.FC = () => {
                     cursor: manualCode.trim().length >= 4 ? 'pointer' : 'not-allowed',
                   }}
                 >
-                  {'\uD83D\uDD17'} JOIN ROOM
+                  {'\uD83E\uDDE0'} JOIN ROOM
                 </button>
               </div>
             </div>
@@ -493,7 +497,7 @@ const BrainBombGame: React.FC = () => {
                   cursor: roomReady ? 'pointer' : 'not-allowed',
                 }}
               >
-                {roomReady ? '\uD83D\uDE80' : '\u23F3'} {roomReady ? 'JOIN' : 'CONNECTING...'}
+                {roomReady ? '\uD83E\uDDE0' : '\u23F3'} {roomReady ? 'JOIN' : 'CONNECTING...'}
               </button>
             </div>
           </div>

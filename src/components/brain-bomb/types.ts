@@ -1,7 +1,7 @@
 // ===== Brain Bomb — Type Definitions =====
 
 export type Difficulty = 'easy' | 'medium' | 'hard';
-export type GameMode = 'classic' | 'team' | 'speed' | 'sudden';
+export type GameMode = 'classic' | 'sudden';
 export type GamePhase = 'menu' | 'lobby' | 'countdown' | 'playing' | 'chainReaction' | 'gameover';
 export type PeerRole = 'host' | 'guest';
 
@@ -21,6 +21,8 @@ export interface Player {
   shieldActive?: boolean;
   timePenalty?: number;
   blindNextRound?: boolean;
+  decoyNextRound?: boolean;
+  savedTime?: number;
 }
 
 export interface Powerups {
@@ -78,8 +80,10 @@ export type PeerMessageType =
   | 'answer-submitted'
   | 'powerup-used'
   | 'chain-answer'
+  | 'lucky-answer'
   | 'sabotage-applied'
   | 'clone-target'
+  | 'toast'
   | 'lobby-settings'
   | 'game-over'
   | 'return-lobby';

@@ -21,12 +21,16 @@ interface RoundState {
   question: Question;
   timeLeft: number;
   maxTime: number;
+  startTime: number;
   answered: boolean;
   answerIdx: number | null;
   round: number;
   frozen: boolean;
   blind: boolean;
   blindAnswers: number[];
+  isBonus?: boolean;
+  decoy?: boolean;
+  decoyAnswer?: string;
 }
 
 interface SyncState {
@@ -37,9 +41,14 @@ interface SyncState {
   chainQuestion: Question | null;
   chainTimeLeft?: number;
   gameOver?: boolean;
+  toastMessage?: string;
+  throwTargetId?: string;
+  throwFromName?: string;
+  chainRespondentCount?: number;
+  luckyWinnerId?: string;
 }
 
-type OverlayType = 'none' | 'explosion' | 'chain' | 'sabotage' | 'clone';
+type OverlayType = 'none' | 'explosion' | 'chain' | 'sabotage' | 'clone' | 'lucky';
 
 const GameScreen: React.FC<GameScreenProps> = ({
   players: initialPlayers,
@@ -64,6 +73,8 @@ const GameScreen: React.FC<GameScreenProps> = ({
       shieldActive: false,
       timePenalty: 0,
       blindNextRound: false,
+      decoyNextRound: false,
+      savedTime: settings.mode === 'sudden' ? DIFFICULTY_CONFIG[settings.difficulty].timer : (settings.timer || DIFFICULTY_CONFIG[settings.difficulty].timer),
     })),
   );
 
@@ -77,6 +88,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
       : { q: '...', a: ['...', '...', '...', '...'], correct: 0, diff: settings.difficulty },
     timeLeft: maxTime,
     maxTime,
+    startTime: maxTime,
     answered: false,
     answerIdx: null,
     round: 1,
@@ -93,8 +105,13 @@ const GameScreen: React.FC<GameScreenProps> = ({
   const [chainTimeLeft, setChainTimeLeft] = useState(0);
   const [toast, setToast] = useState('');
   const [toastVisible, setToastVisible] = useState(false);
+  const [throwNotif, setThrowNotif] = useState(false);
+  const [throwFromName, setThrowFromName] = useState('');
+  const [yourTurnNotif, setYourTurnNotif] = useState(false);
+  const [luckyWinnerId, setLuckyWinnerId] = useState<string | null>(null);
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pendingToastRef = useRef<string | undefined>(undefined);
   const chainTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const chainTimeLeftRef = useRef(0);
   const freezeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -114,18 +131,38 @@ const GameScreen: React.FC<GameScreenProps> = ({
   chainQuestionRef.current = chainQuestion;
   const chainRespondentsRef = useRef(chainRespondents);
   chainRespondentsRef.current = chainRespondents;
+  const chainWrongAnswersRef = useRef<Set<string>>(new Set());
   chainTimeLeftRef.current = chainTimeLeft;
+  const luckyWinnerIdRef = useRef<string | null>(null);
+  luckyWinnerIdRef.current = luckyWinnerId;
 
   const sound = settings.enableSound;
   const currentPlayer = players[round.currentPlayerIdx];
   const isLocalTurn = currentPlayer?.id === localPlayerId;
   const activePlayers = players.filter((p) => !p.eliminated);
 
+  // Show "YOUR TURN" overlay when it becomes the local player's turn (skip on throw, which has its own overlay)
+  const prevRoundRef = useRef(round.round);
+  useEffect(() => {
+    if (isLocalTurn && round.round !== prevRoundRef.current && !throwNotif && overlay === 'none') {
+      setYourTurnNotif(true);
+      playSound('pass', sound);
+      setTimeout(() => setYourTurnNotif(false), 800);
+    }
+    prevRoundRef.current = round.round;
+  }, [round.round, isLocalTurn, throwNotif, overlay, sound]);
+
   const showToast = useCallback((msg: string) => {
     setToast(msg);
     setToastVisible(true);
     setTimeout(() => setToastVisible(false), 2500);
   }, []);
+
+  // Broadcast a toast to all players (host shows locally + sends to guests)
+  const broadcastToast = useCallback((msg: string) => {
+    showToast(msg);
+    pendingToastRef.current = msg;
+  }, [showToast]);
 
   // --- Sync: Host broadcasts state after changes ---
   const broadcastState = useCallback((
@@ -135,9 +172,14 @@ const GameScreen: React.FC<GameScreenProps> = ({
     ei: { name: string; message: string },
     cq: Question | null,
     gameOver = false,
+    toastMessage?: string,
+    throwTargetId?: string,
+    throwFromName?: string,
   ) => {
     if (!isHost || !gameRoom) return;
-    const state: SyncState = { players: p, round: r, overlay: ov, explosionInfo: ei, chainQuestion: cq, chainTimeLeft: chainTimeLeftRef.current, gameOver };
+    const toastMsg = toastMessage || pendingToastRef.current;
+    pendingToastRef.current = undefined;
+    const state: SyncState = { players: p, round: r, overlay: ov, explosionInfo: ei, chainQuestion: cq, chainTimeLeft: chainTimeLeftRef.current, gameOver, toastMessage: toastMsg, throwTargetId, throwFromName, chainRespondentCount: chainRespondentsRef.current.size, luckyWinnerId: luckyWinnerIdRef.current || undefined };
     gameRoom.broadcast('game-state', state);
   }, [isHost, gameRoom]);
 
@@ -156,15 +198,65 @@ const GameScreen: React.FC<GameScreenProps> = ({
         onGameOver(state.players);
         return;
       }
+      // --- Guest sound effects: detect state changes, scoped to local player ---
+      const wasMyTurn = players[round.currentPlayerIdx]?.id === localPlayerId;
+      const isMyTurn = state.players[state.round.currentPlayerIdx]?.id === localPlayerId;
+
+      // Answer sound: only for the player who answered
+      if (state.round.answered && !round.answered && wasMyTurn) {
+        if (state.round.answerIdx === state.round.question.correct) {
+          playSound('correct', sound);
+        } else {
+          playSound('wrong', sound);
+        }
+      }
+      // Pass turn sound: play for the player receiving the turn
+      if (state.round.currentPlayerIdx !== round.currentPlayerIdx && state.overlay !== 'explosion' && state.overlay !== 'chain' && state.overlay !== 'lucky' && !state.round.answered && isMyTurn) {
+        playSound('pass', sound);
+      }
+      // Powerup / sabotage sound: play for the player who used it
+      if ((state.overlay === 'sabotage' && overlay !== 'sabotage') || (state.overlay === 'clone' && overlay !== 'clone')) {
+        if (wasMyTurn) playSound('powerup', sound);
+      }
+      // Explosion sound: play for all players
+      if (state.overlay === 'explosion' && overlay !== 'explosion') {
+        playSound('explosion', sound);
+      }
+
       setPlayers(state.players);
       setRound(state.round);
       setOverlay(state.overlay);
       setExplosionInfo(state.explosionInfo);
       setChainQuestion(state.chainQuestion);
       if (state.chainTimeLeft != null) setChainTimeLeft(state.chainTimeLeft);
-      // Reset chainAnswered when a new chain reaction starts (guest doesn't run triggerChainReaction)
-      if (state.overlay === 'chain' && state.chainQuestion) {
+      // Sync chain respondent count from host
+      if (state.chainRespondentCount != null && state.chainRespondentCount !== chainRespondents.size) {
+        const dummy = new Set(Array.from({ length: state.chainRespondentCount }, (_, i) => `r${i}`));
+        setChainRespondents(dummy);
+      }
+      // Reset chainAnswered only when a NEW chain/lucky starts (not on every timer sync)
+      if ((state.overlay === 'chain' || state.overlay === 'lucky') && state.chainQuestion && overlay !== 'chain' && overlay !== 'lucky') {
         setChainAnswered(false);
+      }
+      // Sync lucky winner
+      if (state.luckyWinnerId) {
+        setLuckyWinnerId(state.luckyWinnerId);
+      } else if (state.overlay !== 'lucky') {
+        setLuckyWinnerId(null);
+      }
+      // Throw notification: centered overlay for target, toast for others
+      if (state.throwTargetId) {
+        if (state.throwTargetId === localPlayerId) {
+          setThrowNotif(true);
+          setThrowFromName(state.throwFromName || '');
+        } else if (state.toastMessage) {
+          showToast(state.toastMessage);
+        }
+      } else {
+        setThrowNotif(false);
+        if (state.toastMessage) {
+          showToast(state.toastMessage);
+        }
       }
     } else if (isHost) {
       // Host receives actions from guests
@@ -177,6 +269,9 @@ const GameScreen: React.FC<GameScreenProps> = ({
       } else if (msg.type === 'chain-answer') {
         const { answerIdx, playerId } = msg.payload as { answerIdx: number; playerId: string };
         handleRemoteChainAnswer(answerIdx, playerId);
+      } else if (msg.type === 'lucky-answer') {
+        const { answerIdx, playerId } = msg.payload as { answerIdx: number; playerId: string };
+        handleRemoteLuckyAnswer(answerIdx, playerId);
       } else if (msg.type === 'clone-target') {
         const { targetId } = msg.payload as { targetId: string };
         handleCloneTarget(targetId, true);
@@ -185,7 +280,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
         if (sabotageType === 'skip') {
           handleSkipSabotage(true);
         } else {
-          handleSabotage(sabotageType as 'blind' | 'timebomb', targetId, true);
+          handleSabotage(sabotageType as 'blind' | 'timebomb' | 'decoy', targetId, true);
         }
       }
     }
@@ -262,6 +357,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
   // Use refs for functions called from timeouts to avoid stale closures
   const passToNextRef = useRef<(cp?: Player[]) => void>(() => {});
   const triggerChainReactionRef = useRef<(cp?: Player[]) => void>(() => {});
+  const triggerLuckyQuestionRef = useRef<(cp?: Player[]) => void>(() => {});
 
   const bombExplodes = () => {
     if (timerRef.current) clearInterval(timerRef.current);
@@ -272,7 +368,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
 
     // Shield blocks the explosion
     if (cp.shieldActive) {
-      playSound('powerup', sound);
+      if (cp.id === localPlayerId) playSound('powerup', sound);
       const shieldedPlayers = curPlayers.map((p, i) =>
         i === curRound.currentPlayerIdx ? { ...p, shieldActive: false } : p
       );
@@ -345,6 +441,20 @@ const GameScreen: React.FC<GameScreenProps> = ({
   const finishChainReaction = useCallback(() => {
     if (chainTimeoutRef.current) { clearTimeout(chainTimeoutRef.current); chainTimeoutRef.current = null; }
     if (chainTimerRef.current) { clearInterval(chainTimerRef.current); chainTimerRef.current = null; }
+    // Penalize players who didn't answer OR answered wrong (-1 life)
+    const respondents = chainRespondentsRef.current;
+    const wrongAnswers = chainWrongAnswersRef.current;
+    const penalized = playersRef.current.map((p) => {
+      if (p.eliminated) return p;
+      const didntAnswer = !respondents.has(p.id);
+      const answeredWrong = wrongAnswers.has(p.id);
+      if (!didntAnswer && !answeredWrong) return p;
+      const newLives = Math.max(0, p.lives - 1);
+      return { ...p, lives: newLives, eliminated: newLives <= 0 };
+    });
+    setPlayers(penalized);
+    chainWrongAnswersRef.current = new Set();
+
     // Brief delay so players see the result, then proceed
     setTimeout(() => {
       setOverlay('none');
@@ -352,13 +462,13 @@ const GameScreen: React.FC<GameScreenProps> = ({
       setChainAnswered(false);
       setChainRespondents(new Set());
       setChainTimeLeft(0);
-      broadcastState(playersRef.current, roundRef.current, 'none', explosionInfoRef.current, null);
-      const remaining = playersRef.current.filter((p) => !p.eliminated);
+      broadcastState(penalized, roundRef.current, 'none', explosionInfoRef.current, null);
+      const remaining = penalized.filter((p) => !p.eliminated);
       if (remaining.length <= 1) {
-        broadcastGameOver(playersRef.current);
+        broadcastGameOver(penalized);
         return;
       }
-      passToNextRef.current();
+      passToNextRef.current(penalized);
     }, 800);
   }, [broadcastGameOver, broadcastState]);
   const finishChainRef = useRef(finishChainReaction);
@@ -376,11 +486,18 @@ const GameScreen: React.FC<GameScreenProps> = ({
 
   const triggerChainReaction = (currentPlayers?: Player[]) => {
     const q = getRandomQuestion(settings.activeSubs, settings.difficulty, settings.enableProgressiveDifficulty ? roundRef.current.round : undefined);
+    // Use the exploded player's saved time (their turn start time) as chain timer
+    const cp = (currentPlayers ?? playersRef.current)[roundRef.current.currentPlayerIdx];
+    const chainTime = cp?.savedTime ?? chainMaxTime;
     setChainQuestion(q);
+    chainQuestionRef.current = q;
     setChainAnswered(false);
     setChainRespondents(new Set());
-    setChainTimeLeft(chainMaxTime);
+    chainWrongAnswersRef.current = new Set();
+    setChainTimeLeft(chainTime);
+    chainTimeLeftRef.current = chainTime;
     setOverlay('chain');
+    overlayRef.current = 'chain';
     broadcastState(currentPlayers ?? playersRef.current, roundRef.current, 'chain', explosionInfoRef.current, q);
 
     // Start visible countdown timer for chain reaction
@@ -408,14 +525,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
     const cq = chainQuestionRef.current;
     if (!cq) return;
     if (idx !== cq.correct) {
-      setPlayers((prev) => {
-        const next = prev.map((p) => {
-          if (p.id !== playerId) return p;
-          const newLives = Math.max(0, p.lives - 1);
-          return { ...p, lives: newLives, eliminated: newLives <= 0 };
-        });
-        return next;
-      });
+      chainWrongAnswersRef.current.add(playerId);
     }
     // Track this player's response
     const updated = new Set(chainRespondentsRef.current);
@@ -438,14 +548,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
       playSound('wrong', sound);
       showToast('Wrong! -1 life for you!');
       if (isHost) {
-        setPlayers((prev) => {
-          const next = prev.map((p) => {
-            if (p.id !== localPlayerId) return p;
-            const newLives = Math.max(0, p.lives - 1);
-            return { ...p, lives: newLives, eliminated: newLives <= 0 };
-          });
-          return next;
-        });
+        chainWrongAnswersRef.current.add(localPlayerId);
       }
     } else {
       playSound('correct', sound);
@@ -462,8 +565,106 @@ const GameScreen: React.FC<GameScreenProps> = ({
     }
   };
 
+  // === Lucky Question (all-player race for +1 life) ===
+  const finishLuckyQuestion = useCallback(() => {
+    if (chainTimeoutRef.current) { clearTimeout(chainTimeoutRef.current); chainTimeoutRef.current = null; }
+    if (chainTimerRef.current) { clearInterval(chainTimerRef.current); chainTimerRef.current = null; }
+
+    const winnerId = luckyWinnerIdRef.current;
+    const maxLives = settings.mode === 'sudden' ? 1 : DIFFICULTY_CONFIG[settings.difficulty].lives;
+    const updatedPlayers = winnerId
+      ? playersRef.current.map((p) => p.id === winnerId ? { ...p, lives: Math.min(p.lives + 1, maxLives) } : p)
+      : playersRef.current;
+    setPlayers(updatedPlayers);
+
+    setTimeout(() => {
+      setOverlay('none');
+      setChainQuestion(null);
+      setChainAnswered(false);
+      setChainRespondents(new Set());
+      setChainTimeLeft(0);
+      setLuckyWinnerId(null);
+      luckyWinnerIdRef.current = null;
+      broadcastState(updatedPlayers, roundRef.current, 'none', explosionInfoRef.current, null);
+      passToNextRef.current(updatedPlayers);
+    }, 2000);
+  }, [broadcastState, settings.mode, settings.difficulty]);
+  const finishLuckyRef = useRef(finishLuckyQuestion);
+  finishLuckyRef.current = finishLuckyQuestion;
+
+  const triggerLuckyQuestion = (currentPlayers?: Player[]) => {
+    const q = getRandomQuestion(settings.activeSubs, settings.difficulty, settings.enableProgressiveDifficulty ? roundRef.current.round : undefined);
+    setChainQuestion(q);
+    chainQuestionRef.current = q;
+    setChainAnswered(false);
+    setChainRespondents(new Set());
+    setLuckyWinnerId(null);
+    luckyWinnerIdRef.current = null;
+    setChainTimeLeft(maxTime);
+    chainTimeLeftRef.current = maxTime;
+    setOverlay('lucky');
+    overlayRef.current = 'lucky';
+    broadcastState(currentPlayers ?? playersRef.current, roundRef.current, 'lucky', explosionInfoRef.current, q);
+
+    if (isHost) {
+      if (chainTimerRef.current) clearInterval(chainTimerRef.current);
+      chainTimerRef.current = setInterval(() => {
+        setChainTimeLeft((prev) => {
+          if (prev <= 1) {
+            if (chainTimerRef.current) { clearInterval(chainTimerRef.current); chainTimerRef.current = null; }
+            finishLuckyRef.current();
+            return 0;
+          }
+          const next = prev - 1;
+          chainTimeLeftRef.current = next;
+          broadcastState(playersRef.current, roundRef.current, 'lucky', explosionInfoRef.current, chainQuestionRef.current);
+          return next;
+        });
+      }, 1000);
+    }
+  };
+  triggerLuckyQuestionRef.current = triggerLuckyQuestion;
+
+  const handleRemoteLuckyAnswer = (idx: number, playerId: string) => {
+    const cq = chainQuestionRef.current;
+    if (!cq || luckyWinnerIdRef.current) return; // already won
+    if (idx === cq.correct) {
+      // First correct answer wins!
+      setLuckyWinnerId(playerId);
+      luckyWinnerIdRef.current = playerId;
+      const winner = playersRef.current.find((p) => p.id === playerId);
+      broadcastToast(`\u2B50 ${winner?.name || 'Someone'} wins the Lucky Question! +1 life!`);
+      if (chainTimerRef.current) { clearInterval(chainTimerRef.current); chainTimerRef.current = null; }
+      finishLuckyRef.current();
+    }
+  };
+
+  const handleLuckyAnswer = (idx: number) => {
+    if (chainAnswered || !chainQuestion) return;
+    setChainAnswered(true);
+
+    if (!isHost && gameRoom) {
+      gameRoom.broadcast('lucky-answer', { answerIdx: idx, playerId: localPlayerId });
+    }
+
+    if (idx !== chainQuestion.correct) {
+      playSound('wrong', sound);
+      showToast('Wrong! No extra life for you.');
+    } else {
+      playSound('correct', sound);
+      // Host processes locally
+      if (isHost) {
+        if (luckyWinnerIdRef.current) return; // someone already won
+        setLuckyWinnerId(localPlayerId);
+        luckyWinnerIdRef.current = localPlayerId;
+        broadcastToast(`\u2B50 ${playersRef.current.find((p) => p.id === localPlayerId)?.name || 'You'} wins the Lucky Question! +1 life!`);
+        if (chainTimerRef.current) { clearInterval(chainTimerRef.current); chainTimerRef.current = null; }
+        finishLuckyRef.current();
+      }
+    }
+  };
+
   const passToNext = (currentPlayers?: Player[]) => {
-    playSound('pass', sound);
     const cp = currentPlayers ?? playersRef.current;
     const curRound = roundRef.current;
 
@@ -479,26 +680,45 @@ const GameScreen: React.FC<GameScreenProps> = ({
     } while (cp[nextIdx].eliminated);
 
     const nextPlayer = cp[nextIdx];
+    // Play pass sound for the player receiving the turn
+    if (nextPlayer.id === localPlayerId) playSound('pass', sound);
     const newQuestion = getRandomQuestion(settings.activeSubs, settings.difficulty, settings.enableProgressiveDifficulty ? curRound.round + 1 : undefined);
 
-    // Add bonus seconds instead of resetting to full timer
+    // Save current player's remaining time + bonus for their next turn (only on correct answer)
     const bonusSeconds = { easy: 10, medium: 5, hard: 3 }[settings.difficulty];
-    const baseTime = Math.min(curRound.timeLeft + bonusSeconds, maxTime);
+    const wasCorrect = curRound.answerIdx !== null && curRound.answerIdx === curRound.question.correct;
+    const savedTimeForCurrent = wasCorrect
+      ? Math.min(curRound.timeLeft + bonusSeconds, maxTime)
+      : maxTime; // Reset to full on explosion
+
+    // Next player uses their own saved time (from their previous turn)
+    const nextPlayerTime = nextPlayer.savedTime ?? maxTime;
     // Apply time penalty sabotage
     const penalty = nextPlayer.timePenalty || 0;
-    const adjustedTime = Math.max(5, baseTime - penalty);
+    const adjustedTime = Math.max(5, nextPlayerTime - penalty);
 
-    // Apply blind sabotage: pick 2 random wrong answers to hide
+    // Apply blind sabotage: blur ALL answers (gradually becomes visible)
     const isBlind = !!nextPlayer.blindNextRound;
-    let blindAnswers: number[] = [];
-    if (isBlind) {
-      const wrongIndices = newQuestion.a.map((_, i) => i).filter((i) => i !== newQuestion.correct);
-      // Pick 2 random wrong answers to hide
-      for (let i = wrongIndices.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [wrongIndices[i], wrongIndices[j]] = [wrongIndices[j], wrongIndices[i]];
+    const blindAnswers = isBlind ? newQuestion.a.map((_, i) => i) : [];
+
+    const nextRound = curRound.round + 1;
+    const isLuckyRound = nextRound > 0 && nextRound % 8 === 0;
+
+    // Apply decoy sabotage: add a fake 5th answer
+    const hasDecoy = !!nextPlayer.decoyNextRound;
+    let decoyAnswer = '';
+    if (hasDecoy) {
+      // Generate a plausible fake answer from a different question in the same category
+      const otherQ = getRandomQuestion(settings.activeSubs, settings.difficulty);
+      const otherAnswers = otherQ.a.filter((a) => !newQuestion.a.includes(a));
+      if (otherAnswers.length > 0) {
+        decoyAnswer = otherAnswers[Math.floor(Math.random() * otherAnswers.length)];
+      } else {
+        // Fallback: slightly modify a wrong answer
+        const wrongAnswers = newQuestion.a.filter((_, i) => i !== newQuestion.correct);
+        const base = wrongAnswers[Math.floor(Math.random() * wrongAnswers.length)];
+        decoyAnswer = base + '?';
       }
-      blindAnswers = wrongIndices.slice(0, 2);
     }
 
     const newRound: RoundState = {
@@ -506,16 +726,20 @@ const GameScreen: React.FC<GameScreenProps> = ({
       question: newQuestion,
       timeLeft: adjustedTime,
       maxTime,
+      startTime: adjustedTime,
       answered: false,
       answerIdx: null,
-      round: curRound.round + 1,
+      round: nextRound,
       frozen: false,
       blind: isBlind,
       blindAnswers,
+      isBonus: false,
+      decoy: hasDecoy,
+      decoyAnswer: hasDecoy ? decoyAnswer : undefined,
     };
     setRound(newRound);
 
-    // Reveal blind answers after 3 seconds
+    // Clear blind state after 5 seconds (CSS animation handles gradual reveal)
     if (isBlind) {
       blindTimeoutRef.current = setTimeout(() => {
         setRound((prev) => {
@@ -523,18 +747,27 @@ const GameScreen: React.FC<GameScreenProps> = ({
           broadcastState(playersRef.current, revealed, overlayRef.current, explosionInfoRef.current, chainQuestionRef.current);
           return revealed;
         });
-      }, 3000);
+      }, 5000);
     }
 
-    // Clear effects and reset round state
+    // Clear effects, reset round state, and save per-player timer
     const newPlayers = cp.map((p, i) => ({
       ...p,
       usedPowerupThisRound: false,
       timePenalty: i === nextIdx ? 0 : p.timePenalty,
       blindNextRound: i === nextIdx ? false : p.blindNextRound,
+      decoyNextRound: i === nextIdx ? false : p.decoyNextRound,
+      savedTime: i === curRound.currentPlayerIdx ? savedTimeForCurrent : p.savedTime,
     }));
     setPlayers(newPlayers);
     broadcastState(newPlayers, newRound, 'none', { name: '', message: '' }, null);
+
+    // Lucky Question: every 8 rounds, trigger all-player race for +1 life
+    if (isLuckyRound && isHost) {
+      setTimeout(() => {
+        triggerLuckyQuestionRef.current(newPlayers);
+      }, 500);
+    }
   };
   passToNextRef.current = passToNext;
 
@@ -562,8 +795,9 @@ const GameScreen: React.FC<GameScreenProps> = ({
     setRound(newRound);
 
     if (isCorrect) {
-      playSound('correct', sound);
-      const earnedSabotage = settings.enableSabotage && !curPlayers[curRound.currentPlayerIdx].usedPowerupThisRound && curRound.timeLeft > maxTime * 0.7;
+      if (curPlayers[curRound.currentPlayerIdx]?.id === localPlayerId) playSound('correct', sound);
+      const startTime = curRound.startTime;
+      const earnedSabotage = settings.enableSabotage && !curPlayers[curRound.currentPlayerIdx].usedPowerupThisRound && curRound.timeLeft > startTime * 0.85;
       const newPlayers = curPlayers.map((p, i) => {
         if (i !== curRound.currentPlayerIdx) return p;
         const newScore = p.score + 10 + curRound.timeLeft;
@@ -576,7 +810,9 @@ const GameScreen: React.FC<GameScreenProps> = ({
       setPlayers(newPlayers);
 
       if (earnedSabotage && newPlayers.filter((p) => !p.eliminated).length > 1) {
-        // Show sabotage picker — turn waits until player picks or skips
+        // Broadcast answered state immediately so guests see green highlight
+        broadcastState(newPlayers, newRound, overlayRef.current, explosionInfoRef.current, chainQuestionRef.current);
+        // Show sabotage picker after delay
         setTimeout(() => {
           setOverlay('sabotage');
           broadcastState(newPlayers, newRound, 'sabotage', explosionInfoRef.current, chainQuestionRef.current);
@@ -588,7 +824,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
         }, 800);
       }
     } else {
-      playSound('wrong', sound);
+      if (curPlayers[curRound.currentPlayerIdx]?.id === localPlayerId) playSound('wrong', sound);
       broadcastState(curPlayers, newRound, overlayRef.current, explosionInfoRef.current, chainQuestionRef.current);
       setTimeout(() => bombExplodesRef.current(), 800);
     }
@@ -614,7 +850,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
     const cp = curPlayers[curRound.currentPlayerIdx];
     if (cp.powerups[type] <= 0) return;
 
-    playSound('powerup', sound);
+    if (cp.id === localPlayerId) playSound('powerup', sound);
 
     const newPlayers = curPlayers.map((p, i) => {
       if (i !== curRound.currentPlayerIdx) return p;
@@ -627,7 +863,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
     setPlayers(newPlayers);
 
     if (type === 'shield') {
-      showToast('\uD83D\uDEE1\uFE0F Shield activated! Next explosion blocked!');
+      broadcastToast(`\uD83D\uDEE1\uFE0F ${cp.name} activated Shield!`);
       // Mark shield as active on the current player
       const shieldedPlayers = newPlayers.map((p, i) =>
         i === curRound.currentPlayerIdx ? { ...p, shieldActive: true } : p
@@ -635,7 +871,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
       setPlayers(shieldedPlayers);
       broadcastState(shieldedPlayers, curRound, overlayRef.current, explosionInfoRef.current, chainQuestionRef.current);
     } else if (type === 'freeze') {
-      showToast('\u2744\uFE0F Timer frozen for 5 seconds!');
+      broadcastToast(`\u2744\uFE0F ${cp.name} froze the timer!`);
       const newRound = { ...curRound, frozen: true };
       setRound(newRound);
       broadcastState(newPlayers, newRound, overlayRef.current, explosionInfoRef.current, chainQuestionRef.current);
@@ -668,32 +904,51 @@ const GameScreen: React.FC<GameScreenProps> = ({
     const target = curPlayers[targetIdx];
     if (!target) return;
 
-    showToast(`\uD83C\uDFAF Bomb thrown to ${target.name}!`);
+    // Stop timer and mark round as answered so bomb doesn't explode during notification
+    if (timerRef.current) clearInterval(timerRef.current);
+    const pausedRound = { ...curRound, answered: true };
+    setRound(pausedRound);
     setOverlay('none');
 
-    // Pass the bomb directly to the target player with a new question
-    const newQuestion = getRandomQuestion(settings.activeSubs, settings.difficulty, settings.enableProgressiveDifficulty ? curRound.round + 1 : undefined);
-    const bonusSecs = { easy: 10, medium: 5, hard: 3 }[settings.difficulty];
-    const redirectTime = Math.min(curRound.timeLeft + bonusSecs, maxTime);
-    const newRound: RoundState = {
-      currentPlayerIdx: targetIdx,
-      question: newQuestion,
-      timeLeft: redirectTime,
-      maxTime,
-      answered: false,
-      answerIdx: null,
-      round: curRound.round + 1,
-      frozen: false,
-      blind: false,
-      blindAnswers: [],
-    };
-    setRound(newRound);
-    const newPlayers = curPlayers.map((p) => ({ ...p, usedPowerupThisRound: false }));
-    setPlayers(newPlayers);
-    broadcastState(newPlayers, newRound, 'none', { name: '', message: '' }, null);
+    // Show centered overlay for the target, toast for others
+    const thrower = curPlayers[curRound.currentPlayerIdx];
+    const throwMsg = `\uD83D\uDCA8 ${thrower?.name} threw the bomb to ${target.name}!`;
+    if (target.id === localPlayerId) {
+      setThrowNotif(true);
+      setThrowFromName(thrower?.name || '');
+    } else {
+      showToast(throwMsg);
+    }
+    broadcastState(curPlayers, pausedRound, 'none', explosionInfoRef.current, chainQuestionRef.current, false, throwMsg, target.id, thrower?.name);
+
+    setTimeout(() => {
+      setThrowNotif(false);
+      // Pass the same question to the target (strategic throw for hard questions)
+      const sameQuestion = curRound.question;
+      const bonusSecs = { easy: 10, medium: 5, hard: 3 }[settings.difficulty];
+      const redirectTime = Math.min(curRound.timeLeft + bonusSecs, maxTime);
+      const newRound: RoundState = {
+        currentPlayerIdx: targetIdx,
+        question: sameQuestion,
+        timeLeft: redirectTime,
+        maxTime,
+        startTime: redirectTime,
+        answered: false,
+        answerIdx: null,
+        round: curRound.round + 1,
+        frozen: false,
+        blind: false,
+        blindAnswers: [],
+      };
+      setRound(newRound);
+      setOverlay('none');
+      const newPlayers = curPlayers.map((p) => ({ ...p, usedPowerupThisRound: false }));
+      setPlayers(newPlayers);
+      broadcastState(newPlayers, newRound, 'none', { name: '', message: '' }, null);
+    }, 2000);
   };
 
-  const handleSabotage = (type: 'blind' | 'timebomb', targetId: string, fromRemote = false) => {
+  const handleSabotage = (type: 'blind' | 'timebomb' | 'decoy', targetId: string, fromRemote = false) => {
     // Guest sends sabotage selection to host via WebRTC
     if (!isHost && !fromRemote) {
       if (gameRoom) {
@@ -707,8 +962,10 @@ const GameScreen: React.FC<GameScreenProps> = ({
     const target = playersRef.current.find((p) => p.id === targetId);
     if (!target) return;
 
-    playSound('powerup', sound);
-    showToast(`\uD83D\uDC80 ${type === 'blind' ? 'Blind' : 'Time Bomb'} sent to ${target.name}!`);
+    const curPlayer = playersRef.current[roundRef.current.currentPlayerIdx];
+    if (curPlayer?.id === localPlayerId) playSound('powerup', sound);
+    const typeLabel = type === 'blind' ? 'Blind' : type === 'timebomb' ? 'Time Bomb' : 'Decoy';
+    broadcastToast(`\uD83D\uDC80 ${typeLabel} sent to ${target.name}!`);
 
     const curRound = roundRef.current;
     const newPlayers = playersRef.current.map((p, i) => {
@@ -723,6 +980,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
           return { ...p, timePenalty: (p.timePenalty || 0) + penalty };
         }
         if (type === 'blind') return { ...p, blindNextRound: true };
+        if (type === 'decoy') return { ...p, decoyNextRound: true };
       }
       return p;
     });
@@ -773,13 +1031,15 @@ const GameScreen: React.FC<GameScreenProps> = ({
       <div style={{ display: 'flex', gap: 'clamp(4px, 1vw, 8px)', width: '100%', maxWidth: 500, justifyContent: 'center', flexWrap: 'wrap' }}>
         {players.map((p, i) => (
           <div key={p.id} style={playerChip(i === round.currentPlayerIdx, p.eliminated, p.color)}>
-            <span>{p.avatar}</span>
-            <span>{p.name.split(' ')[0]}</span>
-            <span style={{ display: 'flex', gap: 2, fontSize: '0.6rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4, overflow: 'hidden' }}>
+              <span>{p.avatar}</span>
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
+            </div>
+            <div style={{ display: 'flex', gap: 2, fontSize: '0.6rem', justifyContent: 'center' }}>
               {Array.from({ length: DIFFICULTY_CONFIG[settings.difficulty].lives }, (_, li) => (
                 <span key={li}>{li < p.lives ? '\u2764\uFE0F' : '\uD83D\uDDA4'}</span>
               ))}
-            </span>
+            </div>
           </div>
         ))}
       </div>
@@ -865,51 +1125,68 @@ const GameScreen: React.FC<GameScreenProps> = ({
 
         {/* Answer grid */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'clamp(6px, 1vh, 10px)' }}>
-          {round.question.a.map((ans, i) => {
-            const isBlinded = round.blind && round.blindAnswers.includes(i);
-            let bg: string = C.surface;
-            let borderC: string = C.border;
-            let col: string = C.white;
-            let anim = '';
-
-            if (round.answered && round.answerIdx !== null) {
-              if (i === round.question.correct) {
-                bg = 'rgba(0,230,118,0.15)';
-                borderC = C.green;
-                col = C.green;
-                anim = 'bb-correct-pop 0.4s ease';
-              } else if (i === round.answerIdx && i !== round.question.correct) {
-                bg = 'rgba(255,23,68,0.15)';
-                borderC = C.danger;
-                col = C.danger;
-                anim = 'bb-wrong-shake 0.4s ease';
-              }
+          {/* Combine real answers with optional decoy */}
+          {(() => {
+            const allAnswers: { text: string; idx: number; isDecoy: boolean }[] = round.question.a.map((ans, i) => ({
+              text: ans, idx: i, isDecoy: false,
+            }));
+            if (round.decoy && round.decoyAnswer) {
+              // Insert decoy at a random-ish but stable position (based on round number)
+              const insertPos = round.round % (allAnswers.length + 1);
+              allAnswers.splice(insertPos, 0, { text: round.decoyAnswer, idx: -1, isDecoy: true });
             }
+            return allAnswers.map((item, renderIdx) => {
+              const isBlinded = round.blind && round.blindAnswers.includes(item.idx);
+              let bg: string = C.surface;
+              let borderC: string = C.border;
+              let col: string = C.white;
+              let anim = '';
 
-            return (
-              <button
-                key={i}
-                onClick={() => handleAnswer(i)}
-                disabled={round.answered || !isLocalTurn || isBlinded}
-                style={{
-                  padding: 'clamp(10px, 1.5vh, 14px) clamp(8px, 2vw, 10px)',
-                  background: isBlinded ? C.surface : bg,
-                  border: `1.5px solid ${isBlinded ? C.border : borderC}`,
-                  borderRadius: 'clamp(8px, 2vw, 14px)',
-                  color: isBlinded ? 'transparent' : col,
-                  fontFamily: "'Nunito', sans-serif",
-                  fontSize: 'clamp(0.8rem, 2.5vw, 0.95rem)',
-                  fontWeight: 800,
-                  cursor: round.answered || !isLocalTurn || isBlinded ? 'default' : 'pointer',
-                  textAlign: 'center',
-                  animation: anim || 'none',
-                  opacity: isBlinded ? 0.3 : (round.answered && round.answerIdx !== null && i !== round.question.correct && i !== round.answerIdx ? 0.6 : 1),
-                }}
-              >
-                {isBlinded ? '\uD83D\uDE48' : ans}
-              </button>
-            );
-          })}
+              if (round.answered && round.answerIdx !== null) {
+                if (!item.isDecoy && item.idx === round.question.correct) {
+                  bg = 'rgba(0,230,118,0.15)';
+                  borderC = C.green;
+                  col = C.green;
+                  anim = 'bb-correct-pop 0.4s ease';
+                } else if (
+                  (item.isDecoy && round.answerIdx === -1) ||
+                  (!item.isDecoy && item.idx === round.answerIdx && item.idx !== round.question.correct)
+                ) {
+                  bg = 'rgba(255,23,68,0.15)';
+                  borderC = C.danger;
+                  col = C.danger;
+                  anim = 'bb-wrong-shake 0.4s ease';
+                }
+              }
+
+              return (
+                <button
+                  key={item.isDecoy ? 'decoy' : item.idx}
+                  onClick={() => handleAnswer(item.isDecoy ? -1 : item.idx)}
+                  disabled={round.answered || !isLocalTurn}
+                  style={{
+                    padding: 'clamp(10px, 1.5vh, 14px) clamp(8px, 2vw, 10px)',
+                    background: bg,
+                    border: `1.5px solid ${borderC}`,
+                    borderRadius: 'clamp(8px, 2vw, 14px)',
+                    color: col,
+                    fontFamily: "'Nunito', sans-serif",
+                    fontSize: 'clamp(0.8rem, 2.5vw, 0.95rem)',
+                    fontWeight: 800,
+                    cursor: round.answered || !isLocalTurn ? 'default' : 'pointer',
+                    textAlign: 'center',
+                    animation: isBlinded ? 'bb-blur-reveal 5s ease-out forwards' : (anim || 'none'),
+                    opacity: round.answered && round.answerIdx !== null && !item.isDecoy && item.idx !== round.question.correct && item.idx !== round.answerIdx ? 0.6 : 1,
+                    filter: isBlinded ? 'blur(12px)' : 'none',
+                    // 5th decoy answer spans full width
+                    ...(round.decoy && renderIdx === allAnswers.length - 1 && allAnswers.length % 2 !== 0 ? { gridColumn: '1 / -1' } : {}),
+                  }}
+                >
+                  {item.text}
+                </button>
+              );
+            });
+          })()}
         </div>
       </div>
 
@@ -919,7 +1196,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
           {([
             { key: 'shield' as const, icon: '\uD83D\uDEE1\uFE0F', label: 'Shield' },
             { key: 'freeze' as const, icon: '\u2744\uFE0F', label: 'Freeze' },
-            { key: 'clone' as const, icon: '\uD83C\uDFAF', label: 'Throw' },
+            { key: 'clone' as const, icon: '\uD83E\uDDE8', label: 'Throw' },
           ]).map(({ key, icon, label }) => {
             const count = currentPlayer?.powerups[key] || 0;
             return (
@@ -975,6 +1252,37 @@ const GameScreen: React.FC<GameScreenProps> = ({
       )}
 
       {/* ===== OVERLAYS ===== */}
+
+      {/* Your turn notification */}
+      {yourTurnNotif && (
+        <div style={{ ...overlayBase, background: 'rgba(0,200,100,0.12)', pointerEvents: 'none' }}>
+          <div style={{ fontSize: '4rem' }}>{'\uD83E\uDDE0'}</div>
+          <div style={{
+            fontFamily: "'Bebas Neue', sans-serif", fontSize: '2.5rem',
+            letterSpacing: 4, color: C.green,
+            textShadow: '0 0 30px rgba(0,200,100,0.6)', textAlign: 'center',
+          }}>
+            YOUR TURN!
+          </div>
+          <div style={{ fontSize: '0.85rem', fontWeight: 700, color: C.muted, marginTop: 4 }}>Answer quickly!</div>
+        </div>
+      )}
+
+      {/* Bomb throw notification — centered for the receiver */}
+      {throwNotif && (
+        <div style={{ ...overlayBase, background: 'rgba(255,149,0,0.15)' }}>
+          <div style={{ fontSize: '5rem', animation: 'bb-pulse-bomb 1s ease-in-out infinite' }}>{'\uD83D\uDCA3'}</div>
+          <div style={{
+            fontFamily: "'Bebas Neue', sans-serif", fontSize: '2.5rem',
+            letterSpacing: 4, color: C.accent2,
+            textShadow: '0 0 30px rgba(255,149,0,0.6)', textAlign: 'center',
+          }}>
+            BOMB INCOMING!
+          </div>
+          {throwFromName && <div style={{ fontSize: '1rem', fontWeight: 800, color: C.white }}>from {throwFromName}</div>}
+          <div style={{ fontSize: '0.85rem', fontWeight: 700, color: C.muted, marginTop: 4 }}>Get ready to answer...</div>
+        </div>
+      )}
 
       {/* Explosion */}
       {overlay === 'explosion' && (
@@ -1053,6 +1361,73 @@ const GameScreen: React.FC<GameScreenProps> = ({
         </div>
       )}
 
+      {/* Lucky Question — all-player race */}
+      {overlay === 'lucky' && chainQuestion && (
+        <div style={{ ...overlayBase, background: 'rgba(255,215,0,0.15)' }}>
+          <div style={{
+            background: C.card, border: '2px solid #ffd700', borderRadius: 20,
+            padding: '28px 36px', textAlign: 'center', maxWidth: 380, width: '90%',
+            boxShadow: '0 0 60px rgba(255,215,0,0.3)', animation: 'bb-chain-pop 0.4s cubic-bezier(0.34,1.56,0.64,1)',
+          }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+              <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '2rem', letterSpacing: 3, color: '#ffd700', textAlign: 'center' }}>
+                {'\u2B50'} LUCKY QUESTION!
+              </div>
+              {chainTimeLeft > 0 && !luckyWinnerId && (
+                <div style={{
+                  fontFamily: "'Bebas Neue', sans-serif", fontSize: '1.5rem',
+                  color: chainTimeLeft <= 5 ? C.danger : '#ffd700',
+                  background: `${chainTimeLeft <= 5 ? C.danger : '#ffd700'}22`,
+                  padding: '4px 14px', borderRadius: 10, minWidth: 36, textAlign: 'center',
+                  animation: chainTimeLeft <= 5 ? 'bb-pulse-text 0.5s ease infinite alternate' : 'none',
+                }}>
+                  {chainTimeLeft}s
+                </div>
+              )}
+            </div>
+            <div style={{ fontSize: '0.8rem', color: C.muted, marginBottom: 4 }}>First correct answer wins +1 life!</div>
+            {luckyWinnerId ? (
+              <div style={{ padding: '24px 0', textAlign: 'center' }}>
+                <div style={{ fontSize: '3rem', marginBottom: 8 }}>{'\uD83C\uDFC6'}</div>
+                <div style={{ fontSize: '1.2rem', fontWeight: 800, color: '#ffd700' }}>
+                  {players.find((p) => p.id === luckyWinnerId)?.name || 'Someone'} wins!
+                </div>
+                <div style={{ fontSize: '0.85rem', color: C.muted, marginTop: 4 }}>+1 life earned!</div>
+              </div>
+            ) : !chainAnswered ? (
+              <>
+                <div style={{ fontSize: '1.2rem', fontWeight: 800, margin: '16px 0', padding: 16, background: C.surface, borderRadius: 12 }}>
+                  {chainQuestion.q}
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                  {chainQuestion.a.map((a, i) => (
+                    <button
+                      key={i}
+                      onClick={() => handleLuckyAnswer(i)}
+                      style={{
+                        padding: 12, background: C.surface,
+                        border: '1.5px solid #ffd70055', borderRadius: 12,
+                        color: C.white, fontFamily: "'Nunito', sans-serif",
+                        fontSize: '0.9rem', fontWeight: 800, cursor: 'pointer',
+                      }}
+                    >
+                      {a}
+                    </button>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <div style={{ padding: '24px 0', textAlign: 'center' }}>
+                <div style={{ fontSize: '2rem', marginBottom: 8 }}>{'\u23F3'}</div>
+                <div style={{ fontSize: '1rem', fontWeight: 800, color: C.muted }}>
+                  Waiting for the fastest answer...
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Sabotage */}
       {overlay === 'sabotage' && (
         <div style={{ ...overlayBase, background: 'rgba(255,149,0,0.15)' }}>
@@ -1062,7 +1437,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
             boxShadow: '0 0 60px rgba(255,149,0,0.3)', animation: 'bb-chain-pop 0.4s cubic-bezier(0.34,1.56,0.64,1)',
           }}>
             <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '2rem', letterSpacing: 3, color: C.accent2, marginBottom: 8 }}>
-              {'\uD83C\uDFAF'} SABOTAGE!
+              {'\uD83D\uDE08'} SABOTAGE!
             </div>
             <div style={{ fontSize: '0.85rem', color: C.muted }}>{currentPlayer?.name} answered fast &mdash; choose a sabotage!</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 16 }}>
@@ -1081,6 +1456,12 @@ const GameScreen: React.FC<GameScreenProps> = ({
                         style={sabotageOptionStyle}
                       >
                         <span>{'\u23F1\uFE0F'}</span> -{({ easy: 8, medium: 5, hard: 3 })[settings.difficulty]}s from {p.name}'s timer
+                      </button>
+                      <button
+                        onClick={() => handleSabotage('decoy', p.id)}
+                        style={sabotageOptionStyle}
+                      >
+                        <span>{'\uD83C\uDFAD'}</span> Add fake answer to {p.name}'s question
                       </button>
                     </React.Fragment>
                   ))}
@@ -1110,19 +1491,27 @@ const GameScreen: React.FC<GameScreenProps> = ({
             boxShadow: '0 0 60px rgba(0,229,255,0.3)', animation: 'bb-chain-pop 0.4s cubic-bezier(0.34,1.56,0.64,1)',
           }}>
             <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '2rem', letterSpacing: 3, color: C.accent3, marginBottom: 8 }}>
-              {'\uD83C\uDFAF'} THROW!
+              {'\uD83E\uDDE8'} THROW!
             </div>
-            <div style={{ fontSize: '0.85rem', color: C.muted }}>Pick a player to throw the bomb to!</div>
+            <div style={{ fontSize: '0.85rem', color: C.muted }}>
+              {isLocalTurn ? 'Pick a player to throw the bomb to!' : `${currentPlayer?.name} is throwing the bomb...`}
+            </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 16 }}>
-              {activePlayers.filter((p) => p.id !== localPlayerId).map((p) => (
-                <button
-                  key={p.id}
-                  onClick={() => handleCloneTarget(p.id)}
-                  style={sabotageOptionStyle}
-                >
-                  {p.avatar} Throw to <strong>{p.name}</strong>
-                </button>
-              ))}
+              {isLocalTurn ? (
+                activePlayers.filter((p) => p.id !== localPlayerId).map((p) => (
+                  <button
+                    key={p.id}
+                    onClick={() => handleCloneTarget(p.id)}
+                    style={sabotageOptionStyle}
+                  >
+                    <span>{p.avatar} Throw to <strong>{p.name}</strong></span>
+                  </button>
+                ))
+              ) : (
+                <div style={{ fontSize: '0.9rem', color: C.muted, padding: 16 }}>
+                  Waiting for {currentPlayer?.name} to choose...
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -1164,10 +1553,10 @@ function getCategoryColor(_q: Question): string {
   const icon = getCategoryIcon(_q);
   const map: Record<string, string> = {
     '\uD83D\uDD22': C.accent2,
-    '\uD83E\uDDE0': C.accent4,
+    '\uD83E\uDDE9': C.accent4,
     '\uD83D\uDCBB': C.accent3,
     '\uD83D\uDD24': C.green,
-    '\uD83C\uDFAF': C.yellow,
+    '\uD83E\uDDE0': C.yellow,
   };
   return map[icon] || C.white;
 }
@@ -1176,8 +1565,8 @@ function getCategoryIcon(q: Question): string {
   const text = q.q.toLowerCase();
   if (text.includes('binary') || text.includes('print') || text.includes('loop') || text.includes('bug') || text.includes('range') || text.includes('array')) return '\uD83D\uDCBB';
   if (text.includes('anagram') || text.includes('palindrome') || text.includes('analogy') || text.includes('odd one out')) return '\uD83D\uDD24';
-  if (text.includes('remember') || text.includes('previous') || text.includes('first question')) return '\uD83C\uDFAF';
-  if (text.includes('pattern') || text.includes('true') || text.includes('false') || text.includes('syllogism') || text.includes('all ') || text.includes('if ')) return '\uD83E\uDDE0';
+  if (text.includes('remember') || text.includes('previous') || text.includes('first question')) return '\uD83E\uDDE0';
+  if (text.includes('pattern') || text.includes('true') || text.includes('false') || text.includes('syllogism') || text.includes('all ') || text.includes('if ')) return '\uD83E\uDDE9';
   return '\uD83D\uDD22';
 }
 
@@ -1185,10 +1574,10 @@ function getCategoryName(q: Question): string {
   const icon = getCategoryIcon(q);
   const map: Record<string, string> = {
     '\uD83D\uDD22': 'MATH',
-    '\uD83E\uDDE0': 'LOGIC',
+    '\uD83E\uDDE9': 'LOGIC',
     '\uD83D\uDCBB': 'COMP. THINKING',
     '\uD83D\uDD24': 'WORD',
-    '\uD83C\uDFAF': 'MEMORY',
+    '\uD83E\uDDE0': 'MEMORY',
   };
   return map[icon] || 'QUIZ';
 }

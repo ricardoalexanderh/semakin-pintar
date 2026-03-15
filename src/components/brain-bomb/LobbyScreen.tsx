@@ -279,8 +279,6 @@ const LobbyScreen: React.FC<LobbyScreenProps> = ({
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
               {([
                 { key: 'classic' as GameMode, icon: '\uD83D\uDCA3', name: 'Classic' },
-                { key: 'team' as GameMode, icon: '\uD83E\uDD1D', name: 'Team' },
-                { key: 'speed' as GameMode, icon: '\u26A1', name: 'Speed Round' },
                 { key: 'sudden' as GameMode, icon: '\u2620\uFE0F', name: 'Sudden Death' },
               ]).map(({ key, icon, name }) => (
                 <div

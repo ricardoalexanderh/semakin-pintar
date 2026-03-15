@@ -41,7 +41,7 @@ export const NOISE_BG: CSSProperties = {
 
 // Shared styles
 export const screenBase: CSSProperties = {
-  minHeight: '100vh',
+  minHeight: '100dvh',
   background: C.bg,
   fontFamily: "'Nunito', sans-serif",
   color: C.white,
@@ -105,10 +105,11 @@ export const answerBtn: CSSProperties = {
 
 export const playerChip = (isActive: boolean, isEliminated: boolean, color: string): CSSProperties => ({
   display: 'flex',
+  flexDirection: 'column',
   alignItems: 'center',
-  gap: 6,
-  padding: '4px 8px',
-  borderRadius: 99,
+  gap: 2,
+  padding: '6px 10px',
+  borderRadius: 14,
   background: isActive ? `rgba(255,61,61,0.15)` : C.card,
   border: `1.5px solid ${isActive ? color : C.border}`,
   fontSize: 'clamp(0.65rem, 2vw, 0.8rem)',
@@ -118,6 +119,8 @@ export const playerChip = (isActive: boolean, isEliminated: boolean, color: stri
   boxShadow: isActive ? `0 0 20px ${color}44` : 'none',
   transform: isActive ? 'scale(1.05)' : 'scale(1)',
   transition: 'all 0.3s',
+  maxWidth: 'clamp(120px, 35vw, 180px)',
+  overflow: 'hidden',
 });
 
 export const overlayBase: CSSProperties = {
@@ -257,5 +260,9 @@ export const KEYFRAMES = `
 @keyframes bb-toast-show {
   from { transform: translateX(-50%) translateY(-100px); }
   to { transform: translateX(-50%) translateY(0); }
+}
+@keyframes bb-blur-reveal {
+  0% { filter: blur(12px); }
+  100% { filter: blur(0px); }
 }
 `;

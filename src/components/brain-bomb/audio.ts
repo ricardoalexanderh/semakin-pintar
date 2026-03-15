@@ -14,7 +14,7 @@ export function initAudioContext() {
 export type SoundType =
   | 'tick' | 'tickFast' | 'tickDanger'
   | 'correct' | 'wrong' | 'explosion' | 'pass'
-  | 'powerup' | 'uiClick' | 'uiOn' | 'uiOff' | 'win';
+  | 'powerup' | 'uiClick' | 'uiOn' | 'uiOff' | 'win' | 'countdown';
 
 export function playSound(type: SoundType, enabled: boolean) {
   if (!enabled) return;
@@ -205,6 +205,30 @@ export function playSound(type: SoundType, enabled: boolean) {
         g.gain.exponentialRampToValueAtTime(0.001, now + i * 0.04 + 0.07);
         o.start(now + i * 0.04); o.stop(now + i * 0.04 + 0.08);
       });
+    },
+
+    countdown: () => {
+      const now = ctx.currentTime;
+      // Deep resonant beep — distinct from timer ticks
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.connect(g); g.connect(ctx.destination);
+      o.type = 'triangle';
+      o.frequency.setValueAtTime(330, now);
+      o.frequency.exponentialRampToValueAtTime(220, now + 0.25);
+      g.gain.setValueAtTime(0.35, now);
+      g.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+      o.start(now); o.stop(now + 0.45);
+      // Sub bass hit
+      const sub = ctx.createOscillator();
+      const subG = ctx.createGain();
+      sub.connect(subG); subG.connect(ctx.destination);
+      sub.type = 'sine';
+      sub.frequency.setValueAtTime(80, now);
+      sub.frequency.exponentialRampToValueAtTime(40, now + 0.3);
+      subG.gain.setValueAtTime(0.3, now);
+      subG.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+      sub.start(now); sub.stop(now + 0.4);
     },
 
     win: () => {

@@ -11,6 +11,59 @@ import type { PeerMessage } from './types';
 // Prefix for PeerJS IDs to avoid collisions
 const PEER_PREFIX = 'brain-bomb-';
 
+// Optional server configuration via environment variables.
+// When empty/unset, PeerJS uses its free cloud signaling server (works on same network).
+// Set these in your .env file to enable cross-network play:
+//   VITE_PEER_HOST=your-server.com
+//   VITE_PEER_PORT=9000
+//   VITE_PEER_PATH=/myapp
+//   VITE_STUN_URL=stun:your-server.com:3478
+//   VITE_TURN_URL=turn:your-server.com:3478
+//   VITE_TURN_USER=myuser
+//   VITE_TURN_PASS=mypassword
+const PEER_HOST = import.meta.env.VITE_PEER_HOST || '';
+const PEER_PORT = parseInt(import.meta.env.VITE_PEER_PORT || '0', 10);
+const PEER_PATH = import.meta.env.VITE_PEER_PATH || '/';
+const STUN_URL = import.meta.env.VITE_STUN_URL || '';
+const TURN_URL = import.meta.env.VITE_TURN_URL || '';
+const TURN_USER = import.meta.env.VITE_TURN_USER || '';
+const TURN_PASS = import.meta.env.VITE_TURN_PASS || '';
+
+// Default free ICE servers (used when no custom server is configured)
+const DEFAULT_ICE_SERVERS = [
+  // Google STUN — free, reliable, handles ~80% of connections
+  { urls: 'stun:stun.l.google.com:19302' },
+  { urls: 'stun:stun1.l.google.com:19302' },
+  { urls: 'stun:stun2.l.google.com:19302' },
+  // Free TURN fallbacks for strict NAT (~20% of connections)
+  { urls: 'turn:turn.bistri.com:80', username: 'homeo', credential: 'homeo' },
+  { urls: 'turn:turn.anyfirewall.com:443?transport=tcp', username: 'webrtc', credential: 'webrtc' },
+];
+
+function buildPeerOptions(): Record<string, unknown> {
+  const opts: Record<string, unknown> = { debug: 0 };
+
+  // Only set host/port/path if a custom PeerJS server is configured
+  if (PEER_HOST) {
+    opts.host = PEER_HOST;
+    opts.port = PEER_PORT || 9000;
+    opts.path = PEER_PATH;
+    opts.secure = PEER_HOST !== 'localhost' && PEER_HOST !== '127.0.0.1';
+  }
+
+  // Use custom ICE servers if configured, otherwise use free defaults
+  if (STUN_URL || TURN_URL) {
+    const iceServers: Record<string, string>[] = [];
+    if (STUN_URL) iceServers.push({ urls: STUN_URL });
+    if (TURN_URL) iceServers.push({ urls: TURN_URL, username: TURN_USER, credential: TURN_PASS });
+    opts.config = { iceServers };
+  } else {
+    opts.config = { iceServers: DEFAULT_ICE_SERVERS };
+  }
+
+  return opts;
+}
+
 // Generate a short room code (6 chars)
 export function generateRoomCode(): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -41,6 +94,7 @@ export class GameRoom {
   private onPeerDisconnected: ConnectionHandler;
   private onReady: ReadyHandler;
   private destroyed = false;
+  private initRetries = 0;
 
   constructor(
     roomCode: string,
@@ -68,33 +122,7 @@ export class GameRoom {
       ? `${PEER_PREFIX}${this.roomCode}`
       : `${PEER_PREFIX}${this.peerId}`;
 
-    this.peer = new Peer(peerjsId, {
-      debug: 0, // silent
-      config: {
-        iceServers: [
-          { urls: 'stun:stun.l.google.com:19302' },
-          { urls: 'stun:stun1.l.google.com:19302' },
-          { urls: 'stun:stun2.l.google.com:19302' },
-          { urls: 'stun:stun3.l.google.com:19302' },
-          { urls: 'stun:stun4.l.google.com:19302' },
-          {
-            urls: 'turn:openrelay.metered.ca:80',
-            username: 'openrelayproject',
-            credential: 'openrelayproject',
-          },
-          {
-            urls: 'turn:openrelay.metered.ca:443',
-            username: 'openrelayproject',
-            credential: 'openrelayproject',
-          },
-          {
-            urls: 'turn:openrelay.metered.ca:443?transport=tcp',
-            username: 'openrelayproject',
-            credential: 'openrelayproject',
-          },
-        ],
-      },
-    });
+    this.peer = new Peer(peerjsId, buildPeerOptions() as ConstructorParameters<typeof Peer>[1]);
 
     this.peer.on('open', () => {
       if (this.destroyed) return;
@@ -113,14 +141,29 @@ export class GameRoom {
       if (this.destroyed) return;
       console.warn('[Brain Bomb WebRTC] Peer error:', err.type, err.message);
 
-      // If host ID is taken, the room code is already in use
-      if (err.type === 'unavailable-id' && this.isHost) {
-        console.warn('[Brain Bomb WebRTC] Room code already in use');
+      // If host ID is taken (e.g. from React StrictMode double-mount), retry after a delay
+      if (err.type === 'unavailable-id' && this.isHost && this.initRetries < 3) {
+        this.initRetries++;
+        console.warn('[Brain Bomb WebRTC] Room ID taken, retrying...', this.initRetries);
+        try { this.peer?.destroy(); } catch { /* already destroyed */ }
+        this.peer = null;
+        setTimeout(() => {
+          if (!this.destroyed) this.init();
+        }, 800 * this.initRetries);
+        return;
       }
 
-      // If peer not found, host doesn't exist yet
-      if (err.type === 'peer-unavailable' && !this.isHost) {
-        console.warn('[Brain Bomb WebRTC] Host not found for room:', this.roomCode);
+      // If peer not found, host might not be ready yet — retry connection
+      if (err.type === 'peer-unavailable' && !this.isHost && this.initRetries < 3) {
+        this.initRetries++;
+        console.warn('[Brain Bomb WebRTC] Host not found, retrying...', this.initRetries);
+        setTimeout(() => {
+          if (!this.destroyed && this.peer && !this.peer.destroyed) {
+            const hostId = `${PEER_PREFIX}${this.roomCode}`;
+            const conn = this.peer.connect(hostId, { reliable: true });
+            this.setupConnection(conn);
+          }
+        }, 1000 * this.initRetries);
       }
     });
 

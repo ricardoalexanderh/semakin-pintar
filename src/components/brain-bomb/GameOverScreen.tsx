@@ -59,9 +59,10 @@ const GameOverScreen: React.FC<GameOverScreenProps> = ({
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {sorted.map((p, i) => (
             <div key={p.id} style={{
-              display: 'flex', alignItems: 'center', gap: 12,
+              display: 'flex', alignItems: 'flex-start', gap: 12,
               padding: '10px 14px', background: C.surface,
               borderRadius: 12, border: `1px solid ${C.border}`,
+              flexWrap: 'wrap',
             }}>
               <span style={{
                 fontFamily: "'Bebas Neue', sans-serif",
@@ -72,14 +73,16 @@ const GameOverScreen: React.FC<GameOverScreenProps> = ({
               </span>
               <span style={{ fontSize: '1.3rem' }}>{p.avatar}</span>
               <span style={{ flex: 1, fontWeight: 800, color: p.color }}>{p.name}</span>
-              <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '0.75rem', color: C.muted }}>
-                Score: {p.score}
-              </span>
-              {p.eliminated ? (
-                <span style={{ fontSize: '0.7rem', color: C.danger }}>{'\uD83D\uDC80'} Eliminated</span>
-              ) : (
-                <span style={{ fontSize: '0.7rem', color: C.green }}>{'\uD83C\uDFC6'} Survived</span>
-              )}
+              <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', paddingLeft: 36 }}>
+                <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '0.75rem', color: C.muted }}>
+                  {'\u2B50'} Score: {p.score}
+                </span>
+                {p.eliminated ? (
+                  <span style={{ fontSize: '0.7rem', color: C.danger }}>{'\uD83D\uDC80'} Eliminated</span>
+                ) : (
+                  <span style={{ fontSize: '0.7rem', color: C.green }}>{'\uD83C\uDFC6'} Survived</span>
+                )}
+              </div>
             </div>
           ))}
         </div>
