@@ -1196,7 +1196,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
           {([
             { key: 'shield' as const, icon: '\uD83D\uDEE1\uFE0F', label: 'Shield' },
             { key: 'freeze' as const, icon: '\u2744\uFE0F', label: 'Freeze' },
-            { key: 'clone' as const, icon: '\uD83D\uDCA8', label: 'Throw' },
+            { key: 'clone' as const, icon: '\uD83E\uDDE8', label: 'Throw' },
           ]).map(({ key, icon, label }) => {
             const count = currentPlayer?.powerups[key] || 0;
             return (
@@ -1256,7 +1256,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
       {/* Your turn notification */}
       {yourTurnNotif && (
         <div style={{ ...overlayBase, background: 'rgba(0,200,100,0.12)', pointerEvents: 'none' }}>
-          <div style={{ fontSize: '4rem' }}>{'\u26A1'}</div>
+          <div style={{ fontSize: '4rem' }}>{'\uD83E\uDDE0'}</div>
           <div style={{
             fontFamily: "'Bebas Neue', sans-serif", fontSize: '2.5rem',
             letterSpacing: 4, color: C.green,
@@ -1491,7 +1491,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
             boxShadow: '0 0 60px rgba(0,229,255,0.3)', animation: 'bb-chain-pop 0.4s cubic-bezier(0.34,1.56,0.64,1)',
           }}>
             <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '2rem', letterSpacing: 3, color: C.accent3, marginBottom: 8 }}>
-              {'\uD83D\uDCA8'} THROW!
+              {'\uD83E\uDDE8'} THROW!
             </div>
             <div style={{ fontSize: '0.85rem', color: C.muted }}>
               {isLocalTurn ? 'Pick a player to throw the bomb to!' : `${currentPlayer?.name} is throwing the bomb...`}
@@ -1553,10 +1553,10 @@ function getCategoryColor(_q: Question): string {
   const icon = getCategoryIcon(_q);
   const map: Record<string, string> = {
     '\uD83D\uDD22': C.accent2,
-    '\uD83E\uDDE0': C.accent4,
+    '\uD83E\uDDE9': C.accent4,
     '\uD83D\uDCBB': C.accent3,
     '\uD83D\uDD24': C.green,
-    '\uD83E\uDDE9': C.yellow,
+    '\uD83E\uDDE0': C.yellow,
   };
   return map[icon] || C.white;
 }
@@ -1565,8 +1565,8 @@ function getCategoryIcon(q: Question): string {
   const text = q.q.toLowerCase();
   if (text.includes('binary') || text.includes('print') || text.includes('loop') || text.includes('bug') || text.includes('range') || text.includes('array')) return '\uD83D\uDCBB';
   if (text.includes('anagram') || text.includes('palindrome') || text.includes('analogy') || text.includes('odd one out')) return '\uD83D\uDD24';
-  if (text.includes('remember') || text.includes('previous') || text.includes('first question')) return '\uD83E\uDDE9';
-  if (text.includes('pattern') || text.includes('true') || text.includes('false') || text.includes('syllogism') || text.includes('all ') || text.includes('if ')) return '\uD83E\uDDE0';
+  if (text.includes('remember') || text.includes('previous') || text.includes('first question')) return '\uD83E\uDDE0';
+  if (text.includes('pattern') || text.includes('true') || text.includes('false') || text.includes('syllogism') || text.includes('all ') || text.includes('if ')) return '\uD83E\uDDE9';
   return '\uD83D\uDD22';
 }
 
@@ -1574,10 +1574,10 @@ function getCategoryName(q: Question): string {
   const icon = getCategoryIcon(q);
   const map: Record<string, string> = {
     '\uD83D\uDD22': 'MATH',
-    '\uD83E\uDDE0': 'LOGIC',
+    '\uD83E\uDDE9': 'LOGIC',
     '\uD83D\uDCBB': 'COMP. THINKING',
     '\uD83D\uDD24': 'WORD',
-    '\uD83E\uDDE9': 'MEMORY',
+    '\uD83E\uDDE0': 'MEMORY',
   };
   return map[icon] || 'QUIZ';
 }

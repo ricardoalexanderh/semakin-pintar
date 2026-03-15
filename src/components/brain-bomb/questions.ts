@@ -286,7 +286,7 @@ export const SUB_DEFS: Record<string, { icon: string; label: string; color: stri
     ],
   },
   logic: {
-    icon: '\uD83E\uDDE0',
+    icon: '\uD83E\uDDE9',
     label: 'Logic',
     color: 'logic',
     subs: [
@@ -319,7 +319,7 @@ export const SUB_DEFS: Record<string, { icon: string; label: string; color: stri
     ],
   },
   memory: {
-    icon: '\uD83E\uDDE9',
+    icon: '\uD83E\uDDE0',
     label: 'Memory',
     color: 'memory',
     subs: [
