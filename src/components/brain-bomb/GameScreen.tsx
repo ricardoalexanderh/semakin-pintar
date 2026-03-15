@@ -109,6 +109,8 @@ const GameScreen: React.FC<GameScreenProps> = ({
   const [throwFromName, setThrowFromName] = useState('');
   const [yourTurnNotif, setYourTurnNotif] = useState(false);
   const [luckyWinnerId, setLuckyWinnerId] = useState<string | null>(null);
+  const [sabotageStep, setSabotageStep] = useState<'type' | 'target'>('type');
+  const [selectedSabotageType, setSelectedSabotageType] = useState<'blind' | 'timebomb' | 'decoy' | null>(null);
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const pendingToastRef = useRef<string | undefined>(undefined);
@@ -652,14 +654,17 @@ const GameScreen: React.FC<GameScreenProps> = ({
       showToast('Wrong! No extra life for you.');
     } else {
       playSound('correct', sound);
-      // Host processes locally
+      // Host processes locally — delay to allow in-flight guest answers to arrive first
+      // (host processes synchronously, guests arrive via async WebRTC, so host always wins without this delay)
       if (isHost) {
-        if (luckyWinnerIdRef.current) return; // someone already won
-        setLuckyWinnerId(localPlayerId);
-        luckyWinnerIdRef.current = localPlayerId;
-        broadcastToast(`\u2B50 ${playersRef.current.find((p) => p.id === localPlayerId)?.name || 'You'} wins the Lucky Question! +1 life!`);
-        if (chainTimerRef.current) { clearInterval(chainTimerRef.current); chainTimerRef.current = null; }
-        finishLuckyRef.current();
+        setTimeout(() => {
+          if (luckyWinnerIdRef.current) return; // a guest already won
+          setLuckyWinnerId(localPlayerId);
+          luckyWinnerIdRef.current = localPlayerId;
+          broadcastToast(`\u2B50 ${playersRef.current.find((p) => p.id === localPlayerId)?.name || 'You'} wins the Lucky Question! +1 life!`);
+          if (chainTimerRef.current) { clearInterval(chainTimerRef.current); chainTimerRef.current = null; }
+          finishLuckyRef.current();
+        }, 150);
       }
     }
   };
@@ -814,6 +819,8 @@ const GameScreen: React.FC<GameScreenProps> = ({
         broadcastState(newPlayers, newRound, overlayRef.current, explosionInfoRef.current, chainQuestionRef.current);
         // Show sabotage picker after delay
         setTimeout(() => {
+          setSabotageStep('type');
+          setSelectedSabotageType(null);
           setOverlay('sabotage');
           broadcastState(newPlayers, newRound, 'sabotage', explosionInfoRef.current, chainQuestionRef.current);
         }, 800);
@@ -959,39 +966,44 @@ const GameScreen: React.FC<GameScreenProps> = ({
 
     if (!isHost) return;
 
-    const target = playersRef.current.find((p) => p.id === targetId);
-    if (!target) return;
+    // Use functional updater to avoid stale state race conditions
+    setPlayers((prevPlayers) => {
+      const target = prevPlayers.find((p) => p.id === targetId);
+      if (!target) return prevPlayers;
 
-    const curPlayer = playersRef.current[roundRef.current.currentPlayerIdx];
-    if (curPlayer?.id === localPlayerId) playSound('powerup', sound);
-    const typeLabel = type === 'blind' ? 'Blind' : type === 'timebomb' ? 'Time Bomb' : 'Decoy';
-    broadcastToast(`\uD83D\uDC80 ${typeLabel} sent to ${target.name}!`);
+      const curRound = roundRef.current;
+      const curPlayer = prevPlayers[curRound.currentPlayerIdx];
+      if (curPlayer?.id === localPlayerId) playSound('powerup', sound);
+      const typeLabel = type === 'blind' ? 'Blind' : type === 'timebomb' ? 'Time Bomb' : 'Decoy';
+      broadcastToast(`\uD83D\uDC80 ${typeLabel} sent to ${target.name}!`);
 
-    const curRound = roundRef.current;
-    const newPlayers = playersRef.current.map((p, i) => {
-      // Decrement sabotage count for the current player
-      if (i === curRound.currentPlayerIdx) {
-        return { ...p, sabotages: Math.max(0, p.sabotages - 1) };
-      }
-      // Apply effect to target
-      if (p.id === targetId) {
-        if (type === 'timebomb') {
-          const penalty = { easy: 8, medium: 5, hard: 3 }[settings.difficulty];
-          return { ...p, timePenalty: (p.timePenalty || 0) + penalty };
+      const newPlayers = prevPlayers.map((p, i) => {
+        if (i === curRound.currentPlayerIdx) {
+          return { ...p, sabotages: Math.max(0, p.sabotages - 1) };
         }
-        if (type === 'blind') return { ...p, blindNextRound: true };
-        if (type === 'decoy') return { ...p, decoyNextRound: true };
-      }
-      return p;
-    });
-    setPlayers(newPlayers);
-    setOverlay('none');
+        if (p.id === targetId) {
+          if (type === 'timebomb') {
+            const penalty = { easy: 8, medium: 5, hard: 3 }[settings.difficulty];
+            return { ...p, timePenalty: (p.timePenalty || 0) + penalty };
+          }
+          if (type === 'blind') return { ...p, blindNextRound: true };
+          if (type === 'decoy') return { ...p, decoyNextRound: true };
+        }
+        return p;
+      });
 
-    if (!curRound.answered) {
-      broadcastState(newPlayers, curRound, 'none', explosionInfoRef.current, chainQuestionRef.current);
-    } else {
-      passToNextRef.current(newPlayers);
-    }
+      // Schedule broadcast/passToNext after state commits
+      setTimeout(() => {
+        if (!curRound.answered) {
+          broadcastState(newPlayers, curRound, 'none', explosionInfoRef.current, chainQuestionRef.current);
+        } else {
+          passToNextRef.current(newPlayers);
+        }
+      }, 0);
+
+      return newPlayers;
+    });
+    setOverlay('none');
   };
 
   const handleSkipSabotage = (fromRemote = false) => {
@@ -1439,38 +1451,61 @@ const GameScreen: React.FC<GameScreenProps> = ({
             <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '2rem', letterSpacing: 3, color: C.accent2, marginBottom: 8 }}>
               {'\uD83D\uDE08'} SABOTAGE!
             </div>
-            <div style={{ fontSize: '0.85rem', color: C.muted }}>{currentPlayer?.name} answered fast &mdash; choose a sabotage!</div>
+            <div style={{ fontSize: '0.85rem', color: C.muted }}>
+              {sabotageStep === 'type'
+                ? <>{currentPlayer?.name} answered fast &mdash; choose a sabotage!</>
+                : <>Select a target for <strong>{selectedSabotageType === 'blind' ? 'Blind' : selectedSabotageType === 'timebomb' ? 'Time Bomb' : 'Decoy'}</strong></>
+              }
+            </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 16 }}>
               {isLocalTurn ? (
                 <>
-                  {activePlayers.filter((p) => p.id !== currentPlayer?.id).map((p) => (
-                    <React.Fragment key={p.id}>
+                  {sabotageStep === 'type' ? (
+                    <>
                       <button
-                        onClick={() => handleSabotage('blind', p.id)}
+                        onClick={() => { setSelectedSabotageType('blind'); setSabotageStep('target'); }}
                         style={sabotageOptionStyle}
                       >
-                        <span>{'\uD83D\uDE48'}</span> Blind {p.name}'s answers
+                        <span>{'\uD83D\uDE48'}</span> Blind &mdash; <span style={{ color: C.muted, fontWeight: 600 }}>Blur all answer options</span>
                       </button>
                       <button
-                        onClick={() => handleSabotage('timebomb', p.id)}
+                        onClick={() => { setSelectedSabotageType('timebomb'); setSabotageStep('target'); }}
                         style={sabotageOptionStyle}
                       >
-                        <span>{'\u23F1\uFE0F'}</span> -{({ easy: 8, medium: 5, hard: 3 })[settings.difficulty]}s from {p.name}'s timer
+                        <span>{'\u23F1\uFE0F'}</span> Time Bomb &mdash; <span style={{ color: C.muted, fontWeight: 600 }}>-{({ easy: 8, medium: 5, hard: 3 })[settings.difficulty]}s from timer</span>
                       </button>
                       <button
-                        onClick={() => handleSabotage('decoy', p.id)}
+                        onClick={() => { setSelectedSabotageType('decoy'); setSabotageStep('target'); }}
                         style={sabotageOptionStyle}
                       >
-                        <span>{'\uD83C\uDFAD'}</span> Add fake answer to {p.name}'s question
+                        <span>{'\uD83C\uDFAD'}</span> Decoy &mdash; <span style={{ color: C.muted, fontWeight: 600 }}>Add a fake answer</span>
                       </button>
-                    </React.Fragment>
-                  ))}
-                  <button
-                    onClick={() => handleSkipSabotage()}
-                    style={{ ...sabotageOptionStyle, color: C.muted, borderColor: C.muted }}
-                  >
-                    Skip sabotage
-                  </button>
+                      <button
+                        onClick={() => handleSkipSabotage()}
+                        style={{ ...sabotageOptionStyle, color: C.muted, borderColor: C.muted }}
+                      >
+                        Skip sabotage
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        onClick={() => setSabotageStep('type')}
+                        style={{ ...sabotageOptionStyle, color: C.muted, borderColor: C.muted, fontSize: '0.8rem' }}
+                      >
+                        {'\u2190'} Back
+                      </button>
+                      {activePlayers.filter((p) => p.id !== currentPlayer?.id).map((p) => (
+                        <button
+                          key={p.id}
+                          onClick={() => selectedSabotageType && handleSabotage(selectedSabotageType, p.id)}
+                          style={sabotageOptionStyle}
+                        >
+                          <span style={{ fontSize: '1.3rem' }}>{p.avatar}</span> {p.name}
+                        </button>
+                      ))}
+                    </>
+                  )}
                 </>
               ) : (
                 <div style={{ fontSize: '0.9rem', color: C.muted, padding: 16 }}>
@@ -1517,14 +1552,20 @@ const GameScreen: React.FC<GameScreenProps> = ({
         </div>
       )}
 
-      {/* Toast */}
+      {/* Banner Notification */}
       <div style={{
-        position: 'fixed', top: 20, left: '50%',
-        transform: `translateX(-50%) translateY(${toastVisible ? '0' : '-100px'})`,
-        background: C.card, border: `1px solid ${C.border}`, borderRadius: 12,
-        padding: '12px 20px', fontSize: '0.85rem', fontWeight: 700,
-        zIndex: 1000, transition: 'transform 0.3s cubic-bezier(0.34,1.56,0.64,1)',
-        whiteSpace: 'nowrap', fontFamily: "'Nunito', sans-serif", color: C.white,
+        position: 'fixed', top: '15%', left: '50%',
+        transform: `translateX(-50%) scale(${toastVisible ? 1 : 0.8})`,
+        opacity: toastVisible ? 1 : 0,
+        background: 'rgba(30, 30, 36, 0.95)',
+        backdropFilter: 'blur(12px)',
+        WebkitBackdropFilter: 'blur(12px)',
+        border: `1.5px solid ${C.border}`, borderRadius: 16,
+        padding: '16px 28px', fontSize: '1.05rem', fontWeight: 800,
+        zIndex: 1000, transition: 'all 0.35s cubic-bezier(0.34,1.56,0.64,1)',
+        fontFamily: "'Nunito', sans-serif", color: C.white,
+        pointerEvents: 'none', textAlign: 'center', maxWidth: '85%',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
       }}>
         {toast}
       </div>
