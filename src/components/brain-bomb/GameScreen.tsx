@@ -82,7 +82,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
 
   // Only host generates the initial question; guests get it via state sync
   const [round, setRound] = useState<RoundState>(() => ({
-    currentPlayerIdx: 0,
+    currentPlayerIdx: isHost ? Math.floor(Math.random() * initialPlayers.length) : 0,
     question: isHost
       ? getRandomQuestion(settings.activeSubs, settings.difficulty)
       : { q: '...', a: ['...', '...', '...', '...'], correct: 0, diff: settings.difficulty },
