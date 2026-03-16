@@ -115,6 +115,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
   const [luckyWinnerId, setLuckyWinnerId] = useState<string | null>(null);
   const [sabotageStep, setSabotageStep] = useState<'type' | 'target'>('type');
   const [selectedSabotageType, setSelectedSabotageType] = useState<'blind' | 'timebomb' | 'decoy' | null>(null);
+  const [selectedSabotageTarget, setSelectedSabotageTarget] = useState<string | null>(null);
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const pendingToastRef = useRef<string | undefined>(undefined);
@@ -239,7 +240,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
       // Reset sabotage UI when overlay transitions to/from sabotage
       if (state.overlay === 'sabotage' && overlay !== 'sabotage') {
         setSabotageStep('type');
-        setSelectedSabotageType(null);
+        setSelectedSabotageType(null); setSelectedSabotageTarget(null);
       }
       setExplosionInfo(state.explosionInfo);
       setChainQuestion(state.chainQuestion);
@@ -955,7 +956,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
         // Show sabotage picker after delay
         setTimeout(() => {
           setSabotageStep('type');
-          setSelectedSabotageType(null);
+          setSelectedSabotageType(null); setSelectedSabotageTarget(null);
           setOverlay('sabotage');
           broadcastState(newPlayers, newRound, 'sabotage', explosionInfoRef.current, chainQuestionRef.current);
         }, 800);
@@ -1132,7 +1133,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
       // Reset sabotage UI state on the guest side after sending
       setOverlay('none');
       setSabotageStep('type');
-      setSelectedSabotageType(null);
+      setSelectedSabotageType(null); setSelectedSabotageTarget(null);
       return;
     }
 
@@ -1176,7 +1177,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
     });
     setOverlay('none');
     setSabotageStep('type');
-    setSelectedSabotageType(null);
+    setSelectedSabotageType(null); setSelectedSabotageTarget(null);
   };
 
   const handleRerollPowerup = (fromRemote = false) => {
@@ -1187,7 +1188,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
       // Reset sabotage UI state on the guest side after sending
       setOverlay('none');
       setSabotageStep('type');
-      setSelectedSabotageType(null);
+      setSelectedSabotageType(null); setSelectedSabotageTarget(null);
       return;
     }
     if (!isHost) return;
@@ -1221,7 +1222,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
     });
     setOverlay('none');
     setSabotageStep('type');
-    setSelectedSabotageType(null);
+    setSelectedSabotageType(null); setSelectedSabotageTarget(null);
   };
 
   // Cleanup on unmount
@@ -1741,15 +1742,30 @@ const GameScreen: React.FC<GameScreenProps> = ({
                       >
                         <span>{'\uD83D\uDD19'}</span> Back
                       </button>
-                      {activePlayers.filter((p) => p.id !== currentPlayer?.id).map((p) => (
-                        <button
-                          key={p.id}
-                          onClick={() => selectedSabotageType && handleSabotage(selectedSabotageType, p.id)}
-                          style={sabotageOptionStyle}
-                        >
-                          <span style={{ fontSize: '1.3rem' }}>{p.avatar}</span> {p.name}
-                        </button>
-                      ))}
+                      {activePlayers.filter((p) => p.id !== currentPlayer?.id).map((p) => {
+                        const isSelected = selectedSabotageTarget === p.id;
+                        return (
+                          <button
+                            key={p.id}
+                            disabled={!!selectedSabotageTarget}
+                            onClick={() => {
+                              if (!selectedSabotageType || selectedSabotageTarget) return;
+                              setSelectedSabotageTarget(p.id);
+                              setTimeout(() => {
+                                handleSabotage(selectedSabotageType, p.id);
+                                setSelectedSabotageTarget(null);
+                              }, 400);
+                            }}
+                            style={{
+                              ...sabotageOptionStyle,
+                              ...(isSelected ? { background: 'rgba(255,149,0,0.3)', borderColor: C.accent2, transform: 'scale(0.96)' } : {}),
+                              transition: 'all 0.15s ease',
+                            }}
+                          >
+                            <span style={{ fontSize: '1.3rem' }}>{p.avatar}</span> {p.name}
+                          </button>
+                        );
+                      })}
                     </>
                   )}
                 </>
