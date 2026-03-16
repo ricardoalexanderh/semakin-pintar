@@ -285,8 +285,8 @@ const GameScreen: React.FC<GameScreenProps> = ({
         handleCloneTarget(targetId, true);
       } else if (msg.type === 'sabotage-applied') {
         const { sabotageType, targetId } = msg.payload as { sabotageType: string; targetId: string };
-        if (sabotageType === 'skip') {
-          handleSkipSabotage(true);
+        if (sabotageType === 'reroll') {
+          handleRerollPowerup(true);
         } else {
           handleSabotage(sabotageType as 'blind' | 'timebomb' | 'decoy', targetId, true);
         }
@@ -1141,14 +1141,22 @@ const GameScreen: React.FC<GameScreenProps> = ({
     setOverlay('none');
   };
 
-  const handleSkipSabotage = (fromRemote = false) => {
+  const handleRerollPowerup = (fromRemote = false) => {
+    const currentTurnId = playersRef.current[roundRef.current.currentPlayerIdx]?.id;
     if (!isHost && !fromRemote) {
       if (gameRoom) {
-        gameRoom.broadcast('sabotage-applied', { sabotageType: 'skip', targetId: '' });
+        gameRoom.broadcast('sabotage-applied', { sabotageType: 'reroll', targetId: '' });
       }
       return;
     }
     if (!isHost) return;
+    // Grant a random power-up to the current player
+    const powerupTypes: ('shield' | 'freeze' | 'clone')[] = ['shield', 'freeze', 'clone'];
+    const randomPowerup = powerupTypes[Math.floor(Math.random() * powerupTypes.length)];
+    setPlayers(prev => prev.map(p => {
+      if (p.id !== currentTurnId) return p;
+      return { ...p, powerups: { ...p.powerups, [randomPowerup]: p.powerups[randomPowerup] + 1 } };
+    }));
     setOverlay('none');
     broadcastState(playersRef.current, roundRef.current, 'none', explosionInfoRef.current, chainQuestionRef.current);
     passToNextRef.current();
@@ -1630,10 +1638,10 @@ const GameScreen: React.FC<GameScreenProps> = ({
                         <span>{'\uD83C\uDFAD'}</span> <span style={{ whiteSpace: 'nowrap' }}>Decoy &mdash; <span style={{ color: C.muted, fontWeight: 600 }}>Add a fake answer</span></span>
                       </button>
                       <button
-                        onClick={() => handleSkipSabotage()}
-                        style={{ ...sabotageOptionStyle, color: C.muted, borderColor: C.muted }}
+                        onClick={() => handleRerollPowerup()}
+                        style={sabotageOptionStyle}
                       >
-                        <span>{'\u23ED\uFE0F'}</span> Skip
+                        <span>{'\uD83C\uDFB2'}</span> <span style={{ whiteSpace: 'nowrap' }}>Reroll &mdash; <span style={{ color: C.muted, fontWeight: 600 }}>Get a random power-up</span></span>
                       </button>
                     </>
                   ) : (
