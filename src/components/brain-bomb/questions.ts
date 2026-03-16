@@ -672,6 +672,46 @@ function generatePattern(diff: Difficulty): Question {
   return { q, a, correct, diff };
 }
 
+function generateMemoryNumbers(diff: Difficulty): Question {
+  const len = diff === 'easy' ? 2 : diff === 'medium' ? 4 : 5;
+  const seq = Array.from({ length: len }, () => randInt(1, 9));
+  const posIdx = randInt(0, len - 1);
+  const posLabel = ['FIRST', 'SECOND', 'THIRD', 'FOURTH', 'FIFTH'][posIdx];
+  const correctVal = String(seq[posIdx]);
+
+  // Generate distractors: other numbers not at that position
+  const wrongs = new Set<string>();
+  for (const n of seq) { if (String(n) !== correctVal) wrongs.add(String(n)); }
+  while (wrongs.size < 3) { wrongs.add(String(randInt(1, 9))); wrongs.delete(correctVal); }
+
+  const { a, correct } = shuffleAnswers(correctVal, Array.from(wrongs));
+  return { q: `Remember: ${seq.join('-')}. What was ${posLabel}?`, a, correct, diff, memory: true };
+}
+
+function generateMemoryWords(diff: Difficulty): Question {
+  const wordPool = ['Red', 'Blue', 'Green', 'Yellow', 'Cat', 'Dog', 'Bird', 'Fish',
+    'Sun', 'Moon', 'Star', 'Sky', 'Tree', 'Rock', 'Lake', 'Sand',
+    'Apple', 'Rain', 'Snow', 'Wind', 'Iron', 'Gold', 'North', 'East'];
+  const len = diff === 'easy' ? 2 : diff === 'medium' ? 3 : 4;
+  // Pick unique words
+  const shuffled = [...wordPool].sort(() => Math.random() - 0.5);
+  const seq = shuffled.slice(0, len);
+  const posIdx = randInt(0, len - 1);
+  const posLabel = ['FIRST', 'SECOND', 'THIRD', 'FOURTH'][posIdx];
+  const correctVal = seq[posIdx];
+
+  const wrongs = new Set<string>();
+  for (const w of seq) { if (w !== correctVal) wrongs.add(w); }
+  while (wrongs.size < 3) {
+    const extra = pickOne(shuffled.filter((w) => !seq.includes(w) && !wrongs.has(w)));
+    if (extra) wrongs.add(extra); else break;
+  }
+  wrongs.delete(correctVal);
+
+  const { a, correct } = shuffleAnswers(correctVal, Array.from(wrongs));
+  return { q: `Remember: ${seq.join('-')}. What was ${posLabel}?`, a, correct, diff, memory: true };
+}
+
 // Map subcategories to their generator functions
 const GENERATORS: Record<string, (diff: Difficulty) => Question> = {
   math_arithmetic: generateArithmetic,
@@ -679,6 +719,8 @@ const GENERATORS: Record<string, (diff: Difficulty) => Question> = {
   math_percent: generatePercent,
   math_missing: generateMissing,
   logic_patterns: generatePattern,
+  memory_numbers: generateMemoryNumbers,
+  memory_words: generateMemoryWords,
 };
 
 // Track used questions to avoid repeats within a session

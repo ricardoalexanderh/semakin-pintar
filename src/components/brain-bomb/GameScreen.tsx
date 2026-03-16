@@ -1129,6 +1129,8 @@ const GameScreen: React.FC<GameScreenProps> = ({
       return newPlayers;
     });
     setOverlay('none');
+    setSabotageStep('type');
+    setSelectedSabotageType(null);
   };
 
   const handleRerollPowerup = (fromRemote = false) => {
@@ -1168,6 +1170,8 @@ const GameScreen: React.FC<GameScreenProps> = ({
       return newPlayers;
     });
     setOverlay('none');
+    setSabotageStep('type');
+    setSelectedSabotageType(null);
   };
 
   // Cleanup on unmount

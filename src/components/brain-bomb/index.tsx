@@ -6,7 +6,7 @@ import { trackGameEvent, trackButtonClick, trackGameCompletion } from '../../uti
 import { useGameState } from '../../hooks/useGameState';
 import type { Player, LobbySettings, GamePhase } from './types';
 import { AVATARS, PLAYER_COLORS, DIFFICULTY_CONFIG } from './types';
-import { initAudioContext, playSound } from './audio';
+import { initAudioContext, resumeAudioContext, playSound } from './audio';
 import { generateRoomCode, GameRoom } from './webrtc';
 import { screenBase, KEYFRAMES, C, lobbyCard, cardTitle, startBtn } from './styles';
 import LobbyScreen from './LobbyScreen';
@@ -75,11 +75,15 @@ const BrainBombGame: React.FC = () => {
   // Keep phaseRef in sync
   useEffect(() => { phaseRef.current = phase; }, [phase]);
 
-  // Init audio on first interaction
+  // Init audio on first interaction and keep resuming on subsequent taps (mobile suspends AudioContext during idle)
   useEffect(() => {
-    const handler = () => { initAudioContext(); document.removeEventListener('click', handler); };
-    document.addEventListener('click', handler);
-    return () => document.removeEventListener('click', handler);
+    let initialized = false;
+    const handler = () => {
+      if (!initialized) { initAudioContext(); initialized = true; }
+      resumeAudioContext();
+    };
+    document.addEventListener('pointerdown', handler);
+    return () => document.removeEventListener('pointerdown', handler);
   }, []);
 
   // BGM setup
