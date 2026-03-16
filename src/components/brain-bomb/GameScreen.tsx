@@ -143,6 +143,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
   luckyWinnerIdRef.current = luckyWinnerId;
   const luckyRespondentsRef = useRef<Set<string>>(new Set());
   const luckyFinishingRef = useRef(false); // Guard against double finishLuckyQuestion calls
+  const luckyShownAtRef = useRef<number>(0); // When the lucky question overlay appeared locally (for elapsed time calc)
 
   const sound = settings.enableSound;
   const currentPlayer = players[round.currentPlayerIdx];
@@ -251,6 +252,9 @@ const GameScreen: React.FC<GameScreenProps> = ({
       // Reset chainAnswered only when a NEW chain/lucky starts (not on every timer sync)
       if ((state.overlay === 'chain' || state.overlay === 'lucky') && state.chainQuestion && overlay !== 'chain' && overlay !== 'lucky') {
         setChainAnswered(false);
+        if (state.overlay === 'lucky') {
+          luckyShownAtRef.current = Date.now(); // Record when guest sees the lucky question
+        }
       }
       // Sync lucky winner
       if (state.luckyWinnerId) {
@@ -284,8 +288,8 @@ const GameScreen: React.FC<GameScreenProps> = ({
         const { answerIdx, playerId } = msg.payload as { answerIdx: number; playerId: string };
         handleRemoteChainAnswer(answerIdx, playerId);
       } else if (msg.type === 'lucky-answer') {
-        const { answerIdx, playerId, timestamp } = msg.payload as { answerIdx: number; playerId: string; timestamp?: number };
-        handleRemoteLuckyAnswer(answerIdx, playerId, timestamp);
+        const { answerIdx, playerId, elapsed } = msg.payload as { answerIdx: number; playerId: string; elapsed?: number };
+        handleRemoteLuckyAnswer(answerIdx, playerId, elapsed);
       } else if (msg.type === 'throw-target') {
         const { targetId } = msg.payload as { targetId: string };
         handleThrowTarget(targetId, true);
@@ -655,6 +659,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
     chainTimeLeftRef.current = maxTime;
     setOverlay('lucky');
     overlayRef.current = 'lucky';
+    luckyShownAtRef.current = Date.now(); // Record when host sees the lucky question
     broadcastState(currentPlayers ?? playersRef.current, roundRef.current, 'lucky', explosionInfoRef.current, q);
 
     if (isHost) {
@@ -676,15 +681,15 @@ const GameScreen: React.FC<GameScreenProps> = ({
   };
   triggerLuckyQuestionRef.current = triggerLuckyQuestion;
 
-  // Track the earliest correct lucky answer (timestamp + playerId) so host can fairly resolve ties
-  const luckyPendingRef = useRef<{ playerId: string; timestamp: number } | null>(null);
+  // Track the fastest correct lucky answer (elapsed reaction time + playerId) so host can fairly resolve ties
+  const luckyPendingRef = useRef<{ playerId: string; elapsed: number } | null>(null);
 
-  const resolveLuckyWinner = (candidateId: string, candidateTimestamp: number) => {
+  const resolveLuckyWinner = (candidateId: string, candidateElapsed: number) => {
     if (luckyWinnerIdRef.current) return; // already resolved
     const pending = luckyPendingRef.current;
-    // Pick the earlier timestamp, or keep existing if tied
-    if (pending && pending.timestamp <= candidateTimestamp) return; // existing pending is earlier
-    luckyPendingRef.current = { playerId: candidateId, timestamp: candidateTimestamp };
+    // Pick the faster reaction (lower elapsed), or keep existing if tied
+    if (pending && pending.elapsed <= candidateElapsed) return; // existing pending is faster
+    luckyPendingRef.current = { playerId: candidateId, elapsed: candidateElapsed };
   };
 
   const finalizeLuckyWinner = () => {
@@ -702,7 +707,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
     finishLuckyRef.current();
   };
 
-  const handleRemoteLuckyAnswer = (idx: number, playerId: string, _timestamp?: number) => {
+  const handleRemoteLuckyAnswer = (idx: number, playerId: string, elapsed?: number) => {
     const cq = chainQuestionRef.current;
     if (!cq) return;
     // Reject answers once lucky question is finishing (prevents late overrides)
@@ -715,14 +720,13 @@ const GameScreen: React.FC<GameScreenProps> = ({
     luckyRespondentsRef.current.add(playerId);
 
     if (idx === cq.correct) {
-      // Use host's receive time instead of guest's timestamp to avoid clock skew issues.
-      // Different devices have different Date.now() values, so cross-device timestamp
-      // comparison is unreliable. Host receive time is fair: network latency is the only
-      // disadvantage for remote players, which is inherent to the architecture.
-      const ts = Date.now();
+      // Use elapsed time (ms since the player saw the lucky question) for fair comparison.
+      // Each player measures their own reaction time locally, avoiding clock skew between
+      // devices. The player with the smallest elapsed time (fastest reaction) wins.
+      const reactionTime = elapsed ?? (Date.now() - luckyShownAtRef.current);
       // Once finalized, winner is locked — reject late answers to prevent desync
       if (luckyWinnerIdRef.current) return;
-      resolveLuckyWinner(playerId, ts);
+      resolveLuckyWinner(playerId, reactionTime);
       // Wait a bit for any other answers, then finalize
       setTimeout(() => finalizeLuckyWinner(), 600);
     } else {
@@ -755,10 +759,13 @@ const GameScreen: React.FC<GameScreenProps> = ({
     const localPlayer = playersRef.current.find((p) => p.id === localPlayerId);
     if (localPlayer?.eliminated) return; // Eliminated players cannot answer
     setChainAnswered(true);
-    const answerTime = Date.now();
+    // Compute elapsed time since lucky question appeared on THIS device.
+    // Using elapsed (reaction time) instead of absolute Date.now() avoids clock skew
+    // between devices and ensures fair comparison on the host.
+    const elapsed = Date.now() - luckyShownAtRef.current;
 
     if (!isHost && gameRoom) {
-      gameRoom.broadcast('lucky-answer', { answerIdx: idx, playerId: localPlayerId, timestamp: answerTime });
+      gameRoom.broadcast('lucky-answer', { answerIdx: idx, playerId: localPlayerId, elapsed });
     }
 
     if (idx !== chainQuestion.correct) {
@@ -774,7 +781,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
       if (isHost) {
         // Track host's correct answer
         luckyRespondentsRef.current.add(localPlayerId);
-        resolveLuckyWinner(localPlayerId, answerTime);
+        resolveLuckyWinner(localPlayerId, elapsed);
         setTimeout(() => finalizeLuckyWinner(), 600);
       }
     }
