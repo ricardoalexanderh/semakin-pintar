@@ -74,6 +74,7 @@ export class GameRoom {
   private destroyed = false;
   private initRetries = 0;
   private forceRelay = false;
+  private pendingConn: DataConnection | null = null;
 
   constructor(
     roomCode: string,
@@ -112,6 +113,7 @@ export class GameRoom {
         // Guest: connect to the host
         const hostId = `${PEER_PREFIX}${this.roomCode}`;
         const conn = this.peer!.connect(hostId, { reliable: true });
+        this.pendingConn = conn;
         this.setupConnection(conn);
       }
 
@@ -123,14 +125,18 @@ export class GameRoom {
       console.warn('[Brain Bomb WebRTC] Peer error:', err.type, err.message);
 
       // If host ID is taken (e.g. from React StrictMode double-mount), retry after a delay
-      if (err.type === 'unavailable-id' && this.isHost && this.initRetries < 3) {
-        this.initRetries++;
-        console.warn('[Brain Bomb WebRTC] Room ID taken, retrying...', this.initRetries);
-        try { this.peer?.destroy(); } catch { /* already destroyed */ }
-        this.peer = null;
-        setTimeout(() => {
-          if (!this.destroyed) this.init();
-        }, 800 * this.initRetries);
+      if (err.type === 'unavailable-id' && this.isHost) {
+        if (this.initRetries < 3) {
+          this.initRetries++;
+          console.warn('[Brain Bomb WebRTC] Room ID taken, retrying...', this.initRetries);
+          try { this.peer?.destroy(); } catch { /* already destroyed */ }
+          this.peer = null;
+          setTimeout(() => {
+            if (!this.destroyed) this.init();
+          }, 800 * this.initRetries);
+        } else {
+          this.onError('connection-failed', 'Could not create room. Please try again.');
+        }
         return;
       }
 
@@ -138,10 +144,16 @@ export class GameRoom {
       if (err.type === 'peer-unavailable' && !this.isHost && this.initRetries < 5) {
         this.initRetries++;
         console.warn('[Brain Bomb WebRTC] Host not found, retrying...', this.initRetries);
+        // Close previous pending connection to avoid orphaned connections
+        if (this.pendingConn) {
+          try { this.pendingConn.close(); } catch { /* already closed */ }
+          this.pendingConn = null;
+        }
         setTimeout(() => {
           if (!this.destroyed && this.peer && !this.peer.destroyed) {
             const hostId = `${PEER_PREFIX}${this.roomCode}`;
             const conn = this.peer.connect(hostId, { reliable: true });
+            this.pendingConn = conn;
             this.setupConnection(conn);
           }
         }, 1500 * this.initRetries);
@@ -181,9 +193,19 @@ export class GameRoom {
       }
     }, 15000) : null;
 
+    // Host-side timeout: if a guest connection never opens, clean it up
+    const hostTimeout = this.isHost ? setTimeout(() => {
+      if (!conn.open && !this.destroyed) {
+        console.warn('[Brain Bomb WebRTC] Host-side connection timed out, closing stale connection');
+        try { conn.close(); } catch { /* */ }
+      }
+    }, 30000) : null;
+
     conn.on('open', () => {
       if (timeout) clearTimeout(timeout);
+      if (hostTimeout) clearTimeout(hostTimeout);
       if (this.destroyed) return;
+      if (this.pendingConn === conn) this.pendingConn = null;
       const remotePeerId = conn.peer.replace(PEER_PREFIX, '');
       this.connections.set(remotePeerId, conn);
       this.onPeerConnected(remotePeerId);
@@ -191,6 +213,11 @@ export class GameRoom {
 
     conn.on('data', (data) => {
       if (this.destroyed) return;
+      // Validate message structure before processing
+      if (!data || typeof data !== 'object' || !('type' in data) || !('senderId' in data)) {
+        console.warn('[Brain Bomb WebRTC] Received malformed message, ignoring');
+        return;
+      }
       const msg = data as PeerMessage;
       if (msg.senderId === this.peerId) return;
 
@@ -244,6 +271,10 @@ export class GameRoom {
 
   destroy() {
     this.destroyed = true;
+    if (this.pendingConn) {
+      try { this.pendingConn.close(); } catch { /* already closed */ }
+      this.pendingConn = null;
+    }
     for (const [, conn] of this.connections) {
       try { conn.close(); } catch { /* already closed */ }
     }

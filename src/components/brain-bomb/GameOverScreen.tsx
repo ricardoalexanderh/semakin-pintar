@@ -27,20 +27,21 @@ const GameOverScreen: React.FC<GameOverScreenProps> = ({
   });
 
   const winner = sorted[0];
+  const allEliminated = sorted.every((p) => p.eliminated);
 
   return (
     <div style={{ padding: 24, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16, justifyContent: 'center', minHeight: '80vh' }}>
       {/* Winner display */}
       <div style={{ textAlign: 'center', marginBottom: 8 }}>
         <span style={{ fontSize: '4rem', display: 'block', marginBottom: 8, animation: 'bb-trophy-bounce 1s ease-in-out infinite' }}>
-          {'\uD83C\uDFC6'}
+          {allEliminated ? '\uD83D\uDCA5' : '\uD83C\uDFC6'}
         </span>
         <div style={{
           fontFamily: "'Space Mono', monospace",
           fontSize: '0.65rem', letterSpacing: 4, color: C.muted,
           textTransform: 'uppercase', marginBottom: 4,
         }}>
-          Winner
+          {allEliminated ? 'No Winner' : 'Winner'}
         </div>
         <div style={{
           fontFamily: "'Bebas Neue', sans-serif",
@@ -49,7 +50,7 @@ const GameOverScreen: React.FC<GameOverScreenProps> = ({
           WebkitBackgroundClip: 'text',
           WebkitTextFillColor: 'transparent',
         }}>
-          {winner?.name.toUpperCase()}
+          {allEliminated ? 'DRAW' : winner?.name.toUpperCase()}
         </div>
       </div>
 

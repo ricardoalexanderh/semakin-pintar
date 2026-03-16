@@ -687,20 +687,8 @@ const GameScreen: React.FC<GameScreenProps> = ({
 
     if (idx === cq.correct) {
       const ts = timestamp ?? Date.now();
-      if (luckyWinnerIdRef.current) {
-        // Already finalized — check if this remote player was actually faster
-        const pending = luckyPendingRef.current;
-        if (pending && ts < pending.timestamp) {
-          // Remote player was faster — override the winner
-          luckyPendingRef.current = { playerId, timestamp: ts };
-          setLuckyWinnerId(playerId);
-          luckyWinnerIdRef.current = playerId;
-          const p = playersRef.current.find((p) => p.id === playerId);
-          broadcastToast(`\u2B50 ${p?.name || 'Someone'} wins the Lucky Question! +1 life!`);
-          broadcastState(playersRef.current, roundRef.current, 'lucky', explosionInfoRef.current, chainQuestionRef.current);
-        }
-        return;
-      }
+      // Once finalized, winner is locked — reject late answers to prevent desync
+      if (luckyWinnerIdRef.current) return;
       resolveLuckyWinner(playerId, ts);
       // Wait a bit for any other answers, then finalize
       setTimeout(() => finalizeLuckyWinner(), 600);
@@ -795,13 +783,14 @@ const GameScreen: React.FC<GameScreenProps> = ({
 
     // Apply blind sabotage: blur ALL answers (gradually becomes visible)
     const isBlind = !!nextPlayer.blindNextRound;
-    const blindAnswers = isBlind ? newQuestion.a.map((_, i) => i) : [];
+    const hasDecoy = !!nextPlayer.decoyNextRound;
+    // Include -1 (decoy index) in blindAnswers so decoy is also blurred
+    const blindAnswers = isBlind ? [...newQuestion.a.map((_, i) => i), ...(hasDecoy ? [-1] : [])] : [];
 
     const nextRound = curRound.round + 1;
     const isLuckyRound = nextRound > 0 && nextRound % 8 === 0;
 
     // Apply decoy sabotage: add a fake 5th answer
-    const hasDecoy = !!nextPlayer.decoyNextRound;
     let decoyAnswer = '';
     if (hasDecoy) {
       // Generate a plausible fake answer from a different question in the same category
@@ -1045,9 +1034,9 @@ const GameScreen: React.FC<GameScreenProps> = ({
         : baseTime;
       // Apply blind sabotage
       const isBlind = !!target.blindNextRound;
-      const blindAnswers = isBlind ? sameQuestion.a.map((_, i) => i) : [];
-      // Apply decoy sabotage
       const hasDecoy = !!target.decoyNextRound;
+      // Include -1 (decoy index) in blindAnswers so decoy is also blurred
+      const blindAnswers = isBlind ? [...sameQuestion.a.map((_, i) => i), ...(hasDecoy ? [-1] : [])] : [];
       let decoyAnswer = '';
       if (hasDecoy) {
         const otherQ = getRandomQuestion(settings.activeSubs, settings.difficulty);
