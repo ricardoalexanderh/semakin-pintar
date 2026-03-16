@@ -14,6 +14,7 @@ interface GameScreenProps {
   onGameOver: (players: Player[]) => void;
   gameRoom?: GameRoom | null;
   isHost: boolean;
+  startingPlayerIdx?: number;
 }
 
 interface RoundState {
@@ -57,6 +58,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
   onGameOver,
   gameRoom,
   isHost,
+  startingPlayerIdx: startIdx,
 }) => {
   // Reset used questions at game start so we get fresh questions
   useState(() => { resetUsedQuestions(); return null; });
@@ -71,7 +73,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
       usedPowerupThisRound: false,
       powerups: { shield: 1, freeze: 1, clone: 1 },
       shieldActive: false,
-      timePenalty: 0,
+      timeBombActive: false,
       blindNextRound: false,
       decoyNextRound: false,
       savedTime: settings.mode === 'sudden' ? DIFFICULTY_CONFIG[settings.difficulty].timer : (settings.timer || DIFFICULTY_CONFIG[settings.difficulty].timer),
@@ -82,7 +84,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
 
   // Only host generates the initial question; guests get it via state sync
   const [round, setRound] = useState<RoundState>(() => ({
-    currentPlayerIdx: isHost ? Math.floor(Math.random() * initialPlayers.length) : 0,
+    currentPlayerIdx: startIdx ?? (isHost ? Math.floor(Math.random() * initialPlayers.length) : 0),
     question: isHost
       ? getRandomQuestion(settings.activeSubs, settings.difficulty)
       : { q: '...', a: ['...', '...', '...', '...'], correct: 0, diff: settings.difficulty },
@@ -137,6 +139,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
   chainTimeLeftRef.current = chainTimeLeft;
   const luckyWinnerIdRef = useRef<string | null>(null);
   luckyWinnerIdRef.current = luckyWinnerId;
+  const luckyRespondentsRef = useRef<Set<string>>(new Set());
 
   const sound = settings.enableSound;
   const currentPlayer = players[round.currentPlayerIdx];
@@ -593,6 +596,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
       setChainTimeLeft(0);
       setLuckyWinnerId(null);
       luckyWinnerIdRef.current = null;
+      luckyRespondentsRef.current = new Set();
       broadcastState(updatedPlayers, roundRef.current, 'none', explosionInfoRef.current, null);
       passToNextRef.current(updatedPlayers);
     }, 2000);
@@ -609,6 +613,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
     setLuckyWinnerId(null);
     luckyWinnerIdRef.current = null;
     luckyPendingRef.current = null;
+    luckyRespondentsRef.current = new Set();
     setChainTimeLeft(maxTime);
     chainTimeLeftRef.current = maxTime;
     setOverlay('lucky');
@@ -666,14 +671,16 @@ const GameScreen: React.FC<GameScreenProps> = ({
     // Reject answers from eliminated players
     const player = playersRef.current.find((p) => p.id === playerId);
     if (player?.eliminated) return;
-    // Allow overriding even after finalization if the remote player was truly faster
+
+    // Track this respondent
+    luckyRespondentsRef.current.add(playerId);
+
     if (idx === cq.correct) {
       const ts = timestamp ?? Date.now();
       if (luckyWinnerIdRef.current) {
         // Already finalized — check if this remote player was actually faster
         const pending = luckyPendingRef.current;
         if (pending && ts < pending.timestamp) {
-          // Remote player was faster — override the winner
           luckyPendingRef.current = { playerId, timestamp: ts };
           setLuckyWinnerId(playerId);
           luckyWinnerIdRef.current = playerId;
@@ -686,6 +693,28 @@ const GameScreen: React.FC<GameScreenProps> = ({
       resolveLuckyWinner(playerId, ts);
       // Wait a bit for any other answers, then finalize
       setTimeout(() => finalizeLuckyWinner(), 600);
+    } else {
+      // Wrong answer — check if all active players have now answered
+      checkAllLuckyAnswered();
+    }
+  };
+
+  // Check if all active (non-eliminated) players have answered the lucky question
+  const checkAllLuckyAnswered = () => {
+    if (!isHost) return;
+    if (luckyWinnerIdRef.current) return; // already resolved
+    const activeCount = playersRef.current.filter((p) => !p.eliminated).length;
+    if (luckyRespondentsRef.current.size >= activeCount) {
+      // Everyone answered — finalize (will be no-winner if no correct answer)
+      if (luckyPendingRef.current) {
+        finalizeLuckyWinner();
+      } else {
+        // No correct answers — dismiss
+        if (chainTimerRef.current) { clearInterval(chainTimerRef.current); chainTimerRef.current = null; }
+        broadcastToast('No one got it right!');
+        broadcastState(playersRef.current, roundRef.current, 'lucky', explosionInfoRef.current, chainQuestionRef.current);
+        finishLuckyRef.current();
+      }
     }
   };
 
@@ -703,10 +732,16 @@ const GameScreen: React.FC<GameScreenProps> = ({
     if (idx !== chainQuestion.correct) {
       playSound('wrong', sound);
       showToast('Wrong! No extra life for you.');
+      if (isHost) {
+        // Track host's wrong answer
+        luckyRespondentsRef.current.add(localPlayerId);
+        checkAllLuckyAnswered();
+      }
     } else {
       playSound('correct', sound);
       if (isHost) {
-        // Register host's answer with its timestamp, then wait longer for guest answers to arrive via WebRTC
+        // Track host's correct answer
+        luckyRespondentsRef.current.add(localPlayerId);
         resolveLuckyWinner(localPlayerId, answerTime);
         setTimeout(() => finalizeLuckyWinner(), 600);
       }
@@ -742,9 +777,10 @@ const GameScreen: React.FC<GameScreenProps> = ({
 
     // Next player uses their own saved time (from their previous turn)
     const nextPlayerTime = nextPlayer.savedTime ?? maxTime;
-    // Apply time penalty sabotage
-    const penalty = nextPlayer.timePenalty || 0;
-    const adjustedTime = Math.max(5, nextPlayerTime - penalty);
+    // Apply time bomb sabotage: halve the timer (rounded up)
+    const adjustedTime = nextPlayer.timeBombActive
+      ? Math.max(5, Math.ceil(nextPlayerTime / 2))
+      : nextPlayerTime;
 
     // Apply blind sabotage: blur ALL answers (gradually becomes visible)
     const isBlind = !!nextPlayer.blindNextRound;
@@ -803,7 +839,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
     const newPlayers = cp.map((p, i) => ({
       ...p,
       usedPowerupThisRound: false,
-      timePenalty: i === nextIdx ? 0 : p.timePenalty,
+      timeBombActive: i === nextIdx ? false : p.timeBombActive,
       blindNextRound: i === nextIdx ? false : p.blindNextRound,
       decoyNextRound: i === nextIdx ? false : p.decoyNextRound,
       savedTime: i === curRound.currentPlayerIdx ? savedTimeForCurrent : p.savedTime,
@@ -912,6 +948,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
       };
     });
     setPlayers(newPlayers);
+    playersRef.current = newPlayers; // Sync ref immediately to prevent stale timer broadcasts
 
     if (type === 'shield') {
       broadcastToast(`\uD83D\uDEE1\uFE0F ${cp.name} activated Shield!`);
@@ -977,10 +1014,11 @@ const GameScreen: React.FC<GameScreenProps> = ({
       // Pass the same question to the target (strategic throw for hard questions)
       const sameQuestion = curRound.question;
       const bonusSecs = { easy: 5, medium: 3, hard: 2 }[settings.difficulty];
-      // Apply time penalty sabotage to the target
-      const penalty = target.timePenalty || 0;
+      // Apply time bomb sabotage: halve the timer (rounded up)
       const baseTime = Math.min(curRound.timeLeft + bonusSecs, maxTime);
-      const redirectTime = Math.max(5, baseTime - penalty);
+      const redirectTime = target.timeBombActive
+        ? Math.max(5, Math.ceil(baseTime / 2))
+        : baseTime;
       // Apply blind sabotage
       const isBlind = !!target.blindNextRound;
       const blindAnswers = isBlind ? sameQuestion.a.map((_, i) => i) : [];
@@ -1019,7 +1057,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
       const newPlayers = curPlayers.map((p, i) => ({
         ...p,
         usedPowerupThisRound: false,
-        timePenalty: i === targetIdx ? 0 : p.timePenalty,
+        timeBombActive: i === targetIdx ? false : p.timeBombActive,
         blindNextRound: i === targetIdx ? false : p.blindNextRound,
         decoyNextRound: i === targetIdx ? false : p.decoyNextRound,
       }));
@@ -1056,8 +1094,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
         }
         if (p.id === targetId) {
           if (type === 'timebomb') {
-            const penalty = { easy: 8, medium: 5, hard: 3 }[settings.difficulty];
-            return { ...p, timePenalty: (p.timePenalty || 0) + penalty };
+            return { ...p, timeBombActive: true };
           }
           if (type === 'blind') return { ...p, blindNextRound: true };
           if (type === 'decoy') return { ...p, decoyNextRound: true };
