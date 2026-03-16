@@ -141,6 +141,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
   const luckyWinnerIdRef = useRef<string | null>(null);
   luckyWinnerIdRef.current = luckyWinnerId;
   const luckyRespondentsRef = useRef<Set<string>>(new Set());
+  const luckyFinishingRef = useRef(false); // Guard against double finishLuckyQuestion calls
 
   const sound = settings.enableSound;
   const currentPlayer = players[round.currentPlayerIdx];
@@ -579,6 +580,10 @@ const GameScreen: React.FC<GameScreenProps> = ({
 
   // === Lucky Question (all-player race for +1 life) ===
   const finishLuckyQuestion = useCallback(() => {
+    // Guard: prevent double calls (timer expiry + finalizeLuckyWinner can race)
+    if (luckyFinishingRef.current) return;
+    luckyFinishingRef.current = true;
+
     if (chainTimeoutRef.current) { clearTimeout(chainTimeoutRef.current); chainTimeoutRef.current = null; }
     if (chainTimerRef.current) { clearInterval(chainTimerRef.current); chainTimerRef.current = null; }
 
@@ -598,6 +603,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
       setLuckyWinnerId(null);
       luckyWinnerIdRef.current = null;
       luckyRespondentsRef.current = new Set();
+      luckyFinishingRef.current = false;
       broadcastState(updatedPlayers, roundRef.current, 'none', explosionInfoRef.current, null);
       passToNextRef.current(updatedPlayers);
     }, 2000);
@@ -615,6 +621,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
     luckyWinnerIdRef.current = null;
     luckyPendingRef.current = null;
     luckyRespondentsRef.current = new Set();
+    luckyFinishingRef.current = false;
     setChainTimeLeft(maxTime);
     chainTimeLeftRef.current = maxTime;
     setOverlay('lucky');
@@ -669,6 +676,8 @@ const GameScreen: React.FC<GameScreenProps> = ({
   const handleRemoteLuckyAnswer = (idx: number, playerId: string, timestamp?: number) => {
     const cq = chainQuestionRef.current;
     if (!cq) return;
+    // Reject answers once lucky question is finishing (prevents late overrides)
+    if (luckyFinishingRef.current) return;
     // Reject answers from eliminated players
     const player = playersRef.current.find((p) => p.id === playerId);
     if (player?.eliminated) return;
@@ -855,10 +864,17 @@ const GameScreen: React.FC<GameScreenProps> = ({
     broadcastState(newPlayers, newRound, 'none', { name: '', message: '' }, null);
 
     // Lucky Question: every 8 rounds, trigger all-player race for +1 life
+    // Skip if all active players still have full lives (no one needs the bonus)
+    // Skip if fewer than 2 active players (pointless race)
     if (isLuckyRound && isHost) {
-      setTimeout(() => {
-        triggerLuckyQuestionRef.current(newPlayers);
-      }, 500);
+      const activePlayers = newPlayers.filter((p) => !p.eliminated);
+      const maxLives = settings.mode === 'sudden' ? 1 : DIFFICULTY_CONFIG[settings.difficulty].lives;
+      const allFullLives = activePlayers.every((p) => p.lives >= maxLives);
+      if (activePlayers.length >= 2 && !allFullLives) {
+        setTimeout(() => {
+          triggerLuckyQuestionRef.current(newPlayers);
+        }, 500);
+      }
     }
   };
   passToNextRef.current = passToNext;
