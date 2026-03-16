@@ -33,6 +33,7 @@ interface RoundState {
   decoy?: boolean;
   decoyAnswer?: string;
   isBombed?: boolean; // true when this turn was affected by time bomb (don't save time from it)
+  memoryPhase?: 'memorize' | 'recall'; // two-phase memory questions: show sequence, then hide and ask
 }
 
 interface SyncState {
@@ -234,6 +235,11 @@ const GameScreen: React.FC<GameScreenProps> = ({
       setPlayers(state.players);
       setRound(state.round);
       setOverlay(state.overlay);
+      // Reset sabotage UI when overlay transitions to/from sabotage
+      if (state.overlay === 'sabotage' && overlay !== 'sabotage') {
+        setSabotageStep('type');
+        setSelectedSabotageType(null);
+      }
       setExplosionInfo(state.explosionInfo);
       setChainQuestion(state.chainQuestion);
       if (state.chainTimeLeft != null) setChainTimeLeft(state.chainTimeLeft);
@@ -318,9 +324,11 @@ const GameScreen: React.FC<GameScreenProps> = ({
   }, [isHost, gameRoom]);
 
   // Timer logic (host only runs timer, guests get state via sync)
+  // Pause timer during memory memorize phase
   useEffect(() => {
     if (!isHost) return; // Guests don't run timer
     if (round.answered || overlay !== 'none') return;
+    if (round.memoryPhase === 'memorize') return; // Don't tick during memorize phase
 
     timerRef.current = setInterval(() => {
       setRound((prev) => {
@@ -337,7 +345,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [round.answered, round.frozen, overlay, isHost]);
+  }, [round.answered, round.frozen, overlay, isHost, round.memoryPhase]);
 
   // Play tick sounds (both host and guest based on round state)
   useEffect(() => {
@@ -361,6 +369,27 @@ const GameScreen: React.FC<GameScreenProps> = ({
     if (round.timeLeft <= 0) return;
     broadcastState(playersRef.current, roundRef.current, overlayRef.current, explosionInfoRef.current, chainQuestionRef.current);
   }, [round.timeLeft, isHost, gameRoom, broadcastState]);
+
+  // Memory two-phase: transition from memorize → recall after countdown (host only)
+  const memoryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (!isHost) return;
+    if (round.memoryPhase !== 'memorize') return;
+
+    // Duration based on difficulty: easy=3s, medium=4s, hard=5s
+    const memorizeDuration = round.question.diff === 'easy' ? 3000 : round.question.diff === 'medium' ? 4000 : 5000;
+    memoryTimerRef.current = setTimeout(() => {
+      setRound((prev) => {
+        const updated = { ...prev, memoryPhase: 'recall' as const };
+        broadcastState(playersRef.current, updated, overlayRef.current, explosionInfoRef.current, chainQuestionRef.current);
+        return updated;
+      });
+    }, memorizeDuration);
+
+    return () => {
+      if (memoryTimerRef.current) { clearTimeout(memoryTimerRef.current); memoryTimerRef.current = null; }
+    };
+  }, [round.memoryPhase, round.question.diff, isHost, broadcastState]);
 
   // Use refs for functions called from timeouts to avoid stale closures
   const passToNextRef = useRef<(cp?: Player[]) => void>(() => {});
@@ -673,7 +702,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
     finishLuckyRef.current();
   };
 
-  const handleRemoteLuckyAnswer = (idx: number, playerId: string, timestamp?: number) => {
+  const handleRemoteLuckyAnswer = (idx: number, playerId: string, _timestamp?: number) => {
     const cq = chainQuestionRef.current;
     if (!cq) return;
     // Reject answers once lucky question is finishing (prevents late overrides)
@@ -686,7 +715,11 @@ const GameScreen: React.FC<GameScreenProps> = ({
     luckyRespondentsRef.current.add(playerId);
 
     if (idx === cq.correct) {
-      const ts = timestamp ?? Date.now();
+      // Use host's receive time instead of guest's timestamp to avoid clock skew issues.
+      // Different devices have different Date.now() values, so cross-device timestamp
+      // comparison is unreliable. Host receive time is fair: network latency is the only
+      // disadvantage for remote players, which is inherent to the architecture.
+      const ts = Date.now();
       // Once finalized, winner is locked — reject late answers to prevent desync
       if (luckyWinnerIdRef.current) return;
       resolveLuckyWinner(playerId, ts);
@@ -807,6 +840,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
     }
 
     const wasBombed = !!nextPlayer.timeBombActive;
+    const isMemoryQuestion = !!newQuestion.memory;
     const newRound: RoundState = {
       currentPlayerIdx: nextIdx,
       question: newQuestion,
@@ -823,6 +857,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
       decoy: hasDecoy,
       decoyAnswer: hasDecoy ? decoyAnswer : undefined,
       isBombed: wasBombed,
+      memoryPhase: isMemoryQuestion ? 'memorize' : undefined,
     };
     setRound(newRound);
 
@@ -1087,6 +1122,10 @@ const GameScreen: React.FC<GameScreenProps> = ({
       if (gameRoom) {
         gameRoom.broadcast('sabotage-applied', { sabotageType: type, targetId });
       }
+      // Reset sabotage UI state on the guest side after sending
+      setOverlay('none');
+      setSabotageStep('type');
+      setSelectedSabotageType(null);
       return;
     }
 
@@ -1138,6 +1177,10 @@ const GameScreen: React.FC<GameScreenProps> = ({
       if (gameRoom) {
         gameRoom.broadcast('sabotage-applied', { sabotageType: 'reroll', targetId: '' });
       }
+      // Reset sabotage UI state on the guest side after sending
+      setOverlay('none');
+      setSabotageStep('type');
+      setSelectedSabotageType(null);
       return;
     }
     if (!isHost) return;
@@ -1282,16 +1325,43 @@ const GameScreen: React.FC<GameScreenProps> = ({
           {getCategoryIcon(round.question)} {getCategoryName(round.question)}
         </div>
 
-        {/* Question text */}
-        <div style={{
-          fontSize: 'clamp(1.1rem, 4vw, 1.4rem)', fontWeight: 800,
-          lineHeight: 1.4, marginBottom: 'clamp(8px, 1.5vh, 20px)', color: C.white,
-        }}>
-          {round.question.q}
-        </div>
+        {/* Question text — memory two-phase: show sequence during memorize, show only recall question during recall */}
+        {round.memoryPhase === 'memorize' ? (
+          <>
+            <div style={{
+              fontSize: 'clamp(1.5rem, 5vw, 2rem)', fontWeight: 800,
+              lineHeight: 1.4, marginBottom: 8, color: C.accent,
+              animation: 'bb-pulse-text 1s ease infinite alternate',
+            }}>
+              {/* Extract the sequence part: "Remember: X-Y-Z" */}
+              {round.question.q.split('. ')[0]}
+            </div>
+            <div style={{
+              fontSize: 'clamp(0.8rem, 2.5vw, 0.95rem)', color: C.muted, fontWeight: 600,
+              marginBottom: 'clamp(8px, 1.5vh, 20px)',
+            }}>
+              Memorize the sequence!
+            </div>
+          </>
+        ) : (
+          <div style={{
+            fontSize: 'clamp(1.1rem, 4vw, 1.4rem)', fontWeight: 800,
+            lineHeight: 1.4, marginBottom: 'clamp(8px, 1.5vh, 20px)', color: C.white,
+          }}>
+            {/* During recall phase, hide the sequence and show only the question */}
+            {round.memoryPhase === 'recall'
+              ? round.question.q.split('. ').slice(1).join('. ')
+              : round.question.q}
+          </div>
+        )}
 
-        {/* Answer grid */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'clamp(6px, 1vh, 10px)' }}>
+        {/* Answer grid — hidden during memorize phase */}
+        <div style={{
+          display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'clamp(6px, 1vh, 10px)',
+          opacity: round.memoryPhase === 'memorize' ? 0 : 1,
+          pointerEvents: round.memoryPhase === 'memorize' ? 'none' : 'auto',
+          transition: 'opacity 0.3s ease',
+        }}>
           {/* Combine real answers with optional decoy */}
           {(() => {
             const allAnswers: { text: string; idx: number; isDecoy: boolean }[] = round.question.a.map((ans, i) => ({

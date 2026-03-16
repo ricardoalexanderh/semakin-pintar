@@ -325,7 +325,7 @@ export const SUB_DEFS: Record<string, { icon: string; label: string; color: stri
     subs: [
       ['memory_numbers', 'Number Sequences'],
       ['memory_words', 'Word Recall'],
-      ['memory_previous', 'Previous Answers'],
+      // memory_previous disabled: questions have hardcoded answers that don't track actual game state
     ],
   },
 };
