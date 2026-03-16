@@ -713,7 +713,7 @@ function generateMemoryWords(diff: Difficulty): Question {
 }
 
 // Map subcategories to their generator functions
-const GENERATORS: Record<string, (diff: Difficulty) => Question> = {
+const GENERATORS: Record<string, (diff: Difficulty) => Question | null> = {
   math_arithmetic: generateArithmetic,
   math_fractions: generateFraction,
   math_percent: generatePercent,
@@ -721,13 +721,91 @@ const GENERATORS: Record<string, (diff: Difficulty) => Question> = {
   logic_patterns: generatePattern,
   memory_numbers: generateMemoryNumbers,
   memory_words: generateMemoryWords,
+  memory_previous: generateMemoryPrevious,
 };
 
 // Track used questions to avoid repeats within a session
 const usedQuestions = new Set<string>();
 
+// ===== Game History Tracking (for memory_previous questions) =====
+export interface HistoryEntry {
+  question: Question;
+  answerIdx: number | null;    // which answer was selected (null if timed out)
+  playerName: string;          // who answered
+  round: number;
+}
+
+const gameHistory: HistoryEntry[] = [];
+
+export function recordHistory(entry: HistoryEntry): void {
+  gameHistory.push(entry);
+}
+
 export function resetUsedQuestions(): void {
   usedQuestions.clear();
+  gameHistory.length = 0;
+}
+
+function getCategoryLabel(q: Question): string {
+  const text = q.q.toLowerCase();
+  if (text.includes('binary') || text.includes('print') || text.includes('loop') || text.includes('bug') || text.includes('range') || text.includes('array')) return 'Comp. Thinking';
+  if (text.includes('anagram') || text.includes('palindrome') || text.includes('analogy') || text.includes('odd one out')) return 'Word';
+  if (text.includes('remember')) return 'Memory';
+  if (text.includes('pattern') || text.includes('true') || text.includes('false') || text.includes('syllogism') || text.includes('all ') || text.includes('if ')) return 'Logic';
+  return 'Math';
+}
+
+function generateMemoryPrevious(diff: Difficulty): Question | null {
+  if (gameHistory.length < 2) return null; // Need some history to ask about
+
+  const templates: Array<() => Question | null> = [];
+
+  // "What category was question N?"
+  if (gameHistory.length >= 1) {
+    templates.push(() => {
+      const idx = randInt(0, Math.min(gameHistory.length - 1, 4));
+      const entry = gameHistory[idx];
+      const correctCat = getCategoryLabel(entry.question);
+      const allCats = ['Math', 'Logic', 'Memory', 'Word', 'Comp. Thinking'];
+      const wrongs = allCats.filter((c) => c !== correctCat).sort(() => Math.random() - 0.5).slice(0, 3);
+      const posLabel = ['1st', '2nd', '3rd', '4th', '5th'][idx];
+      const { a, correct } = shuffleAnswers(correctCat, wrongs);
+      return { q: `Remember: What category was the ${posLabel} question?`, a, correct, diff, memory: true };
+    });
+  }
+
+  // "Who answered question N?"
+  if (gameHistory.length >= 2) {
+    templates.push(() => {
+      const idx = randInt(0, Math.min(gameHistory.length - 1, 4));
+      const entry = gameHistory[idx];
+      const correctName = entry.playerName;
+      const otherNames = [...new Set(gameHistory.map((h) => h.playerName).filter((n) => n !== correctName))];
+      if (otherNames.length < 1) return null;
+      while (otherNames.length < 3) otherNames.push(`Player ${otherNames.length + 2}`);
+      const posLabel = ['1st', '2nd', '3rd', '4th', '5th'][idx];
+      const { a, correct } = shuffleAnswers(correctName, otherNames.slice(0, 3));
+      return { q: `Remember: Who answered the ${posLabel} question?`, a, correct, diff, memory: true };
+    });
+  }
+
+  // "How many rounds have been played?"
+  if (gameHistory.length >= 3) {
+    templates.push(() => {
+      const correctCount = gameHistory.length;
+      const { a, correct } = shuffleAnswers(String(correctCount), makeWrongAnswers(correctCount));
+      return { q: 'Remember: How many questions have been asked so far?', a, correct, diff, memory: true };
+    });
+  }
+
+  // Difficulty filter: easy = category questions, medium = who answered, hard = all types
+  let filtered = templates;
+  if (diff === 'easy') filtered = templates.slice(0, 1);
+  else if (diff === 'medium') filtered = templates.slice(0, 2);
+
+  if (filtered.length === 0) return null;
+  const gen = pickOne(filtered);
+  return gen();
 }
 
 // Determine effective difficulty based on round progression
@@ -766,7 +844,9 @@ export function getRandomQuestion(
       const allGeneratable = generatableSubs.length === enabledSubs.length;
       if (allGeneratable || Math.random() < 0.7) {
         const sub = pickOne(generatableSubs);
-        return GENERATORS[sub](effectiveDiff);
+        const generated = GENERATORS[sub](effectiveDiff);
+        if (generated) return generated;
+        // Generator returned null (e.g. not enough history), fall through to fixed pool
       }
     }
   }
