@@ -50,7 +50,7 @@ interface SyncState {
   luckyWinnerId?: string;
 }
 
-type OverlayType = 'none' | 'explosion' | 'chain' | 'sabotage' | 'clone' | 'lucky';
+type OverlayType = 'none' | 'explosion' | 'chain' | 'sabotage' | 'throw' | 'lucky';
 
 const GameScreen: React.FC<GameScreenProps> = ({
   players: initialPlayers,
@@ -72,7 +72,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
       eliminated: false,
       sabotages: 0,
       usedPowerupThisRound: false,
-      powerups: { shield: 1, freeze: 1, clone: 1 },
+      powerups: { shield: 1, freeze: 1, throw: 1 },
       shieldActive: false,
       timeBombActive: false,
       blindNextRound: false,
@@ -223,7 +223,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
         playSound('pass', sound);
       }
       // Powerup / sabotage sound: play for the player who used it
-      if ((state.overlay === 'sabotage' && overlay !== 'sabotage') || (state.overlay === 'clone' && overlay !== 'clone')) {
+      if ((state.overlay === 'sabotage' && overlay !== 'sabotage') || (state.overlay === 'throw' && overlay !== 'throw')) {
         if (wasMyTurn) playSound('powerup', sound);
       }
       // Explosion sound: play for all players
@@ -272,7 +272,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
         const { answerIdx } = msg.payload as { answerIdx: number };
         handleAnswer(answerIdx, true);
       } else if (msg.type === 'powerup-used') {
-        const { type } = msg.payload as { type: 'shield' | 'freeze' | 'clone' };
+        const { type } = msg.payload as { type: 'shield' | 'freeze' | 'throw' };
         usePowerup(type, true);
       } else if (msg.type === 'chain-answer') {
         const { answerIdx, playerId } = msg.payload as { answerIdx: number; playerId: string };
@@ -280,9 +280,9 @@ const GameScreen: React.FC<GameScreenProps> = ({
       } else if (msg.type === 'lucky-answer') {
         const { answerIdx, playerId, timestamp } = msg.payload as { answerIdx: number; playerId: string; timestamp?: number };
         handleRemoteLuckyAnswer(answerIdx, playerId, timestamp);
-      } else if (msg.type === 'clone-target') {
+      } else if (msg.type === 'throw-target') {
         const { targetId } = msg.payload as { targetId: string };
-        handleCloneTarget(targetId, true);
+        handleThrowTarget(targetId, true);
       } else if (msg.type === 'sabotage-applied') {
         const { sabotageType, targetId } = msg.payload as { sabotageType: string; targetId: string };
         if (sabotageType === 'reroll') {
@@ -930,7 +930,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
     }
   };
 
-  const usePowerup = (type: 'shield' | 'freeze' | 'clone', fromRemote = false) => {
+  const usePowerup = (type: 'shield' | 'freeze' | 'throw', fromRemote = false) => {
     const curRound = roundRef.current;
     const curPlayers = playersRef.current;
     if (curRound.answered) return;
@@ -983,17 +983,17 @@ const GameScreen: React.FC<GameScreenProps> = ({
           return unfrozen;
         });
       }, 5000);
-    } else if (type === 'clone') {
-      setOverlay('clone');
-      broadcastState(newPlayers, curRound, 'clone', explosionInfoRef.current, chainQuestionRef.current);
+    } else if (type === 'throw') {
+      setOverlay('throw');
+      broadcastState(newPlayers, curRound, 'throw', explosionInfoRef.current, chainQuestionRef.current);
     }
   };
 
-  const handleCloneTarget = (targetId: string, fromRemote = false) => {
-    // Guest sends clone target selection to host via WebRTC
+  const handleThrowTarget = (targetId: string, fromRemote = false) => {
+    // Guest sends throw target selection to host via WebRTC
     if (!isHost && !fromRemote) {
       if (gameRoom) {
-        gameRoom.broadcast('clone-target', { targetId });
+        gameRoom.broadcast('throw-target', { targetId });
       }
       return;
     }
@@ -1145,9 +1145,9 @@ const GameScreen: React.FC<GameScreenProps> = ({
       const curPlayer = prevPlayers[curRound.currentPlayerIdx];
       if (!curPlayer) return prevPlayers;
 
-      const powerupTypes: ('shield' | 'freeze' | 'clone')[] = ['shield', 'freeze', 'clone'];
+      const powerupTypes: ('shield' | 'freeze' | 'throw')[] = ['shield', 'freeze', 'throw'];
       const randomPowerup = powerupTypes[Math.floor(Math.random() * powerupTypes.length)];
-      const label = randomPowerup === 'shield' ? '\uD83D\uDEE1\uFE0F Shield' : randomPowerup === 'freeze' ? '\u2744\uFE0F Freeze' : '\uD83D\uDC65 Clone';
+      const label = randomPowerup === 'shield' ? '\uD83D\uDEE1\uFE0F Shield' : randomPowerup === 'freeze' ? '\u2744\uFE0F Freeze' : '\uD83E\uDDE8 Throw';
 
       if (curPlayer.id === localPlayerId) playSound('powerup', sound);
       broadcastToast(`\uD83C\uDFB2 ${curPlayer.name} rerolled and got ${label}!`);
@@ -1359,7 +1359,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
           {([
             { key: 'shield' as const, icon: '\uD83D\uDEE1\uFE0F', label: 'Shield' },
             { key: 'freeze' as const, icon: '\u2744\uFE0F', label: 'Freeze' },
-            { key: 'clone' as const, icon: '\uD83E\uDDE8', label: 'Throw' },
+            { key: 'throw' as const, icon: '\uD83E\uDDE8', label: 'Throw' },
           ]).map(({ key, icon, label }) => {
             const count = currentPlayer?.powerups[key] || 0;
             return (
@@ -1682,8 +1682,8 @@ const GameScreen: React.FC<GameScreenProps> = ({
         </div>
       )}
 
-      {/* Clone target picker */}
-      {overlay === 'clone' && (
+      {/* Throw target picker */}
+      {overlay === 'throw' && (
         <div style={{ ...overlayBase, background: 'rgba(0,229,255,0.15)' }}>
           <div style={{
             background: C.card, border: `2px solid ${C.accent3}`, borderRadius: 20,
@@ -1701,7 +1701,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
                 activePlayers.filter((p) => p.id !== localPlayerId).map((p) => (
                   <button
                     key={p.id}
-                    onClick={() => handleCloneTarget(p.id)}
+                    onClick={() => handleThrowTarget(p.id)}
                     style={sabotageOptionStyle}
                   >
                     <span>{p.avatar} Throw to <strong>{p.name}</strong></span>

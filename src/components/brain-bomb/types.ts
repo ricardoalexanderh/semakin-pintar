@@ -28,7 +28,7 @@ export interface Player {
 export interface Powerups {
   shield: number;
   freeze: number;
-  clone: number;
+  throw: number;
 }
 
 export interface Question {
@@ -82,7 +82,7 @@ export type PeerMessageType =
   | 'chain-answer'
   | 'lucky-answer'
   | 'sabotage-applied'
-  | 'clone-target'
+  | 'throw-target'
   | 'toast'
   | 'lobby-settings'
   | 'game-over'

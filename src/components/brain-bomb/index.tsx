@@ -156,7 +156,7 @@ const BrainBombGame: React.FC = () => {
                 score: 0,
                 eliminated: false,
                 sabotages: 0,
-                powerups: { shield: 1, freeze: 1, clone: 1 },
+                powerups: { shield: 1, freeze: 1, throw: 1 },
                 usedPowerupThisRound: false,
                 isLocal: false,
                 peerId: msg.senderId,
@@ -177,7 +177,7 @@ const BrainBombGame: React.FC = () => {
           bgmRef.current?.pause();
           setPhase('lobby');
           setFinalPlayers([]);
-        } else if (['game-state', 'answer-submitted', 'powerup-used', 'chain-answer', 'lucky-answer', 'clone-target', 'sabotage-applied'].includes(msg.type)) {
+        } else if (['game-state', 'answer-submitted', 'powerup-used', 'chain-answer', 'lucky-answer', 'throw-target', 'sabotage-applied'].includes(msg.type)) {
           // Forward game messages to GameScreen's sync handler
           const room = roomRef.current as unknown as { gameSyncHandler?: (m: typeof msg) => void };
           room?.gameSyncHandler?.(msg);
@@ -319,7 +319,7 @@ const BrainBombGame: React.FC = () => {
       score: 0,
       eliminated: false,
       sabotages: 0,
-      powerups: { shield: 1, freeze: 1, clone: 1 },
+      powerups: { shield: 1, freeze: 1, throw: 1 },
       usedPowerupThisRound: false,
       isLocal: true,
     }]);
