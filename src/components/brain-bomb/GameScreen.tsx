@@ -1142,7 +1142,6 @@ const GameScreen: React.FC<GameScreenProps> = ({
   };
 
   const handleRerollPowerup = (fromRemote = false) => {
-    const currentTurnId = playersRef.current[roundRef.current.currentPlayerIdx]?.id;
     if (!isHost && !fromRemote) {
       if (gameRoom) {
         gameRoom.broadcast('sabotage-applied', { sabotageType: 'reroll', targetId: '' });
@@ -1150,16 +1149,35 @@ const GameScreen: React.FC<GameScreenProps> = ({
       return;
     }
     if (!isHost) return;
-    // Grant a random power-up to the current player
-    const powerupTypes: ('shield' | 'freeze' | 'clone')[] = ['shield', 'freeze', 'clone'];
-    const randomPowerup = powerupTypes[Math.floor(Math.random() * powerupTypes.length)];
-    setPlayers(prev => prev.map(p => {
-      if (p.id !== currentTurnId) return p;
-      return { ...p, powerups: { ...p.powerups, [randomPowerup]: p.powerups[randomPowerup] + 1 } };
-    }));
+
+    setPlayers((prevPlayers) => {
+      const curRound = roundRef.current;
+      const curPlayer = prevPlayers[curRound.currentPlayerIdx];
+      if (!curPlayer) return prevPlayers;
+
+      const powerupTypes: ('shield' | 'freeze' | 'clone')[] = ['shield', 'freeze', 'clone'];
+      const randomPowerup = powerupTypes[Math.floor(Math.random() * powerupTypes.length)];
+      const label = randomPowerup === 'shield' ? '\uD83D\uDEE1\uFE0F Shield' : randomPowerup === 'freeze' ? '\u2744\uFE0F Freeze' : '\uD83D\uDC65 Clone';
+
+      if (curPlayer.id === localPlayerId) playSound('powerup', sound);
+      broadcastToast(`\uD83C\uDFB2 ${curPlayer.name} rerolled and got ${label}!`);
+
+      const newPlayers = prevPlayers.map((p, i) => {
+        if (i !== curRound.currentPlayerIdx) return p;
+        return { ...p, sabotages: Math.max(0, p.sabotages - 1), powerups: { ...p.powerups, [randomPowerup]: p.powerups[randomPowerup] + 1 } };
+      });
+
+      setTimeout(() => {
+        if (!curRound.answered) {
+          broadcastState(newPlayers, curRound, 'none', explosionInfoRef.current, chainQuestionRef.current);
+        } else {
+          passToNextRef.current(newPlayers);
+        }
+      }, 0);
+
+      return newPlayers;
+    });
     setOverlay('none');
-    broadcastState(playersRef.current, roundRef.current, 'none', explosionInfoRef.current, chainQuestionRef.current);
-    passToNextRef.current();
   };
 
   // Cleanup on unmount
@@ -1641,7 +1659,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
                         onClick={() => handleRerollPowerup()}
                         style={sabotageOptionStyle}
                       >
-                        <span>{'\uD83C\uDFB2'}</span> <span style={{ whiteSpace: 'nowrap' }}>Reroll &mdash; <span style={{ color: C.muted, fontWeight: 600 }}>Get a random power-up</span></span>
+                        <span>{'\uD83C\uDFB2'}</span> <span style={{ whiteSpace: 'nowrap' }}>Reroll &mdash; <span style={{ color: C.muted, fontWeight: 600 }}>Random power-up</span></span>
                       </button>
                     </>
                   ) : (
