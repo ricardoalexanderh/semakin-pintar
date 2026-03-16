@@ -86,6 +86,7 @@ export type PeerMessageType =
   | 'toast'
   | 'lobby-settings'
   | 'game-over'
+  | 'starting-player'
   | 'return-lobby';
 
 export interface PeerMessage {
