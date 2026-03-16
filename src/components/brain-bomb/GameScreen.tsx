@@ -32,6 +32,7 @@ interface RoundState {
   isBonus?: boolean;
   decoy?: boolean;
   decoyAnswer?: string;
+  isBombed?: boolean; // true when this turn was affected by time bomb (don't save time from it)
 }
 
 interface SyncState {
@@ -806,6 +807,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
       }
     }
 
+    const wasBombed = !!nextPlayer.timeBombActive;
     const newRound: RoundState = {
       currentPlayerIdx: nextIdx,
       question: newQuestion,
@@ -821,6 +823,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
       isBonus: false,
       decoy: hasDecoy,
       decoyAnswer: hasDecoy ? decoyAnswer : undefined,
+      isBombed: wasBombed,
     };
     setRound(newRound);
 
@@ -836,13 +839,17 @@ const GameScreen: React.FC<GameScreenProps> = ({
     }
 
     // Clear effects, reset round state, and save per-player timer
+    // If current turn was bombed, keep the player's original savedTime (don't recalculate from halved timer)
+    const skipSaveForBombed = curRound.isBombed;
     const newPlayers = cp.map((p, i) => ({
       ...p,
       usedPowerupThisRound: false,
       timeBombActive: i === nextIdx ? false : p.timeBombActive,
       blindNextRound: i === nextIdx ? false : p.blindNextRound,
       decoyNextRound: i === nextIdx ? false : p.decoyNextRound,
-      savedTime: i === curRound.currentPlayerIdx ? savedTimeForCurrent : p.savedTime,
+      savedTime: i === curRound.currentPlayerIdx
+        ? (skipSaveForBombed ? p.savedTime : savedTimeForCurrent)
+        : p.savedTime,
     }));
     setPlayers(newPlayers);
     broadcastState(newPlayers, newRound, 'none', { name: '', message: '' }, null);
@@ -1036,6 +1043,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
           decoyAnswer = base + '?';
         }
       }
+      const targetWasBombed = !!target.timeBombActive;
       const newRound: RoundState = {
         currentPlayerIdx: targetIdx,
         question: sameQuestion,
@@ -1050,6 +1058,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
         blindAnswers,
         decoy: hasDecoy,
         decoyAnswer: hasDecoy ? decoyAnswer : undefined,
+        isBombed: targetWasBombed,
       };
       setRound(newRound);
       setOverlay('none');
