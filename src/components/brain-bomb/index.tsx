@@ -63,6 +63,9 @@ const BrainBombGame: React.FC = () => {
   const [players, setPlayers] = useState<Player[]>([]);
   const [finalPlayers, setFinalPlayers] = useState<Player[]>([]);
   const [countdown, setCountdown] = useState(3);
+  const [startingPlayerIdx, setStartingPlayerIdx] = useState(0);
+  const [rouletteHighlight, setRouletteHighlight] = useState(0);
+  const [rouletteDone, setRouletteDone] = useState(false);
 
   const roomRef = useRef<GameRoom | null>(null);
   const startTimeRef = useRef<number>(0);
@@ -167,11 +170,14 @@ const BrainBombGame: React.FC = () => {
           setSettings(payload.settings);
           setPlayers(payload.players);
           setPhase('countdown');
+        } else if (msg.type === 'starting-player') {
+          const { idx } = msg.payload as { idx: number };
+          setStartingPlayerIdx(idx);
         } else if (msg.type === 'return-lobby') {
           bgmRef.current?.pause();
           setPhase('lobby');
           setFinalPlayers([]);
-        } else if (['game-state', 'answer-submitted', 'powerup-used', 'chain-answer', 'clone-target', 'sabotage-applied'].includes(msg.type)) {
+        } else if (['game-state', 'answer-submitted', 'powerup-used', 'chain-answer', 'lucky-answer', 'clone-target', 'sabotage-applied'].includes(msg.type)) {
           // Forward game messages to GameScreen's sync handler
           const room = roomRef.current as unknown as { gameSyncHandler?: (m: typeof msg) => void };
           room?.gameSyncHandler?.(msg);
@@ -223,14 +229,14 @@ const BrainBombGame: React.FC = () => {
 
   // Auto-scroll to bottom on menu and game start
   useEffect(() => {
-    if (phase === 'menu' || phase === 'countdown' || phase === 'playing') {
+    if (phase === 'menu' || phase === 'countdown' || phase === 'roulette' || phase === 'playing') {
       setTimeout(() => {
         window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
       }, 150);
     }
   }, [phase]);
 
-  // Countdown timer: 3 → 2 → 1 → playing
+  // Countdown timer: 3 → 2 → 1 → roulette
   useEffect(() => {
     if (phase !== 'countdown') return;
     setCountdown(3);
@@ -239,7 +245,15 @@ const BrainBombGame: React.FC = () => {
       setCountdown((prev) => {
         if (prev <= 1) {
           clearInterval(interval);
-          setPhase('playing');
+          // Determine starting player (host picks random, guest uses broadcast value)
+          if (isHost) {
+            const idx = Math.floor(Math.random() * players.length);
+            setStartingPlayerIdx(idx);
+            if (roomRef.current) {
+              roomRef.current.broadcast('starting-player', { idx });
+            }
+          }
+          setPhase('roulette');
           return 0;
         }
         playSound('countdown', settings.enableSound);
@@ -247,7 +261,48 @@ const BrainBombGame: React.FC = () => {
       });
     }, 1000);
     return () => clearInterval(interval);
-  }, [phase]);
+  }, [phase, isHost, players.length]);
+
+  // Roulette animation: cycle through players and land on the starting player
+  useEffect(() => {
+    if (phase !== 'roulette') return;
+    setRouletteDone(false);
+    setRouletteHighlight(0);
+
+    const totalSteps = players.length * 3 + startingPlayerIdx; // ~3 full cycles + land on target
+    let step = 0;
+    let delay = 80; // start fast
+
+    const tick = () => {
+      step++;
+      setRouletteHighlight(step % players.length);
+      playSound('tick', settings.enableSound);
+
+      if (step >= totalSteps) {
+        // Landed on the starting player
+        setRouletteDone(true);
+        playSound('correct', settings.enableSound);
+        // Transition to playing after a short pause
+        setTimeout(() => {
+          setPhase('playing');
+        }, 1800);
+        return;
+      }
+
+      // Gradually slow down in the last cycle
+      const remaining = totalSteps - step;
+      if (remaining < players.length) {
+        delay = 80 + (players.length - remaining) * 60;
+      } else if (remaining < players.length * 2) {
+        delay = 120;
+      }
+
+      setTimeout(tick, delay);
+    };
+
+    const startTimeout = setTimeout(tick, 300);
+    return () => clearTimeout(startTimeout);
+  }, [phase, players.length, startingPlayerIdx, settings.enableSound]);
 
   // --- Menu actions ---
 
@@ -290,7 +345,7 @@ const BrainBombGame: React.FC = () => {
 
   const handleRemovePlayer = useCallback((id: string) => {
     setPlayers((prev) => {
-      if (prev.length <= 1) return prev;
+      if (prev.length <= 2) return prev;
       return prev.filter((p) => p.id !== id);
     });
   }, []);
@@ -570,6 +625,59 @@ const BrainBombGame: React.FC = () => {
         </div>
       )}
 
+      {/* Roulette — pick starting player */}
+      {phase === 'roulette' && (
+        <div style={{
+          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+          minHeight: '60vh', gap: 20, padding: 24,
+        }}>
+          <div style={{
+            fontFamily: "'Bebas Neue', sans-serif", fontSize: '1.8rem',
+            letterSpacing: 3, color: C.muted, textTransform: 'uppercase',
+          }}>
+            Who goes first?
+          </div>
+          <div style={{
+            display: 'flex', flexDirection: 'column', gap: 8,
+            width: '100%', maxWidth: 320,
+          }}>
+            {players.map((p, i) => {
+              const isHighlighted = rouletteHighlight === i;
+              const isWinner = rouletteDone && i === startingPlayerIdx;
+              return (
+                <div key={p.id} style={{
+                  display: 'flex', alignItems: 'center', gap: 12,
+                  padding: '10px 16px', borderRadius: 14,
+                  background: isWinner ? `${C.accent}33` : isHighlighted ? `${C.yellow}22` : C.card,
+                  border: `2px solid ${isWinner ? C.accent : isHighlighted ? C.yellow : 'transparent'}`,
+                  transform: isHighlighted || isWinner ? 'scale(1.05)' : 'scale(1)',
+                  transition: 'all 0.1s ease',
+                  boxShadow: isWinner ? `0 0 30px ${C.accent}44` : 'none',
+                }}>
+                  <span style={{ fontSize: '1.6rem' }}>{p.avatar}</span>
+                  <span style={{
+                    fontFamily: "'Nunito', sans-serif", fontWeight: 800,
+                    fontSize: '1.1rem',
+                    color: isWinner ? C.accent : isHighlighted ? C.yellow : C.white,
+                  }}>
+                    {p.name}
+                  </span>
+                  {isWinner && (
+                    <span style={{
+                      marginLeft: 'auto', fontSize: '0.85rem',
+                      fontFamily: "'Bebas Neue', sans-serif", letterSpacing: 2,
+                      color: C.accent, animation: 'bb-pop-in 0.4s ease',
+                    }}>
+                      GOES FIRST!
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {phase === 'playing' && (
         <GameScreen
           players={players}
@@ -578,6 +686,7 @@ const BrainBombGame: React.FC = () => {
           onGameOver={handleGameOver}
           gameRoom={roomRef.current}
           isHost={isHost}
+          startingPlayerIdx={startingPlayerIdx}
         />
       )}
 

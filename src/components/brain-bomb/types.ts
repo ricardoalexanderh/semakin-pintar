@@ -2,7 +2,7 @@
 
 export type Difficulty = 'easy' | 'medium' | 'hard';
 export type GameMode = 'classic' | 'sudden';
-export type GamePhase = 'menu' | 'lobby' | 'countdown' | 'playing' | 'chainReaction' | 'gameover';
+export type GamePhase = 'menu' | 'lobby' | 'countdown' | 'roulette' | 'playing' | 'chainReaction' | 'gameover';
 export type PeerRole = 'host' | 'guest';
 
 export interface Player {
@@ -19,7 +19,7 @@ export interface Player {
   isLocal: boolean;
   peerId?: string;
   shieldActive?: boolean;
-  timePenalty?: number;
+  timeBombActive?: boolean;
   blindNextRound?: boolean;
   decoyNextRound?: boolean;
   savedTime?: number;
@@ -86,6 +86,7 @@ export type PeerMessageType =
   | 'toast'
   | 'lobby-settings'
   | 'game-over'
+  | 'starting-player'
   | 'return-lobby';
 
 export interface PeerMessage {

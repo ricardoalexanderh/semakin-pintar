@@ -252,7 +252,7 @@ const LobbyScreen: React.FC<LobbyScreenProps> = ({
                 ) : (
                   <span style={{ flex: 1, fontWeight: 700, fontSize: '0.95rem' }}>{p.name}</span>
                 )}
-                {isHost && players.length > 2 && (
+                {isHost && !p.isLocal && players.length > 2 && (
                   <button
                     onClick={() => { onRemovePlayer(p.id); playSound('uiClick', sound); }}
                     style={{
