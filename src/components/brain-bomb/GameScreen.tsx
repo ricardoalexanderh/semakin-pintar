@@ -691,6 +691,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
         // Already finalized — check if this remote player was actually faster
         const pending = luckyPendingRef.current;
         if (pending && ts < pending.timestamp) {
+          // Remote player was faster — override the winner
           luckyPendingRef.current = { playerId, timestamp: ts };
           setLuckyWinnerId(playerId);
           luckyWinnerIdRef.current = playerId;
