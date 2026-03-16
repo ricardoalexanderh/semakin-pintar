@@ -1621,7 +1621,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
                         onClick={() => { setSelectedSabotageType('timebomb'); setSabotageStep('target'); }}
                         style={sabotageOptionStyle}
                       >
-                        <span>{'\u23F1\uFE0F'}</span> <span style={{ whiteSpace: 'nowrap' }}>Time Bomb &mdash; <span style={{ color: C.muted, fontWeight: 600 }}>-{({ easy: 8, medium: 5, hard: 3 })[settings.difficulty]}s from timer</span></span>
+                        <span>{'\u23F1\uFE0F'}</span> <span style={{ whiteSpace: 'nowrap' }}>Time Bomb &mdash; <span style={{ color: C.muted, fontWeight: 600 }}>halves their timer</span></span>
                       </button>
                       <button
                         onClick={() => { setSelectedSabotageType('decoy'); setSabotageStep('target'); }}
