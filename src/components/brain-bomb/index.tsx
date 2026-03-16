@@ -345,7 +345,7 @@ const BrainBombGame: React.FC = () => {
 
   const handleRemovePlayer = useCallback((id: string) => {
     setPlayers((prev) => {
-      if (prev.length <= 1) return prev;
+      if (prev.length <= 2) return prev;
       return prev.filter((p) => p.id !== id);
     });
   }, []);
