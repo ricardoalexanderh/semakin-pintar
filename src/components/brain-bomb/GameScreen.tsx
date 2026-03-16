@@ -728,7 +728,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
       if (luckyWinnerIdRef.current) return;
       resolveLuckyWinner(playerId, reactionTime);
       // Wait a bit for any other answers, then finalize
-      setTimeout(() => finalizeLuckyWinner(), 600);
+      setTimeout(() => finalizeLuckyWinner(), 1500);
     } else {
       // Wrong answer — check if all active players have now answered
       checkAllLuckyAnswered();
@@ -782,7 +782,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
         // Track host's correct answer
         luckyRespondentsRef.current.add(localPlayerId);
         resolveLuckyWinner(localPlayerId, elapsed);
-        setTimeout(() => finalizeLuckyWinner(), 600);
+        setTimeout(() => finalizeLuckyWinner(), 1500);
       }
     }
   };
