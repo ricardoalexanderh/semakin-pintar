@@ -6,7 +6,7 @@ import { trackGameEvent, trackButtonClick, trackGameCompletion } from '../../uti
 import { useGameState } from '../../hooks/useGameState';
 import type { Player, LobbySettings, GamePhase } from './types';
 import { AVATARS, PLAYER_COLORS, DIFFICULTY_CONFIG } from './types';
-import { initAudioContext, playSound } from './audio';
+import { initAudioContext, resumeAudioContext, playSound } from './audio';
 import { generateRoomCode, GameRoom } from './webrtc';
 import { screenBase, KEYFRAMES, C, lobbyCard, cardTitle, startBtn } from './styles';
 import LobbyScreen from './LobbyScreen';
@@ -75,11 +75,15 @@ const BrainBombGame: React.FC = () => {
   // Keep phaseRef in sync
   useEffect(() => { phaseRef.current = phase; }, [phase]);
 
-  // Init audio on first interaction
+  // Init audio on first interaction and keep resuming on subsequent taps (mobile suspends AudioContext during idle)
   useEffect(() => {
-    const handler = () => { initAudioContext(); document.removeEventListener('click', handler); };
-    document.addEventListener('click', handler);
-    return () => document.removeEventListener('click', handler);
+    let initialized = false;
+    const handler = () => {
+      if (!initialized) { initAudioContext(); initialized = true; }
+      resumeAudioContext();
+    };
+    document.addEventListener('pointerdown', handler);
+    return () => document.removeEventListener('pointerdown', handler);
   }, []);
 
   // BGM setup
@@ -156,7 +160,7 @@ const BrainBombGame: React.FC = () => {
                 score: 0,
                 eliminated: false,
                 sabotages: 0,
-                powerups: { shield: 1, freeze: 1, clone: 1 },
+                powerups: { shield: 1, freeze: 1, throw: 1 },
                 usedPowerupThisRound: false,
                 isLocal: false,
                 peerId: msg.senderId,
@@ -177,7 +181,7 @@ const BrainBombGame: React.FC = () => {
           bgmRef.current?.pause();
           setPhase('lobby');
           setFinalPlayers([]);
-        } else if (['game-state', 'answer-submitted', 'powerup-used', 'chain-answer', 'lucky-answer', 'clone-target', 'sabotage-applied'].includes(msg.type)) {
+        } else if (['game-state', 'answer-submitted', 'powerup-used', 'chain-answer', 'lucky-answer', 'throw-target', 'sabotage-applied'].includes(msg.type)) {
           // Forward game messages to GameScreen's sync handler
           const room = roomRef.current as unknown as { gameSyncHandler?: (m: typeof msg) => void };
           room?.gameSyncHandler?.(msg);
@@ -319,7 +323,7 @@ const BrainBombGame: React.FC = () => {
       score: 0,
       eliminated: false,
       sabotages: 0,
-      powerups: { shield: 1, freeze: 1, clone: 1 },
+      powerups: { shield: 1, freeze: 1, throw: 1 },
       usedPowerupThisRound: false,
       isLocal: true,
     }]);

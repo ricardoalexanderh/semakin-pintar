@@ -11,6 +11,13 @@ export function initAudioContext() {
   getCtx();
 }
 
+// Resume a suspended AudioContext — must be called from a user gesture (tap/click)
+export function resumeAudioContext() {
+  if (audioCtx && audioCtx.state === 'suspended') {
+    audioCtx.resume();
+  }
+}
+
 export type SoundType =
   | 'tick' | 'tickFast' | 'tickDanger'
   | 'correct' | 'wrong' | 'explosion' | 'pass'
