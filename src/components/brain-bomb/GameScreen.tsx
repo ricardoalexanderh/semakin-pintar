@@ -121,6 +121,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
   const [sabotageStep, setSabotageStep] = useState<'type' | 'target'>('type');
   const [selectedSabotageType, setSelectedSabotageType] = useState<'blind' | 'timebomb' | 'decoy' | null>(null);
   const [selectedSabotageTarget, setSelectedSabotageTarget] = useState<string | null>(null);
+  const [selectedThrowTarget, setSelectedThrowTarget] = useState<string | null>(null);
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const pendingToastRef = useRef<string | undefined>(undefined);
@@ -164,6 +165,24 @@ const GameScreen: React.FC<GameScreenProps> = ({
       setSelectedSabotageType(null);
       setSelectedSabotageTarget(null);
     }
+  }, [overlay]);
+
+  // Auto-select throw target when there's only 1 target (2 players)
+  useEffect(() => {
+    if (overlay === 'throw' && isLocalTurn) {
+      const targets = activePlayers.filter((p) => p.id !== localPlayerId);
+      if (targets.length === 1) {
+        setSelectedThrowTarget(targets[0].id);
+        setTimeout(() => {
+          handleThrowTarget(targets[0].id);
+          setSelectedThrowTarget(null);
+        }, 400);
+      }
+    }
+    if (overlay !== 'throw') {
+      setSelectedThrowTarget(null);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [overlay]);
 
   // Show "YOUR TURN" overlay when it becomes the local player's turn (skip on throw, which has its own overlay)
@@ -1911,15 +1930,30 @@ const GameScreen: React.FC<GameScreenProps> = ({
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 16 }}>
               {isLocalTurn ? (
-                activePlayers.filter((p) => p.id !== localPlayerId).map((p) => (
-                  <button
-                    key={p.id}
-                    onClick={() => handleThrowTarget(p.id)}
-                    style={sabotageOptionStyle}
-                  >
-                    <span>{p.avatar} Throw to <strong>{p.name}</strong></span>
-                  </button>
-                ))
+                activePlayers.filter((p) => p.id !== localPlayerId).map((p) => {
+                  const isSelected = selectedThrowTarget === p.id;
+                  return (
+                    <button
+                      key={p.id}
+                      disabled={!!selectedThrowTarget}
+                      onClick={() => {
+                        if (selectedThrowTarget) return;
+                        setSelectedThrowTarget(p.id);
+                        setTimeout(() => {
+                          handleThrowTarget(p.id);
+                          setSelectedThrowTarget(null);
+                        }, 400);
+                      }}
+                      style={{
+                        ...sabotageOptionStyle,
+                        ...(isSelected ? { background: 'rgba(0,229,255,0.3)', borderColor: C.accent3, transform: 'scale(0.96)' } : {}),
+                        transition: 'all 0.15s ease',
+                      }}
+                    >
+                      <span>{p.avatar} Throw to <strong>{p.name}</strong></span>
+                    </button>
+                  );
+                })
               ) : (
                 <div style={{ fontSize: '0.9rem', color: C.muted, padding: 16 }}>
                   Waiting for {currentPlayer?.name} to choose...
