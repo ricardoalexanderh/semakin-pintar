@@ -241,11 +241,9 @@ const GameScreen: React.FC<GameScreenProps> = ({
       if (state.round.currentPlayerIdx !== round.currentPlayerIdx && state.overlay !== 'explosion' && state.overlay !== 'chain' && state.overlay !== 'lucky' && !state.round.answered && isMyTurn) {
         playSound('pass', sound);
       }
-      // Powerup / sabotage sound: play for the player who used it
-      if (state.overlay === 'sabotage' && overlay !== 'sabotage') {
-        if (wasMyTurn) playSound('sabotage', sound);
-      } else if (state.overlay === 'throw' && overlay !== 'throw') {
-        if (wasMyTurn) playSound('throw', sound);
+      // Throw sound: play when throw completes (throwTargetId appears) for the thrower
+      if (state.throwTargetId && wasMyTurn) {
+        playSound('throw', sound);
       }
       // Explosion sound: play for all players
       if (state.overlay === 'explosion' && overlay !== 'explosion') {
@@ -1069,6 +1067,8 @@ const GameScreen: React.FC<GameScreenProps> = ({
           gameRoom.broadcast('powerup-used', { type });
         }
       }
+      // Play sound immediately for shield/freeze; throw plays after target selection via state sync
+      if (type !== 'throw') playSound(type, sound);
       return;
     }
 
@@ -1076,7 +1076,8 @@ const GameScreen: React.FC<GameScreenProps> = ({
     const cp = curPlayers[curRound.currentPlayerIdx];
     if (cp.powerups[type] <= 0) return;
 
-    if (cp.id === localPlayerId) playSound(type, sound);
+    // Shield and freeze play sound immediately; throw plays after target selection
+    if (type !== 'throw' && cp.id === localPlayerId) playSound(type, sound);
 
     const newPlayers = curPlayers.map((p, i) => {
       if (i !== curRound.currentPlayerIdx) return p;
@@ -1135,6 +1136,9 @@ const GameScreen: React.FC<GameScreenProps> = ({
     const targetIdx = curPlayers.findIndex((p) => p.id === targetId);
     const target = curPlayers[targetIdx];
     if (!target) return;
+
+    const throwerCp = curPlayers[curRound.currentPlayerIdx];
+    if (throwerCp?.id === localPlayerId) playSound('throw', sound);
 
     // Stop timer and mark round as answered so bomb doesn't explode during notification
     if (timerRef.current) clearInterval(timerRef.current);
@@ -1218,6 +1222,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
       if (gameRoom) {
         gameRoom.broadcast('sabotage-applied', { sabotageType: type, targetId });
       }
+      playSound('sabotage', sound);
       // Reset sabotage UI state on the guest side after sending
       setOverlay('none');
       setSabotageStep('type');
@@ -1273,6 +1278,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
       if (gameRoom) {
         gameRoom.broadcast('sabotage-applied', { sabotageType: 'reroll', targetId: '' });
       }
+      playSound('sabotage', sound);
       // Reset sabotage UI state on the guest side after sending
       setOverlay('none');
       setSabotageStep('type');
