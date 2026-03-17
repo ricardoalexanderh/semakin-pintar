@@ -83,6 +83,7 @@ export type PeerMessageType =
   | 'lucky-answer'
   | 'sabotage-applied'
   | 'throw-target'
+  | 'throw-direct'
   | 'toast'
   | 'lobby-settings'
   | 'game-over'
