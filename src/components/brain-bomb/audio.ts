@@ -21,7 +21,8 @@ export function resumeAudioContext() {
 export type SoundType =
   | 'tick' | 'tickFast' | 'tickDanger'
   | 'correct' | 'wrong' | 'explosion' | 'pass'
-  | 'powerup' | 'uiClick' | 'uiOn' | 'uiOff' | 'win' | 'countdown';
+  | 'powerup' | 'shield' | 'freeze' | 'throw' | 'sabotage'
+  | 'uiClick' | 'uiOn' | 'uiOff' | 'win' | 'countdown';
 
 export function playSound(type: SoundType, enabled: boolean) {
   if (!enabled) return;
@@ -173,6 +174,114 @@ export function playSound(type: SoundType, enabled: boolean) {
         o.start(ctx.currentTime + i * 0.07);
         o.stop(ctx.currentTime + i * 0.07 + 0.12);
       });
+    },
+
+    shield: () => {
+      const now = ctx.currentTime;
+      // Warm protective dome — rising hum with harmonic shimmer
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.connect(g); g.connect(ctx.destination);
+      o.type = 'triangle';
+      o.frequency.setValueAtTime(200, now);
+      o.frequency.exponentialRampToValueAtTime(500, now + 0.2);
+      o.frequency.exponentialRampToValueAtTime(400, now + 0.4);
+      g.gain.setValueAtTime(0.15, now);
+      g.gain.linearRampToValueAtTime(0.2, now + 0.15);
+      g.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
+      o.start(now); o.stop(now + 0.5);
+      // Shimmer overtone
+      const s = ctx.createOscillator();
+      const sG = ctx.createGain();
+      s.connect(sG); sG.connect(ctx.destination);
+      s.type = 'sine';
+      s.frequency.setValueAtTime(800, now + 0.05);
+      s.frequency.exponentialRampToValueAtTime(1200, now + 0.25);
+      sG.gain.setValueAtTime(0.08, now + 0.05);
+      sG.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+      s.start(now + 0.05); s.stop(now + 0.45);
+    },
+
+    freeze: () => {
+      const now = ctx.currentTime;
+      // Icy crystalline — high descending sparkles
+      [2400, 1800, 1200, 900].forEach((f, i) => {
+        const o = ctx.createOscillator();
+        const g = ctx.createGain();
+        o.connect(g); g.connect(ctx.destination);
+        o.type = 'sine';
+        o.frequency.setValueAtTime(f, now + i * 0.06);
+        o.frequency.exponentialRampToValueAtTime(f * 0.7, now + i * 0.06 + 0.12);
+        g.gain.setValueAtTime(0.1, now + i * 0.06);
+        g.gain.exponentialRampToValueAtTime(0.001, now + i * 0.06 + 0.15);
+        o.start(now + i * 0.06); o.stop(now + i * 0.06 + 0.18);
+      });
+      // Sub crackle
+      const n = ctx.createBufferSource();
+      const nG = ctx.createGain();
+      const nF = ctx.createBiquadFilter();
+      const buf = ctx.createBuffer(1, ctx.sampleRate * 0.15, ctx.sampleRate);
+      const data = buf.getChannelData(0);
+      for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * 0.3;
+      n.buffer = buf;
+      nF.type = 'highpass'; nF.frequency.value = 4000;
+      n.connect(nF); nF.connect(nG); nG.connect(ctx.destination);
+      nG.gain.setValueAtTime(0.06, now);
+      nG.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+      n.start(now); n.stop(now + 0.15);
+    },
+
+    throw: () => {
+      const now = ctx.currentTime;
+      // Whoosh — sweeping noise + descending tone
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.connect(g); g.connect(ctx.destination);
+      o.type = 'sawtooth';
+      o.frequency.setValueAtTime(600, now);
+      o.frequency.exponentialRampToValueAtTime(150, now + 0.25);
+      g.gain.setValueAtTime(0.12, now);
+      g.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+      o.start(now); o.stop(now + 0.35);
+      // Whoosh noise
+      const n = ctx.createBufferSource();
+      const nG = ctx.createGain();
+      const nF = ctx.createBiquadFilter();
+      const buf = ctx.createBuffer(1, ctx.sampleRate * 0.3, ctx.sampleRate);
+      const data = buf.getChannelData(0);
+      for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1);
+      n.buffer = buf;
+      nF.type = 'bandpass'; nF.frequency.setValueAtTime(2000, now);
+      nF.frequency.exponentialRampToValueAtTime(500, now + 0.25);
+      nF.Q.value = 0.8;
+      n.connect(nF); nF.connect(nG); nG.connect(ctx.destination);
+      nG.gain.setValueAtTime(0.15, now);
+      nG.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+      n.start(now); n.stop(now + 0.35);
+    },
+
+    sabotage: () => {
+      const now = ctx.currentTime;
+      // Dark menacing — low descending buzz with dissonant overtone
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.connect(g); g.connect(ctx.destination);
+      o.type = 'square';
+      o.frequency.setValueAtTime(300, now);
+      o.frequency.exponentialRampToValueAtTime(120, now + 0.3);
+      g.gain.setValueAtTime(0.1, now);
+      g.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+      o.start(now); o.stop(now + 0.4);
+      // Dissonant overtone
+      const d = ctx.createOscillator();
+      const dG = ctx.createGain();
+      d.connect(dG); dG.connect(ctx.destination);
+      d.type = 'sawtooth';
+      d.frequency.setValueAtTime(450, now);
+      d.frequency.exponentialRampToValueAtTime(180, now + 0.25);
+      dG.gain.setValueAtTime(0.06, now);
+      dG.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+      d.start(now); d.stop(now + 0.35);
     },
 
     uiClick: () => {

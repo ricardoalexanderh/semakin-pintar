@@ -119,8 +119,10 @@ const GameScreen: React.FC<GameScreenProps> = ({
   const [yourTurnNotif, setYourTurnNotif] = useState(false);
   const [luckyWinnerId, setLuckyWinnerId] = useState<string | null>(null);
   const [sabotageStep, setSabotageStep] = useState<'type' | 'target'>('type');
-  const [selectedSabotageType, setSelectedSabotageType] = useState<'blind' | 'timebomb' | 'decoy' | null>(null);
+  const [selectedSabotageType, setSelectedSabotageType] = useState<'blind' | 'timebomb' | 'decoy' | 'reroll' | null>(null);
   const [selectedSabotageTarget, setSelectedSabotageTarget] = useState<string | null>(null);
+  const [selectedThrowTarget, setSelectedThrowTarget] = useState<string | null>(null);
+  const [pressedPowerup, setPressedPowerup] = useState<string | null>(null);
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const pendingToastRef = useRef<string | undefined>(undefined);
@@ -156,6 +158,15 @@ const GameScreen: React.FC<GameScreenProps> = ({
   const isLocalTurn = currentPlayer?.id === localPlayerId;
   const isLocalEliminated = players.find((p) => p.id === localPlayerId)?.eliminated ?? false;
   const activePlayers = players.filter((p) => !p.eliminated);
+
+  // Always reset sabotage UI to type-selection when overlay becomes 'sabotage'
+  useEffect(() => {
+    if (overlay === 'sabotage') {
+      setSabotageStep('type');
+      setSelectedSabotageType(null);
+      setSelectedSabotageTarget(null);
+    }
+  }, [overlay]);
 
   // Show "YOUR TURN" overlay when it becomes the local player's turn (skip on throw, which has its own overlay)
   const prevRoundRef = useRef(round.round);
@@ -230,9 +241,20 @@ const GameScreen: React.FC<GameScreenProps> = ({
       if (state.round.currentPlayerIdx !== round.currentPlayerIdx && state.overlay !== 'explosion' && state.overlay !== 'chain' && state.overlay !== 'lucky' && !state.round.answered && isMyTurn) {
         playSound('pass', sound);
       }
-      // Powerup / sabotage sound: play for the player who used it
-      if ((state.overlay === 'sabotage' && overlay !== 'sabotage') || (state.overlay === 'throw' && overlay !== 'throw')) {
-        if (wasMyTurn) playSound('powerup', sound);
+      // Throw sound: play for the thrower and the targeted player
+      if (state.throwTargetId && (wasMyTurn || state.throwTargetId === localPlayerId)) {
+        playSound('throw', sound);
+      }
+      // Sabotage sound: play for the targeted player when they get sabotaged
+      const localPlayer = players.find((p) => p.id === localPlayerId);
+      const updatedLocal = state.players.find((p: { id: string }) => p.id === localPlayerId);
+      if (localPlayer && updatedLocal && !wasMyTurn) {
+        const gotSabotaged = (
+          (!localPlayer.blindNextRound && updatedLocal.blindNextRound) ||
+          (!localPlayer.timeBombActive && updatedLocal.timeBombActive) ||
+          (!localPlayer.decoyNextRound && updatedLocal.decoyNextRound)
+        );
+        if (gotSabotaged) playSound('sabotage', sound);
       }
       // Explosion sound: play for all players
       if (state.overlay === 'explosion' && overlay !== 'explosion') {
@@ -312,6 +334,9 @@ const GameScreen: React.FC<GameScreenProps> = ({
       } else if (msg.type === 'throw-target') {
         const { targetId } = msg.payload as { targetId: string };
         handleThrowTarget(targetId, true);
+      } else if (msg.type === 'throw-direct') {
+        const { targetId } = msg.payload as { targetId: string };
+        usePowerup('throw', true, targetId);
       } else if (msg.type === 'sabotage-applied') {
         const { sabotageType, targetId } = msg.payload as { sabotageType: string; targetId: string };
         if (sabotageType === 'reroll') {
@@ -436,7 +461,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
 
     // Shield blocks the explosion
     if (cp.shieldActive) {
-      if (cp.id === localPlayerId) playSound('powerup', sound);
+      if (cp.id === localPlayerId) playSound('shield', sound);
       const shieldedPlayers = curPlayers.map((p, i) =>
         i === curRound.currentPlayerIdx ? { ...p, shieldActive: false } : p
       );
@@ -1036,7 +1061,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
     }
   };
 
-  const usePowerup = (type: 'shield' | 'freeze' | 'throw', fromRemote = false) => {
+  const usePowerup = (type: 'shield' | 'freeze' | 'throw', fromRemote = false, directThrowTarget?: string) => {
     const curRound = roundRef.current;
     const curPlayers = playersRef.current;
     if (curRound.answered) return;
@@ -1047,8 +1072,14 @@ const GameScreen: React.FC<GameScreenProps> = ({
       if (cp?.id !== localPlayerId) return;
       if (cp.powerups[type] <= 0) return;
       if (gameRoom) {
-        gameRoom.broadcast('powerup-used', { type });
+        if (directThrowTarget) {
+          gameRoom.broadcast('throw-direct', { targetId: directThrowTarget });
+        } else {
+          gameRoom.broadcast('powerup-used', { type });
+        }
       }
+      // Play sound immediately for shield/freeze; throw plays after target selection via state sync
+      if (type !== 'throw') playSound(type, sound);
       return;
     }
 
@@ -1056,7 +1087,8 @@ const GameScreen: React.FC<GameScreenProps> = ({
     const cp = curPlayers[curRound.currentPlayerIdx];
     if (cp.powerups[type] <= 0) return;
 
-    if (cp.id === localPlayerId) playSound('powerup', sound);
+    // Shield and freeze play sound immediately; throw plays after target selection
+    if (type !== 'throw' && cp.id === localPlayerId) playSound(type, sound);
 
     const newPlayers = curPlayers.map((p, i) => {
       if (i !== curRound.currentPlayerIdx) return p;
@@ -1090,8 +1122,13 @@ const GameScreen: React.FC<GameScreenProps> = ({
         });
       }, 5000);
     } else if (type === 'throw') {
-      setOverlay('throw');
-      broadcastState(newPlayers, curRound, 'throw', explosionInfoRef.current, chainQuestionRef.current);
+      if (directThrowTarget) {
+        // 2-player: skip overlay, throw immediately
+        handleThrowTarget(directThrowTarget);
+      } else {
+        setOverlay('throw');
+        broadcastState(newPlayers, curRound, 'throw', explosionInfoRef.current, chainQuestionRef.current);
+      }
     }
   };
 
@@ -1110,6 +1147,9 @@ const GameScreen: React.FC<GameScreenProps> = ({
     const targetIdx = curPlayers.findIndex((p) => p.id === targetId);
     const target = curPlayers[targetIdx];
     if (!target) return;
+
+    const throwerCp = curPlayers[curRound.currentPlayerIdx];
+    if (throwerCp?.id === localPlayerId || target.id === localPlayerId) playSound('throw', sound);
 
     // Stop timer and mark round as answered so bomb doesn't explode during notification
     if (timerRef.current) clearInterval(timerRef.current);
@@ -1193,6 +1233,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
       if (gameRoom) {
         gameRoom.broadcast('sabotage-applied', { sabotageType: type, targetId });
       }
+      playSound('sabotage', sound);
       // Reset sabotage UI state on the guest side after sending
       setOverlay('none');
       setSabotageStep('type');
@@ -1209,7 +1250,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
 
       const curRound = roundRef.current;
       const curPlayer = prevPlayers[curRound.currentPlayerIdx];
-      if (curPlayer?.id === localPlayerId) playSound('powerup', sound);
+      if (curPlayer?.id === localPlayerId || target.id === localPlayerId) playSound('sabotage', sound);
       const typeLabel = type === 'blind' ? 'Blind' : type === 'timebomb' ? 'Time Bomb' : 'Decoy';
       broadcastToast(`\uD83D\uDC80 ${typeLabel} sent to ${target.name}!`);
 
@@ -1248,6 +1289,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
       if (gameRoom) {
         gameRoom.broadcast('sabotage-applied', { sabotageType: 'reroll', targetId: '' });
       }
+      playSound('sabotage', sound);
       // Reset sabotage UI state on the guest side after sending
       setOverlay('none');
       setSabotageStep('type');
@@ -1265,7 +1307,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
       const randomPowerup = powerupTypes[Math.floor(Math.random() * powerupTypes.length)];
       const label = randomPowerup === 'shield' ? '\uD83D\uDEE1\uFE0F Shield' : randomPowerup === 'freeze' ? '\u2744\uFE0F Freeze' : '\uD83E\uDDE8 Throw';
 
-      if (curPlayer.id === localPlayerId) playSound('powerup', sound);
+      if (curPlayer.id === localPlayerId) playSound('sabotage', sound);
       broadcastToast(`\uD83C\uDFB2 ${curPlayer.name} rerolled and got ${label}!`);
 
       const newPlayers = prevPlayers.map((p, i) => {
@@ -1507,12 +1549,35 @@ const GameScreen: React.FC<GameScreenProps> = ({
             { key: 'throw' as const, icon: '\uD83E\uDDE8', label: 'Throw' },
           ]).map(({ key, icon, label }) => {
             const count = currentPlayer?.powerups[key] || 0;
+            const isPressed = pressedPowerup === key;
             return (
               <button
                 key={key}
-                onClick={() => usePowerup(key)}
-                disabled={count <= 0}
-                style={powerupBtn(count <= 0)}
+                disabled={count <= 0 || !!pressedPowerup}
+                onClick={() => {
+                  if (count <= 0 || pressedPowerup) return;
+                  setPressedPowerup(key);
+                  // For throw with only 1 target (2 players), skip overlay entirely
+                  if (key === 'throw') {
+                    const targets = activePlayers.filter((p) => p.id !== currentPlayer?.id);
+                    if (targets.length === 1) {
+                      setTimeout(() => {
+                        setPressedPowerup(null);
+                        usePowerup('throw', false, targets[0].id);
+                      }, 400);
+                      return;
+                    }
+                  }
+                  setTimeout(() => {
+                    setPressedPowerup(null);
+                    usePowerup(key);
+                  }, 400);
+                }}
+                style={{
+                  ...powerupBtn(count <= 0),
+                  ...(isPressed ? { background: 'rgba(255,149,0,0.3)', borderColor: C.accent2, transform: 'scale(0.93)' } : {}),
+                  transition: 'all 0.15s ease',
+                }}
               >
                 <span style={{ fontSize: '1rem' }}>{icon}</span> {label}
                 <span style={{
@@ -1802,27 +1867,49 @@ const GameScreen: React.FC<GameScreenProps> = ({
                 <>
                   {sabotageStep === 'type' ? (
                     <>
+                      {([
+                        { type: 'blind' as const, icon: '\uD83D\uDE48', label: 'Blind', desc: 'Blur all answer options' },
+                        { type: 'timebomb' as const, icon: '\u23F1\uFE0F', label: 'Time Bomb', desc: 'halves their timer' },
+                        { type: 'decoy' as const, icon: '\uD83C\uDFAD', label: 'Decoy', desc: 'Add a fake answer' },
+                      ]).map((opt) => {
+                        const isSelected = selectedSabotageType === opt.type;
+                        return (
+                          <button
+                            key={opt.type}
+                            disabled={!!selectedSabotageType}
+                            onClick={() => {
+                              if (selectedSabotageType) return;
+                              const targets = activePlayers.filter((p) => p.id !== currentPlayer?.id);
+                              setSelectedSabotageType(opt.type);
+                              if (targets.length === 1) {
+                                setSelectedSabotageTarget(targets[0].id);
+                                setTimeout(() => { handleSabotage(opt.type, targets[0].id); setSelectedSabotageTarget(null); }, 400);
+                              } else {
+                                setTimeout(() => setSabotageStep('target'), 200);
+                              }
+                            }}
+                            style={{
+                              ...sabotageOptionStyle,
+                              ...(isSelected ? { background: 'rgba(255,149,0,0.3)', borderColor: C.accent2, transform: 'scale(0.96)' } : {}),
+                              transition: 'all 0.15s ease',
+                            }}
+                          >
+                            <span>{opt.icon}</span> <span style={{ whiteSpace: 'nowrap' }}>{opt.label} &mdash; <span style={{ color: C.muted, fontWeight: 600 }}>{opt.desc}</span></span>
+                          </button>
+                        );
+                      })}
                       <button
-                        onClick={() => { setSelectedSabotageType('blind'); setSabotageStep('target'); }}
-                        style={sabotageOptionStyle}
-                      >
-                        <span>{'\uD83D\uDE48'}</span> <span style={{ whiteSpace: 'nowrap' }}>Blind &mdash; <span style={{ color: C.muted, fontWeight: 600 }}>Blur all answer options</span></span>
-                      </button>
-                      <button
-                        onClick={() => { setSelectedSabotageType('timebomb'); setSabotageStep('target'); }}
-                        style={sabotageOptionStyle}
-                      >
-                        <span>{'\u23F1\uFE0F'}</span> <span style={{ whiteSpace: 'nowrap' }}>Time Bomb &mdash; <span style={{ color: C.muted, fontWeight: 600 }}>halves their timer</span></span>
-                      </button>
-                      <button
-                        onClick={() => { setSelectedSabotageType('decoy'); setSabotageStep('target'); }}
-                        style={sabotageOptionStyle}
-                      >
-                        <span>{'\uD83C\uDFAD'}</span> <span style={{ whiteSpace: 'nowrap' }}>Decoy &mdash; <span style={{ color: C.muted, fontWeight: 600 }}>Add a fake answer</span></span>
-                      </button>
-                      <button
-                        onClick={() => handleRerollPowerup()}
-                        style={sabotageOptionStyle}
+                        disabled={!!selectedSabotageType}
+                        onClick={() => {
+                          if (selectedSabotageType) return;
+                          setSelectedSabotageType('reroll');
+                          setTimeout(() => handleRerollPowerup(), 400);
+                        }}
+                        style={{
+                          ...sabotageOptionStyle,
+                          ...(selectedSabotageType === 'reroll' ? { background: 'rgba(255,149,0,0.3)', borderColor: C.accent2, transform: 'scale(0.96)' } : {}),
+                          transition: 'all 0.15s ease',
+                        }}
                       >
                         <span>{'\uD83C\uDFB2'}</span> <span style={{ whiteSpace: 'nowrap' }}>Reroll &mdash; <span style={{ color: C.muted, fontWeight: 600 }}>Random power-up</span></span>
                       </button>
@@ -1842,7 +1929,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
                             key={p.id}
                             disabled={!!selectedSabotageTarget}
                             onClick={() => {
-                              if (!selectedSabotageType || selectedSabotageTarget) return;
+                              if (!selectedSabotageType || selectedSabotageType === 'reroll' || selectedSabotageTarget) return;
                               setSelectedSabotageTarget(p.id);
                               setTimeout(() => {
                                 handleSabotage(selectedSabotageType, p.id);
@@ -1888,15 +1975,30 @@ const GameScreen: React.FC<GameScreenProps> = ({
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 16 }}>
               {isLocalTurn ? (
-                activePlayers.filter((p) => p.id !== localPlayerId).map((p) => (
-                  <button
-                    key={p.id}
-                    onClick={() => handleThrowTarget(p.id)}
-                    style={sabotageOptionStyle}
-                  >
-                    <span>{p.avatar} Throw to <strong>{p.name}</strong></span>
-                  </button>
-                ))
+                activePlayers.filter((p) => p.id !== localPlayerId).map((p) => {
+                  const isSelected = selectedThrowTarget === p.id;
+                  return (
+                    <button
+                      key={p.id}
+                      disabled={!!selectedThrowTarget}
+                      onClick={() => {
+                        if (selectedThrowTarget) return;
+                        setSelectedThrowTarget(p.id);
+                        setTimeout(() => {
+                          handleThrowTarget(p.id);
+                          setSelectedThrowTarget(null);
+                        }, 400);
+                      }}
+                      style={{
+                        ...sabotageOptionStyle,
+                        ...(isSelected ? { background: 'rgba(255,149,0,0.3)', borderColor: C.accent2, transform: 'scale(0.96)' } : {}),
+                        transition: 'all 0.15s ease',
+                      }}
+                    >
+                      <span>{p.avatar} Throw to <strong>{p.name}</strong></span>
+                    </button>
+                  );
+                })
               ) : (
                 <div style={{ fontSize: '0.9rem', color: C.muted, padding: 16 }}>
                   Waiting for {currentPlayer?.name} to choose...
