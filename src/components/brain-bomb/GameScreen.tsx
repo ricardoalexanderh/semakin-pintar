@@ -323,6 +323,9 @@ const GameScreen: React.FC<GameScreenProps> = ({
       } else if (msg.type === 'throw-target') {
         const { targetId } = msg.payload as { targetId: string };
         handleThrowTarget(targetId, true);
+      } else if (msg.type === 'throw-direct') {
+        const { targetId } = msg.payload as { targetId: string };
+        handleThrowDirect(targetId, true);
       } else if (msg.type === 'sabotage-applied') {
         const { sabotageType, targetId } = msg.payload as { sabotageType: string; targetId: string };
         if (sabotageType === 'reroll') {
@@ -1198,6 +1201,26 @@ const GameScreen: React.FC<GameScreenProps> = ({
     }, 2000);
   };
 
+  // 2-player throw: consume powerup + throw in one step, no overlay
+  const handleThrowDirect = (targetId: string, fromRemote = false) => {
+    if (!isHost && !fromRemote) {
+      if (gameRoom) gameRoom.broadcast('throw-direct', { targetId });
+      return;
+    }
+    if (!isHost) return;
+    const curPlayers = playersRef.current;
+    const curRound = roundRef.current;
+    const cp = curPlayers[curRound.currentPlayerIdx];
+    if (!cp || cp.powerups.throw <= 0) return;
+    if (cp.id === localPlayerId) playSound('powerup', sound);
+    const updated = curPlayers.map((p, i) =>
+      i !== curRound.currentPlayerIdx ? p : { ...p, usedPowerupThisRound: true, powerups: { ...p.powerups, throw: p.powerups.throw - 1 } }
+    );
+    setPlayers(updated);
+    playersRef.current = updated;
+    handleThrowTarget(targetId);
+  };
+
   const handleSabotage = (type: 'blind' | 'timebomb' | 'decoy', targetId: string, fromRemote = false) => {
     // Guest sends sabotage selection to host via WebRTC
     if (!isHost && !fromRemote) {
@@ -1525,25 +1548,30 @@ const GameScreen: React.FC<GameScreenProps> = ({
                 disabled={count <= 0 || !!pressedPowerup}
                 onClick={() => {
                   if (count <= 0 || pressedPowerup) return;
-                  // For throw with only 1 target (2 players), show press effect then skip overlay
+                  setPressedPowerup(key);
+                  // For throw with only 1 target (2 players), skip overlay entirely
                   if (key === 'throw') {
                     const targets = activePlayers.filter((p) => p.id !== currentPlayer?.id);
                     if (targets.length === 1) {
-                      setPressedPowerup(key);
                       setTimeout(() => {
                         setPressedPowerup(null);
-                        usePowerup(key);
-                        // Immediately select the only target after powerup activates
-                        setTimeout(() => handleThrowTarget(targets[0].id), 50);
+                        handleThrowDirect(targets[0].id);
                       }, 400);
                       return;
                     }
                   }
-                  usePowerup(key);
+                  setTimeout(() => {
+                    setPressedPowerup(null);
+                    usePowerup(key);
+                  }, 400);
                 }}
                 style={{
                   ...powerupBtn(count <= 0),
-                  ...(isPressed ? { background: 'rgba(0,229,255,0.3)', borderColor: C.accent3, transform: 'scale(0.93)' } : {}),
+                  ...(isPressed ? {
+                    background: key === 'shield' ? 'rgba(255,149,0,0.3)' : key === 'freeze' ? 'rgba(0,229,255,0.3)' : 'rgba(0,229,255,0.3)',
+                    borderColor: key === 'shield' ? C.accent2 : C.accent3,
+                    transform: 'scale(0.93)',
+                  } : {}),
                   transition: 'all 0.15s ease',
                 }}
               >
