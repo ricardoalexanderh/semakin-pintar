@@ -115,9 +115,12 @@ export class GameRoom {
         const conn = this.peer!.connect(hostId, { reliable: true });
         this.pendingConn = conn;
         this.setupConnection(conn);
+        // Guest onReady is deferred until the data connection actually opens
+        // (see conn.on('open') in setupConnection) to avoid broadcasting
+        // to an empty connections map if the user clicks JOIN too quickly.
+      } else {
+        this.onReady();
       }
-
-      this.onReady();
     });
 
     this.peer.on('error', (err) => {
@@ -209,6 +212,9 @@ export class GameRoom {
       const remotePeerId = conn.peer.replace(PEER_PREFIX, '');
       this.connections.set(remotePeerId, conn);
       this.onPeerConnected(remotePeerId);
+      // For guests, signal ready only after the data connection to host is open
+      // so that broadcast() has a live connection to send to.
+      if (!this.isHost) this.onReady();
     });
 
     conn.on('data', (data) => {
