@@ -122,6 +122,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
   const [selectedSabotageType, setSelectedSabotageType] = useState<'blind' | 'timebomb' | 'decoy' | null>(null);
   const [selectedSabotageTarget, setSelectedSabotageTarget] = useState<string | null>(null);
   const [selectedThrowTarget, setSelectedThrowTarget] = useState<string | null>(null);
+  const [pressedPowerup, setPressedPowerup] = useState<string | null>(null);
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const pendingToastRef = useRef<string | undefined>(undefined);
@@ -165,24 +166,6 @@ const GameScreen: React.FC<GameScreenProps> = ({
       setSelectedSabotageType(null);
       setSelectedSabotageTarget(null);
     }
-  }, [overlay]);
-
-  // Auto-select throw target when there's only 1 target (2 players)
-  useEffect(() => {
-    if (overlay === 'throw' && isLocalTurn) {
-      const targets = activePlayers.filter((p) => p.id !== localPlayerId);
-      if (targets.length === 1) {
-        setSelectedThrowTarget(targets[0].id);
-        setTimeout(() => {
-          handleThrowTarget(targets[0].id);
-          setSelectedThrowTarget(null);
-        }, 400);
-      }
-    }
-    if (overlay !== 'throw') {
-      setSelectedThrowTarget(null);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [overlay]);
 
   // Show "YOUR TURN" overlay when it becomes the local player's turn (skip on throw, which has its own overlay)
@@ -1535,12 +1518,34 @@ const GameScreen: React.FC<GameScreenProps> = ({
             { key: 'throw' as const, icon: '\uD83E\uDDE8', label: 'Throw' },
           ]).map(({ key, icon, label }) => {
             const count = currentPlayer?.powerups[key] || 0;
+            const isPressed = pressedPowerup === key;
             return (
               <button
                 key={key}
-                onClick={() => usePowerup(key)}
-                disabled={count <= 0}
-                style={powerupBtn(count <= 0)}
+                disabled={count <= 0 || !!pressedPowerup}
+                onClick={() => {
+                  if (count <= 0 || pressedPowerup) return;
+                  // For throw with only 1 target (2 players), show press effect then skip overlay
+                  if (key === 'throw') {
+                    const targets = activePlayers.filter((p) => p.id !== currentPlayer?.id);
+                    if (targets.length === 1) {
+                      setPressedPowerup(key);
+                      setTimeout(() => {
+                        setPressedPowerup(null);
+                        usePowerup(key);
+                        // Immediately select the only target after powerup activates
+                        setTimeout(() => handleThrowTarget(targets[0].id), 50);
+                      }, 400);
+                      return;
+                    }
+                  }
+                  usePowerup(key);
+                }}
+                style={{
+                  ...powerupBtn(count <= 0),
+                  ...(isPressed ? { background: 'rgba(0,229,255,0.3)', borderColor: C.accent3, transform: 'scale(0.93)' } : {}),
+                  transition: 'all 0.15s ease',
+                }}
               >
                 <span style={{ fontSize: '1rem' }}>{icon}</span> {label}
                 <span style={{
