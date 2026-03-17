@@ -119,7 +119,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
   const [yourTurnNotif, setYourTurnNotif] = useState(false);
   const [luckyWinnerId, setLuckyWinnerId] = useState<string | null>(null);
   const [sabotageStep, setSabotageStep] = useState<'type' | 'target'>('type');
-  const [selectedSabotageType, setSelectedSabotageType] = useState<'blind' | 'timebomb' | 'decoy' | null>(null);
+  const [selectedSabotageType, setSelectedSabotageType] = useState<'blind' | 'timebomb' | 'decoy' | 'reroll' | null>(null);
   const [selectedSabotageTarget, setSelectedSabotageTarget] = useState<string | null>(null);
   const [selectedThrowTarget, setSelectedThrowTarget] = useState<string | null>(null);
   const [pressedPowerup, setPressedPowerup] = useState<string | null>(null);
@@ -1567,11 +1567,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
                 }}
                 style={{
                   ...powerupBtn(count <= 0),
-                  ...(isPressed ? {
-                    background: key === 'shield' ? 'rgba(255,149,0,0.3)' : key === 'freeze' ? 'rgba(0,229,255,0.3)' : 'rgba(0,229,255,0.3)',
-                    borderColor: key === 'shield' ? C.accent2 : C.accent3,
-                    transform: 'scale(0.93)',
-                  } : {}),
+                  ...(isPressed ? { background: 'rgba(255,149,0,0.3)', borderColor: C.accent2, transform: 'scale(0.93)' } : {}),
                   transition: 'all 0.15s ease',
                 }}
               >
@@ -1896,8 +1892,16 @@ const GameScreen: React.FC<GameScreenProps> = ({
                       })}
                       <button
                         disabled={!!selectedSabotageType}
-                        onClick={() => { if (!selectedSabotageType) handleRerollPowerup(); }}
-                        style={sabotageOptionStyle}
+                        onClick={() => {
+                          if (selectedSabotageType) return;
+                          setSelectedSabotageType('reroll');
+                          setTimeout(() => handleRerollPowerup(), 400);
+                        }}
+                        style={{
+                          ...sabotageOptionStyle,
+                          ...(selectedSabotageType === 'reroll' ? { background: 'rgba(255,149,0,0.3)', borderColor: C.accent2, transform: 'scale(0.96)' } : {}),
+                          transition: 'all 0.15s ease',
+                        }}
                       >
                         <span>{'\uD83C\uDFB2'}</span> <span style={{ whiteSpace: 'nowrap' }}>Reroll &mdash; <span style={{ color: C.muted, fontWeight: 600 }}>Random power-up</span></span>
                       </button>
@@ -1979,7 +1983,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
                       }}
                       style={{
                         ...sabotageOptionStyle,
-                        ...(isSelected ? { background: 'rgba(0,229,255,0.3)', borderColor: C.accent3, transform: 'scale(0.96)' } : {}),
+                        ...(isSelected ? { background: 'rgba(255,149,0,0.3)', borderColor: C.accent2, transform: 'scale(0.96)' } : {}),
                         transition: 'all 0.15s ease',
                       }}
                     >
