@@ -325,7 +325,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
         handleThrowTarget(targetId, true);
       } else if (msg.type === 'throw-direct') {
         const { targetId } = msg.payload as { targetId: string };
-        handleThrowDirect(targetId, true);
+        usePowerup('throw', true, targetId);
       } else if (msg.type === 'sabotage-applied') {
         const { sabotageType, targetId } = msg.payload as { sabotageType: string; targetId: string };
         if (sabotageType === 'reroll') {
@@ -1050,7 +1050,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
     }
   };
 
-  const usePowerup = (type: 'shield' | 'freeze' | 'throw', fromRemote = false) => {
+  const usePowerup = (type: 'shield' | 'freeze' | 'throw', fromRemote = false, directThrowTarget?: string) => {
     const curRound = roundRef.current;
     const curPlayers = playersRef.current;
     if (curRound.answered) return;
@@ -1061,7 +1061,11 @@ const GameScreen: React.FC<GameScreenProps> = ({
       if (cp?.id !== localPlayerId) return;
       if (cp.powerups[type] <= 0) return;
       if (gameRoom) {
-        gameRoom.broadcast('powerup-used', { type });
+        if (directThrowTarget) {
+          gameRoom.broadcast('throw-direct', { targetId: directThrowTarget });
+        } else {
+          gameRoom.broadcast('powerup-used', { type });
+        }
       }
       return;
     }
@@ -1104,8 +1108,13 @@ const GameScreen: React.FC<GameScreenProps> = ({
         });
       }, 5000);
     } else if (type === 'throw') {
-      setOverlay('throw');
-      broadcastState(newPlayers, curRound, 'throw', explosionInfoRef.current, chainQuestionRef.current);
+      if (directThrowTarget) {
+        // 2-player: skip overlay, throw immediately
+        handleThrowTarget(directThrowTarget);
+      } else {
+        setOverlay('throw');
+        broadcastState(newPlayers, curRound, 'throw', explosionInfoRef.current, chainQuestionRef.current);
+      }
     }
   };
 
@@ -1199,26 +1208,6 @@ const GameScreen: React.FC<GameScreenProps> = ({
       setPlayers(newPlayers);
       broadcastState(newPlayers, newRound, 'none', { name: '', message: '' }, null);
     }, 2000);
-  };
-
-  // 2-player throw: consume powerup + throw in one step, no overlay
-  const handleThrowDirect = (targetId: string, fromRemote = false) => {
-    if (!isHost && !fromRemote) {
-      if (gameRoom) gameRoom.broadcast('throw-direct', { targetId });
-      return;
-    }
-    if (!isHost) return;
-    const curPlayers = playersRef.current;
-    const curRound = roundRef.current;
-    const cp = curPlayers[curRound.currentPlayerIdx];
-    if (!cp || cp.powerups.throw <= 0) return;
-    if (cp.id === localPlayerId) playSound('powerup', sound);
-    const updated = curPlayers.map((p, i) =>
-      i !== curRound.currentPlayerIdx ? p : { ...p, usedPowerupThisRound: true, powerups: { ...p.powerups, throw: p.powerups.throw - 1 } }
-    );
-    setPlayers(updated);
-    playersRef.current = updated;
-    handleThrowTarget(targetId);
   };
 
   const handleSabotage = (type: 'blind' | 'timebomb' | 'decoy', targetId: string, fromRemote = false) => {
@@ -1555,7 +1544,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
                     if (targets.length === 1) {
                       setTimeout(() => {
                         setPressedPowerup(null);
-                        handleThrowDirect(targets[0].id);
+                        usePowerup('throw', false, targets[0].id);
                       }, 400);
                       return;
                     }
