@@ -511,6 +511,7 @@ export const QUESTIONS: QuestionBank = {
     { q: 'x = [1,2,3]; for i in x: x.remove(i) \u2014 bug?', a: ['Modifying list while iterating','No bug','Wrong syntax','Missing break'], correct: 0, diff: 'hard' },
     { q: 'try: x=1/0; except: pass \u2014 is this good practice?', a: ['No \u2014 bare except hides errors','Yes','Sometimes','Only in Python'], correct: 0, diff: 'hard' },
     { q: 'x = int("abc") \u2014 bug?', a: ['ValueError \u2014 cannot convert','No bug','Wrong function','Missing quotes'], correct: 0, diff: 'hard' },
+    { q: 'x = [1,2]; del x[5] \u2014 bug?', a: ['Index out of range','No bug','Wrong syntax','Missing value'], correct: 0, diff: 'hard' },
   ],
 
   // ── WORD ──────────────────────────────────────────────────────────
