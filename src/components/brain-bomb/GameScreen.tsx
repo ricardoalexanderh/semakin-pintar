@@ -241,9 +241,20 @@ const GameScreen: React.FC<GameScreenProps> = ({
       if (state.round.currentPlayerIdx !== round.currentPlayerIdx && state.overlay !== 'explosion' && state.overlay !== 'chain' && state.overlay !== 'lucky' && !state.round.answered && isMyTurn) {
         playSound('pass', sound);
       }
-      // Throw sound: play when throw completes (throwTargetId appears) for the thrower
-      if (state.throwTargetId && wasMyTurn) {
+      // Throw sound: play for the thrower and the targeted player
+      if (state.throwTargetId && (wasMyTurn || state.throwTargetId === localPlayerId)) {
         playSound('throw', sound);
+      }
+      // Sabotage sound: play for the targeted player when they get sabotaged
+      const localPlayer = players.find((p) => p.id === localPlayerId);
+      const updatedLocal = state.players.find((p: { id: string }) => p.id === localPlayerId);
+      if (localPlayer && updatedLocal && !wasMyTurn) {
+        const gotSabotaged = (
+          (!localPlayer.blindNextRound && updatedLocal.blindNextRound) ||
+          (!localPlayer.timeBombActive && updatedLocal.timeBombActive) ||
+          (!localPlayer.decoyNextRound && updatedLocal.decoyNextRound)
+        );
+        if (gotSabotaged) playSound('sabotage', sound);
       }
       // Explosion sound: play for all players
       if (state.overlay === 'explosion' && overlay !== 'explosion') {
@@ -1138,7 +1149,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
     if (!target) return;
 
     const throwerCp = curPlayers[curRound.currentPlayerIdx];
-    if (throwerCp?.id === localPlayerId) playSound('throw', sound);
+    if (throwerCp?.id === localPlayerId || target.id === localPlayerId) playSound('throw', sound);
 
     // Stop timer and mark round as answered so bomb doesn't explode during notification
     if (timerRef.current) clearInterval(timerRef.current);
@@ -1239,7 +1250,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
 
       const curRound = roundRef.current;
       const curPlayer = prevPlayers[curRound.currentPlayerIdx];
-      if (curPlayer?.id === localPlayerId) playSound('sabotage', sound);
+      if (curPlayer?.id === localPlayerId || target.id === localPlayerId) playSound('sabotage', sound);
       const typeLabel = type === 'blind' ? 'Blind' : type === 'timebomb' ? 'Time Bomb' : 'Decoy';
       broadcastToast(`\uD83D\uDC80 ${typeLabel} sent to ${target.name}!`);
 
