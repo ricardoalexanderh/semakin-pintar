@@ -242,8 +242,10 @@ const GameScreen: React.FC<GameScreenProps> = ({
         playSound('pass', sound);
       }
       // Powerup / sabotage sound: play for the player who used it
-      if ((state.overlay === 'sabotage' && overlay !== 'sabotage') || (state.overlay === 'throw' && overlay !== 'throw')) {
-        if (wasMyTurn) playSound('powerup', sound);
+      if (state.overlay === 'sabotage' && overlay !== 'sabotage') {
+        if (wasMyTurn) playSound('sabotage', sound);
+      } else if (state.overlay === 'throw' && overlay !== 'throw') {
+        if (wasMyTurn) playSound('throw', sound);
       }
       // Explosion sound: play for all players
       if (state.overlay === 'explosion' && overlay !== 'explosion') {
@@ -450,7 +452,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
 
     // Shield blocks the explosion
     if (cp.shieldActive) {
-      if (cp.id === localPlayerId) playSound('powerup', sound);
+      if (cp.id === localPlayerId) playSound('shield', sound);
       const shieldedPlayers = curPlayers.map((p, i) =>
         i === curRound.currentPlayerIdx ? { ...p, shieldActive: false } : p
       );
@@ -1074,7 +1076,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
     const cp = curPlayers[curRound.currentPlayerIdx];
     if (cp.powerups[type] <= 0) return;
 
-    if (cp.id === localPlayerId) playSound('powerup', sound);
+    if (cp.id === localPlayerId) playSound(type, sound);
 
     const newPlayers = curPlayers.map((p, i) => {
       if (i !== curRound.currentPlayerIdx) return p;
@@ -1232,7 +1234,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
 
       const curRound = roundRef.current;
       const curPlayer = prevPlayers[curRound.currentPlayerIdx];
-      if (curPlayer?.id === localPlayerId) playSound('powerup', sound);
+      if (curPlayer?.id === localPlayerId) playSound('sabotage', sound);
       const typeLabel = type === 'blind' ? 'Blind' : type === 'timebomb' ? 'Time Bomb' : 'Decoy';
       broadcastToast(`\uD83D\uDC80 ${typeLabel} sent to ${target.name}!`);
 
@@ -1288,7 +1290,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
       const randomPowerup = powerupTypes[Math.floor(Math.random() * powerupTypes.length)];
       const label = randomPowerup === 'shield' ? '\uD83D\uDEE1\uFE0F Shield' : randomPowerup === 'freeze' ? '\u2744\uFE0F Freeze' : '\uD83E\uDDE8 Throw';
 
-      if (curPlayer.id === localPlayerId) playSound('powerup', sound);
+      if (curPlayer.id === localPlayerId) playSound('sabotage', sound);
       broadcastToast(`\uD83C\uDFB2 ${curPlayer.name} rerolled and got ${label}!`);
 
       const newPlayers = prevPlayers.map((p, i) => {
