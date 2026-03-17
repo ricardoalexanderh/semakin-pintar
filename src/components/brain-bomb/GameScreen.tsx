@@ -1921,7 +1921,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
                             key={p.id}
                             disabled={!!selectedSabotageTarget}
                             onClick={() => {
-                              if (!selectedSabotageType || selectedSabotageTarget) return;
+                              if (!selectedSabotageType || selectedSabotageType === 'reroll' || selectedSabotageTarget) return;
                               setSelectedSabotageTarget(p.id);
                               setTimeout(() => {
                                 handleSabotage(selectedSabotageType, p.id);
