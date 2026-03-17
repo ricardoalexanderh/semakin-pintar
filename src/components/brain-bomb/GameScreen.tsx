@@ -1811,53 +1811,40 @@ const GameScreen: React.FC<GameScreenProps> = ({
                 <>
                   {sabotageStep === 'type' ? (
                     <>
+                      {([
+                        { type: 'blind' as const, icon: '\uD83D\uDE48', label: 'Blind', desc: 'Blur all answer options' },
+                        { type: 'timebomb' as const, icon: '\u23F1\uFE0F', label: 'Time Bomb', desc: 'halves their timer' },
+                        { type: 'decoy' as const, icon: '\uD83C\uDFAD', label: 'Decoy', desc: 'Add a fake answer' },
+                      ]).map((opt) => {
+                        const isSelected = selectedSabotageType === opt.type;
+                        return (
+                          <button
+                            key={opt.type}
+                            disabled={!!selectedSabotageType}
+                            onClick={() => {
+                              if (selectedSabotageType) return;
+                              const targets = activePlayers.filter((p) => p.id !== currentPlayer?.id);
+                              setSelectedSabotageType(opt.type);
+                              if (targets.length === 1) {
+                                setSelectedSabotageTarget(targets[0].id);
+                                setTimeout(() => { handleSabotage(opt.type, targets[0].id); setSelectedSabotageTarget(null); }, 400);
+                              } else {
+                                setTimeout(() => setSabotageStep('target'), 200);
+                              }
+                            }}
+                            style={{
+                              ...sabotageOptionStyle,
+                              ...(isSelected ? { background: 'rgba(255,149,0,0.3)', borderColor: C.accent2, transform: 'scale(0.96)' } : {}),
+                              transition: 'all 0.15s ease',
+                            }}
+                          >
+                            <span>{opt.icon}</span> <span style={{ whiteSpace: 'nowrap' }}>{opt.label} &mdash; <span style={{ color: C.muted, fontWeight: 600 }}>{opt.desc}</span></span>
+                          </button>
+                        );
+                      })}
                       <button
-                        onClick={() => {
-                          const targets = activePlayers.filter((p) => p.id !== currentPlayer?.id);
-                          if (targets.length === 1) {
-                            setSelectedSabotageType('blind');
-                            setSelectedSabotageTarget(targets[0].id);
-                            setTimeout(() => { handleSabotage('blind', targets[0].id); setSelectedSabotageTarget(null); }, 400);
-                          } else {
-                            setSelectedSabotageType('blind'); setSabotageStep('target');
-                          }
-                        }}
-                        style={sabotageOptionStyle}
-                      >
-                        <span>{'\uD83D\uDE48'}</span> <span style={{ whiteSpace: 'nowrap' }}>Blind &mdash; <span style={{ color: C.muted, fontWeight: 600 }}>Blur all answer options</span></span>
-                      </button>
-                      <button
-                        onClick={() => {
-                          const targets = activePlayers.filter((p) => p.id !== currentPlayer?.id);
-                          if (targets.length === 1) {
-                            setSelectedSabotageType('timebomb');
-                            setSelectedSabotageTarget(targets[0].id);
-                            setTimeout(() => { handleSabotage('timebomb', targets[0].id); setSelectedSabotageTarget(null); }, 400);
-                          } else {
-                            setSelectedSabotageType('timebomb'); setSabotageStep('target');
-                          }
-                        }}
-                        style={sabotageOptionStyle}
-                      >
-                        <span>{'\u23F1\uFE0F'}</span> <span style={{ whiteSpace: 'nowrap' }}>Time Bomb &mdash; <span style={{ color: C.muted, fontWeight: 600 }}>halves their timer</span></span>
-                      </button>
-                      <button
-                        onClick={() => {
-                          const targets = activePlayers.filter((p) => p.id !== currentPlayer?.id);
-                          if (targets.length === 1) {
-                            setSelectedSabotageType('decoy');
-                            setSelectedSabotageTarget(targets[0].id);
-                            setTimeout(() => { handleSabotage('decoy', targets[0].id); setSelectedSabotageTarget(null); }, 400);
-                          } else {
-                            setSelectedSabotageType('decoy'); setSabotageStep('target');
-                          }
-                        }}
-                        style={sabotageOptionStyle}
-                      >
-                        <span>{'\uD83C\uDFAD'}</span> <span style={{ whiteSpace: 'nowrap' }}>Decoy &mdash; <span style={{ color: C.muted, fontWeight: 600 }}>Add a fake answer</span></span>
-                      </button>
-                      <button
-                        onClick={() => handleRerollPowerup()}
+                        disabled={!!selectedSabotageType}
+                        onClick={() => { if (!selectedSabotageType) handleRerollPowerup(); }}
                         style={sabotageOptionStyle}
                       >
                         <span>{'\uD83C\uDFB2'}</span> <span style={{ whiteSpace: 'nowrap' }}>Reroll &mdash; <span style={{ color: C.muted, fontWeight: 600 }}>Random power-up</span></span>
