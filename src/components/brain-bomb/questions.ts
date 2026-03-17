@@ -502,27 +502,56 @@ function makeWrongAnswers(correct: number, count = 3): string[] {
   return arr.slice(0, count);
 }
 
+/** Wrong answers that share the same last digit as the correct answer (offsets are multiples of 10). */
+function makeWrongAnswersSameLastDigit(correct: number, count = 3): string[] {
+  const wrongs = new Set<string>();
+  const offsets = [10, -10, 20, -20, 30, -30];
+  for (const off of offsets) {
+    const val = correct + off;
+    if (val > 0) wrongs.add(String(val));
+  }
+  wrongs.add(String(correct + randInt(1, 6) * 10));
+  const neg = correct - randInt(1, 6) * 10;
+  if (neg > 0) wrongs.add(String(neg));
+  wrongs.delete(String(correct));
+  // Remove non-positive values
+  for (const w of wrongs) {
+    if (Number(w) <= 0) wrongs.delete(w);
+  }
+  const arr = Array.from(wrongs);
+  // Shuffle and pick
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr.slice(0, count);
+}
+
 function generateArithmetic(diff: Difficulty): Question {
   let q = '';
   let answer = 0;
+  let sameLastDigit = false;
 
   if (diff === 'easy') {
     const op = pickOne(['+', '-', '×']);
     if (op === '+') {
       const a = randInt(1, 20), b = randInt(1, 20);
       q = `What is ${a} + ${b}?`; answer = a + b;
+      sameLastDigit = true;
     } else if (op === '-') {
       const a = randInt(10, 30), b = randInt(1, a);
       q = `What is ${a} - ${b}?`; answer = a - b;
     } else {
       const a = randInt(2, 9), b = randInt(2, 9);
       q = `What is ${a} × ${b}?`; answer = a * b;
+      sameLastDigit = true;
     }
   } else if (diff === 'medium') {
     const op = pickOne(['×', '÷', '+', '-']);
     if (op === '×') {
       const a = randInt(10, 25), b = randInt(2, 12);
       q = `What is ${a} × ${b}?`; answer = a * b;
+      sameLastDigit = true;
     } else if (op === '÷') {
       const b = randInt(2, 12), ans = randInt(3, 20);
       const a = b * ans;
@@ -530,6 +559,7 @@ function generateArithmetic(diff: Difficulty): Question {
     } else if (op === '+') {
       const a = randInt(50, 200), b = randInt(30, 150);
       q = `What is ${a} + ${b}?`; answer = a + b;
+      sameLastDigit = true;
     } else {
       const a = randInt(100, 300), b = randInt(30, a);
       q = `What is ${a} - ${b}?`; answer = a - b;
@@ -545,6 +575,7 @@ function generateArithmetic(diff: Difficulty): Question {
     } else if (type === 'mult') {
       const a = randInt(10, 30), b = randInt(10, 30);
       q = `What is ${a} × ${b}?`; answer = a * b;
+      sameLastDigit = true;
     } else {
       const base = randInt(2, 5), exp = randInt(3, 5);
       q = `What is ${base}${exp === 3 ? '³' : exp === 4 ? '⁴' : '⁵'}?`;
@@ -552,7 +583,10 @@ function generateArithmetic(diff: Difficulty): Question {
     }
   }
 
-  const { a, correct } = shuffleAnswers(String(answer), makeWrongAnswers(answer));
+  const wrongs = sameLastDigit
+    ? makeWrongAnswersSameLastDigit(answer)
+    : makeWrongAnswers(answer);
+  const { a, correct } = shuffleAnswers(String(answer), wrongs);
   return { q, a, correct, diff };
 }
 
