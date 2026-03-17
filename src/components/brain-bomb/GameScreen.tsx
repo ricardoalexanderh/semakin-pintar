@@ -966,6 +966,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
     const newPlayers = cp.map((p, i) => ({
       ...p,
       usedPowerupThisRound: false,
+      shieldActive: false,
       timeBombActive: i === nextIdx ? false : p.timeBombActive,
       blindNextRound: i === nextIdx ? false : p.blindNextRound,
       decoyNextRound: i === nextIdx ? false : p.decoyNextRound,
@@ -1214,10 +1215,11 @@ const GameScreen: React.FC<GameScreenProps> = ({
       };
       setRound(newRound);
       setOverlay('none');
-      // Clear sabotage effects for the target, reset usedPowerupThisRound for all
+      // Clear sabotage effects for the target, reset usedPowerupThisRound and shield for all
       const newPlayers = curPlayers.map((p, i) => ({
         ...p,
         usedPowerupThisRound: false,
+        shieldActive: false,
         timeBombActive: i === targetIdx ? false : p.timeBombActive,
         blindNextRound: i === targetIdx ? false : p.blindNextRound,
         decoyNextRound: i === targetIdx ? false : p.decoyNextRound,
