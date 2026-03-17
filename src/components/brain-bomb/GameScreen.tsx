@@ -157,6 +157,15 @@ const GameScreen: React.FC<GameScreenProps> = ({
   const isLocalEliminated = players.find((p) => p.id === localPlayerId)?.eliminated ?? false;
   const activePlayers = players.filter((p) => !p.eliminated);
 
+  // Always reset sabotage UI to type-selection when overlay becomes 'sabotage'
+  useEffect(() => {
+    if (overlay === 'sabotage') {
+      setSabotageStep('type');
+      setSelectedSabotageType(null);
+      setSelectedSabotageTarget(null);
+    }
+  }, [overlay]);
+
   // Show "YOUR TURN" overlay when it becomes the local player's turn (skip on throw, which has its own overlay)
   const prevRoundRef = useRef(round.round);
   useEffect(() => {
