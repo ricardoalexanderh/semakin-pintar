@@ -181,7 +181,7 @@ const BrainBombGame: React.FC = () => {
           bgmRef.current?.pause();
           setPhase('lobby');
           setFinalPlayers([]);
-        } else if (['game-state', 'answer-submitted', 'powerup-used', 'chain-answer', 'lucky-answer', 'throw-target', 'sabotage-applied'].includes(msg.type)) {
+        } else if (['game-state', 'answer-submitted', 'powerup-used', 'chain-answer', 'lucky-answer', 'throw-target', 'throw-direct', 'sabotage-applied'].includes(msg.type)) {
           // Forward game messages to GameScreen's sync handler
           const room = roomRef.current as unknown as { gameSyncHandler?: (m: typeof msg) => void };
           room?.gameSyncHandler?.(msg);
