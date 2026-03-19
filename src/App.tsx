@@ -167,6 +167,12 @@ const GamesIndexPage = () => {
           "position": 13,
           "name": "Stack Climber",
           "url": "https://www.semakinpintar.com/games/stack-climber"
+        },
+        {
+          "@type": "Game",
+          "position": 14,
+          "name": "Brain Bomb",
+          "url": "https://www.semakinpintar.com/games/brain-bomb"
         }
       ]
     }
