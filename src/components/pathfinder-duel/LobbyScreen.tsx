@@ -24,6 +24,7 @@ const ROUND_TYPE_INFO: Record<RoundType, { label: string; icon: string; desc: st
   classic: { label: 'Classic', icon: '\u2B06', desc: 'Highest sum wins', color: C.accent },
   minimum: { label: 'Minimum', icon: '\u2B07', desc: 'Lowest sum wins', color: C.accent3 },
   multiplier: { label: 'Multiplier', icon: '\u2728', desc: 'x2/x3 bonus cells', color: C.accent4 },
+  hidden: { label: 'Hidden', icon: '\uD83D\uDC41\uFE0F', desc: 'Values revealed on step', color: '#8b5cf6' },
 };
 
 const LobbyScreen: React.FC<LobbyScreenProps> = ({

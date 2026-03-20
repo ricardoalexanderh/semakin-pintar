@@ -22,6 +22,7 @@ const ROUND_TYPE_LABELS: Record<string, { label: string; icon: string; color: st
   classic: { label: 'CLASSIC', icon: '\u2B06', color: C.accent },
   minimum: { label: 'MINIMUM', icon: '\u2B07', color: C.accent3 },
   multiplier: { label: 'MULTIPLIER', icon: '\u2728', color: C.accent4 },
+  hidden: { label: 'HIDDEN', icon: '\uD83D\uDC41\uFE0F', color: '#8b5cf6' },
 };
 
 const GameScreen: React.FC<GameScreenProps> = ({
@@ -85,7 +86,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
   }, [localPath]);
 
   const canMoveTo = useCallback((r: number, c: number): boolean => {
-    if (roundState.grid[r][c].blocked) return false;
+    if (roundState.grid[r][c].blocked && !localPlayer?.isBlockerPlacer) return false;
     if (localPath.length === 0) return r === 0 && c === 0;
     const last = localPath[localPath.length - 1];
     return (
@@ -244,8 +245,11 @@ const GameScreen: React.FC<GameScreenProps> = ({
             const onPath = isOnPath(r, c);
             const isStart = r === 0 && c === 0;
             const isEnd = r === rows - 1 && c === cols - 1;
-            const isBlocked = cell.blocked || false;
+            const isCellBlocked = cell.blocked || false;
+            const isBlocked = isCellBlocked && !localPlayer?.isBlockerPlacer;
+            const isBlockedPassable = isCellBlocked && !!localPlayer?.isBlockerPlacer;
             const isBlockerSelected = localBlockers.some(b => b.row === r && b.col === c);
+            const isHidden = roundState.roundType === 'hidden' && !onPath && !isStart && !isEnd;
             const movable = !submitted && !isBlocked && canMoveTo(r, c) && !onPath;
 
             return (
@@ -273,16 +277,25 @@ const GameScreen: React.FC<GameScreenProps> = ({
                 {isBlocked ? (
                   <span style={{ fontSize: 'clamp(0.8rem, 3vw, 1.2rem)' }}>{'\u2716'}</span>
                 ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0 }}>
-                    <span>{cell.value}</span>
-                    {cell.multiplier && (
-                      <span style={{
-                        fontSize: 'clamp(0.45rem, 1.5vw, 0.55rem)',
-                        color: cell.multiplier === 3 ? C.accent2 : C.accent4,
-                        fontWeight: 900,
-                      }}>
-                        {'\u00D7'}{cell.multiplier}
-                      </span>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0, position: 'relative' }}>
+                    {isHidden ? (
+                      <span style={{ color: '#8b5cf6', fontWeight: 800 }}>?</span>
+                    ) : (
+                      <>
+                        <span style={isBlockedPassable ? { opacity: 0.5 } : undefined}>{cell.value}</span>
+                        {isBlockedPassable && (
+                          <span style={{ position: 'absolute', fontSize: 'clamp(0.5rem, 1.8vw, 0.7rem)', opacity: 0.3 }}>{'\u2716'}</span>
+                        )}
+                        {cell.multiplier && (
+                          <span style={{
+                            fontSize: 'clamp(0.45rem, 1.5vw, 0.55rem)',
+                            color: cell.multiplier === 3 ? C.accent2 : C.accent4,
+                            fontWeight: 900,
+                          }}>
+                            {'\u00D7'}{cell.multiplier}
+                          </span>
+                        )}
+                      </>
                     )}
                   </div>
                 )}
@@ -415,6 +428,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
         {!isPlacingBlockers && roundState.roundType === 'minimum' && 'Lowest sum wins this round!'}
         {!isPlacingBlockers && roundState.roundType === 'multiplier' && 'Multiplier cells multiply your running total!'}
         {!isPlacingBlockers && roundState.roundType === 'classic' && 'Trace the highest-sum path!'}
+        {!isPlacingBlockers && roundState.roundType === 'hidden' && 'Values are hidden — step to reveal!'}
       </div>
     </div>
   );

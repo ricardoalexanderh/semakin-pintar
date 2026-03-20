@@ -2,7 +2,7 @@
 
 export type Difficulty = 'easy' | 'medium' | 'hard';
 export type GamePhase = 'menu' | 'lobby' | 'countdown' | 'playing' | 'reveal' | 'gameover';
-export type RoundType = 'classic' | 'minimum' | 'multiplier';
+export type RoundType = 'classic' | 'minimum' | 'multiplier' | 'hidden';
 
 export interface GridCell {
   value: number;
