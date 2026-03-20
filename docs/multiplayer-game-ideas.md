@@ -220,22 +220,27 @@ Players see the same number grid and must trace a path from one corner to the op
 - 2-6 players, simultaneous path-drawing
 - Blind play: you don't see opponents' paths until reveal
 - Multi-round tournament with cumulative scoring
-- Special rounds:
-  - **Blocker round**: after Round 1, winner places 2 "blocked" cells on the grid for next round
-  - **Multiplier round**: some cells have x2 or x3 multipliers
-  - **Minimum round**: lowest sum wins (changes optimal strategy entirely)
-  - **Fog round**: numbers are hidden until you step on adjacent cells
+- Round types:
+  - **Classic**: highest sum wins
+  - **Minimum**: lowest sum wins (changes optimal strategy entirely)
+  - **Multiplier**: some cells have x2 or x3 multipliers on running total
+  - **Hidden**: cell values are hidden (`?`) until you step on them — blind exploration
+- **Blockers** (settings toggle, catch-up mechanic):
+  - After round 1, the last-place player places 2 blocked cells on the grid
+  - Blocked cells are impassable for all players *except* the one who placed them
+  - The placer sees blocked cells as semi-transparent and can walk through freely
 
 ### Computational Thinking Skills
 - **Optimization**: finding the maximum/minimum sum path (dynamic programming intuition)
 - **Greedy vs. global strategy**: learning that the locally best choice isn't always globally optimal
 - **Trade-off analysis**: choosing between a high-value detour vs. a shorter path
-- **Adaptability**: adjusting strategy for different round types (max vs. min, fog, blockers)
+- **Adaptability**: adjusting strategy for different round types (max vs. min, hidden, blockers)
+- **Risk assessment**: navigating hidden rounds where values are unknown
 
 ### Difficulty Scaling
 - Easy: small grid (4x4), all positive numbers, no special cells
 - Medium: larger grid (6x6), mix of positive/negative, multiplier cells
-- Hard: 8x8 grid, fog-of-war, blocker cells, time pressure, minimum rounds
+- Hard: 8x8 grid, hidden rounds, blocker cells, time pressure, minimum rounds
 
 ### Scoring
 - Round winner: 30 points + (your sum - runner-up's sum)
