@@ -24,6 +24,7 @@ import MirrorDash from './components/mirror-dash';
 import PairShift from './components/pair-shift';
 import StackClimber from './components/stack-climber';
 import BrainBombGame from './components/brain-bomb';
+import PathfinderDuelGame from './components/pathfinder-duel';
 
 // Component to handle page tracking and SEO
 const PageTracker = () => {
@@ -661,6 +662,41 @@ const BrainBombPage = () => {
   );
 };
 
+// Pathfinder Duel Game page with SEO
+const PathfinderDuelPage = () => {
+  const gameJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Game",
+    "name": "Pathfinder Duel",
+    "description": "Multiplayer path optimization game. Trace the best route through a number grid, competing against friends in real-time.",
+    "url": "https://www.semakinpintar.com/games/pathfinder-duel",
+    "genre": "Educational",
+    "gamePlatform": "Web Browser",
+    "applicationCategory": "EducationalApplication",
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD"
+    }
+  };
+
+  return (
+    <>
+      <SEOHead
+        title="Pathfinder Duel - Multiplayer Path Optimization Game | Semakin Pintar"
+        description="Trace the optimal path through a number grid! Compete with friends in real-time. Features classic, minimum, blocker, and multiplier game modes."
+        keywords="pathfinder duel, path optimization, multiplayer math game, number grid, strategy game, educational multiplayer, computational thinking, brain training"
+        canonicalUrl="https://www.semakinpintar.com/games/pathfinder-duel"
+        ogTitle="Pathfinder Duel - Multiplayer Path Optimization Game"
+        ogDescription="Trace the best path through a number grid and compete with friends!"
+        ogImage="https://www.semakinpintar.com/logo.png"
+        jsonLd={gameJsonLd}
+      />
+      <PathfinderDuelGame />
+    </>
+  );
+};
+
 function App() {
   useEffect(() => {
     // Initialize Google Analytics    
@@ -756,6 +792,11 @@ function App() {
           <Route path="/games/brain-bomb" element={
             <GamesLayout>
               <BrainBombPage />
+            </GamesLayout>
+          } />
+          <Route path="/games/pathfinder-duel" element={
+            <GamesLayout>
+              <PathfinderDuelPage />
             </GamesLayout>
           } />
           <Route path="*" element={
