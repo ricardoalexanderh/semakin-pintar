@@ -37,9 +37,9 @@ const GameScreen: React.FC<GameScreenProps> = ({
 
   useEffect(() => { roundStateRef.current = roundState; }, [roundState]);
 
-  // Reset local state on new round
+  // Reset local state on new round — start cell auto-selected
   useEffect(() => {
-    setLocalPath([]);
+    setLocalPath([{ row: 0, col: 0 }]);
     setLocalBlockers([]);
     setSubmitted(false);
   }, [roundState.roundNumber]);
@@ -119,8 +119,8 @@ const GameScreen: React.FC<GameScreenProps> = ({
     // Path drawing mode
     if (roundState.phase !== 'drawing') return;
 
-    // Undo: clicking the last cell removes it
-    if (localPath.length > 0) {
+    // Undo: clicking the last cell removes it (but never the start cell)
+    if (localPath.length > 1) {
       const last = localPath[localPath.length - 1];
       if (last.row === r && last.col === c) {
         setLocalPath(prev => prev.slice(0, -1));
@@ -157,7 +157,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
   }, [localBlockers, onBlockerPlaced]);
 
   const handleClear = useCallback(() => {
-    setLocalPath([]);
+    setLocalPath([{ row: 0, col: 0 }]);
     playSound('undo', settings.enableSound);
   }, [settings]);
 
@@ -329,13 +329,13 @@ const GameScreen: React.FC<GameScreenProps> = ({
         <div style={{ display: 'flex', gap: 10, width: '100%' }}>
           <button
             onClick={handleClear}
-            disabled={localPath.length === 0}
+            disabled={localPath.length <= 1}
             style={{
               flex: 1, padding: '12px 0', borderRadius: 12,
               background: C.surface, border: `1px solid ${C.border}`,
-              color: localPath.length > 0 ? C.white : C.muted,
-              fontSize: '0.85rem', fontWeight: 700, cursor: localPath.length > 0 ? 'pointer' : 'not-allowed',
-              opacity: localPath.length > 0 ? 1 : 0.5,
+              color: localPath.length > 1 ? C.white : C.muted,
+              fontSize: '0.85rem', fontWeight: 700, cursor: localPath.length > 1 ? 'pointer' : 'not-allowed',
+              opacity: localPath.length > 1 ? 1 : 0.5,
             }}
           >
             Clear

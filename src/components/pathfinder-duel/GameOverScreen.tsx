@@ -55,7 +55,7 @@ const GameOverScreen: React.FC<GameOverScreenProps> = ({
         filter: `drop-shadow(0 0 30px ${C.accent2}66)`,
         textAlign: 'center',
       }}>
-        GAME OVER
+        FINAL RESULTS
       </div>
 
       {/* Podium */}
