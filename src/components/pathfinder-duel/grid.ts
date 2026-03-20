@@ -277,20 +277,15 @@ export function validatePath(
 
 /**
  * Generate the round type sequence for a game.
- * Blocker rounds never appear first.
  */
 export function generateRoundSequence(
   totalRounds: number,
   enabledTypes: RoundType[],
 ): RoundType[] {
   const sequence: RoundType[] = [];
+  const available = enabledTypes.length > 0 ? enabledTypes : ['classic' as RoundType];
 
-  // First round is always classic
-  const firstRoundTypes = enabledTypes.filter(t => t !== 'blocker');
-  sequence.push(firstRoundTypes.length > 0 ? 'classic' : 'classic');
-
-  for (let i = 1; i < totalRounds; i++) {
-    const available = enabledTypes.length > 0 ? enabledTypes : ['classic' as RoundType];
+  for (let i = 0; i < totalRounds; i++) {
     sequence.push(available[Math.floor(Math.random() * available.length)]);
   }
 

@@ -2,7 +2,7 @@
 
 export type Difficulty = 'easy' | 'medium' | 'hard';
 export type GamePhase = 'menu' | 'lobby' | 'countdown' | 'playing' | 'reveal' | 'gameover';
-export type RoundType = 'classic' | 'minimum' | 'blocker' | 'multiplier';
+export type RoundType = 'classic' | 'minimum' | 'multiplier';
 
 export interface GridCell {
   value: number;
@@ -31,6 +31,7 @@ export interface PDPlayer {
   isLocal: boolean;
   peerId?: string;
   isWinner?: boolean;
+  isBlockerPlacer?: boolean;
 }
 
 export interface RoundState {
@@ -51,6 +52,7 @@ export interface PDSettings {
   difficulty: Difficulty;
   totalRounds: number;
   enableSound: boolean;
+  enableBlockers: boolean;
   roundTypes: RoundType[];
 }
 

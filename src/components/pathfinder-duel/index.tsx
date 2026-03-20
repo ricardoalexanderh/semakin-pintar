@@ -39,6 +39,7 @@ const DEFAULT_SETTINGS: PDSettings = {
   difficulty: 'easy',
   totalRounds: 5,
   enableSound: true,
+  enableBlockers: false,
   roundTypes: ['classic'],
 };
 
@@ -186,7 +187,7 @@ const PathfinderDuelGame: React.FC = () => {
           setPhase('lobby');
           setRoundState(null);
           setPlayers((prev) => prev.map(p => ({
-            ...p, totalScore: 0, roundScore: 0, path: [], submitted: false, pathSum: 0, isWinner: false,
+            ...p, totalScore: 0, roundScore: 0, path: [], submitted: false, pathSum: 0, isWinner: false, isBlockerPlacer: false,
           })));
         }
       },
@@ -280,12 +281,22 @@ const PathfinderDuelGame: React.FC = () => {
       optimalPath,
       optimalSum,
       blockedCells: [],
-      phase: roundType === 'blocker' && roundNumber > 1 ? 'placing-blockers' : 'drawing',
+      phase: settings.enableBlockers && roundNumber > 1 ? 'placing-blockers' : 'drawing',
     };
+
+    // Determine blocker placer: last place player (lowest totalScore)
+    let blockerPlacerId: string | null = null;
+    if (settings.enableBlockers && roundNumber > 1) {
+      const sorted = [...players].sort((a, b) => a.totalScore - b.totalScore);
+      const lowestScore = sorted[0].totalScore;
+      const tied = sorted.filter(p => p.totalScore === lowestScore);
+      blockerPlacerId = tied[Math.floor(Math.random() * tied.length)].id;
+    }
 
     // Reset player round state
     const resetPlayers = players.map(p => ({
       ...p, path: [], submitted: false, pathSum: 0, roundScore: 0, submittedAt: undefined,
+      isBlockerPlacer: p.id === blockerPlacerId,
     }));
 
     setRoundState(newRoundState);
@@ -494,7 +505,7 @@ const PathfinderDuelGame: React.FC = () => {
     setRoundState(null);
     setRoundSequence([]);
     setPlayers((prev) => prev.map(p => ({
-      ...p, totalScore: 0, roundScore: 0, path: [], submitted: false, pathSum: 0, isWinner: false,
+      ...p, totalScore: 0, roundScore: 0, path: [], submitted: false, pathSum: 0, isWinner: false, isBlockerPlacer: false,
     })));
   }, []);
 

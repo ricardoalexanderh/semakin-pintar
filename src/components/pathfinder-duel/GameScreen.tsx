@@ -21,7 +21,6 @@ interface GameScreenProps {
 const ROUND_TYPE_LABELS: Record<string, { label: string; icon: string; color: string }> = {
   classic: { label: 'CLASSIC', icon: '\u2B06', color: C.accent },
   minimum: { label: 'MINIMUM', icon: '\u2B07', color: C.accent3 },
-  blocker: { label: 'BLOCKER', icon: '\uD83E\uDDF1', color: C.accent2 },
   multiplier: { label: 'MULTIPLIER', icon: '\u2728', color: C.accent4 },
 };
 
@@ -100,8 +99,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
 
     // Blocker placement mode
     if (roundState.phase === 'placing-blockers') {
-      const isWinner = localPlayer?.isWinner;
-      if (!isWinner) return;
+      if (!localPlayer?.isBlockerPlacer) return;
       if (r === 0 && c === 0) return; // Can't block start
       if (r === rows - 1 && c === cols - 1) return; // Can't block end
 
@@ -223,9 +221,9 @@ const GameScreen: React.FC<GameScreenProps> = ({
           background: `${C.accent2}1a`, border: `1px solid ${C.accent2}44`,
           fontSize: '0.8rem', fontWeight: 700, color: C.accent2, textAlign: 'center',
         }}>
-          {localPlayer?.isWinner
+          {localPlayer?.isBlockerPlacer
             ? `Tap 2 cells to block (${localBlockers.length}/2)`
-            : 'Winner is placing blockers...'
+            : 'Last place is placing blockers...'
           }
         </div>
       )}
@@ -360,7 +358,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
             </>
           )}
 
-          {isPlacingBlockers && localPlayer?.isWinner && (
+          {isPlacingBlockers && localPlayer?.isBlockerPlacer && (
             <button
               onClick={handleConfirmBlockers}
               disabled={localBlockers.length === 0}
@@ -413,11 +411,10 @@ const GameScreen: React.FC<GameScreenProps> = ({
 
       {/* Round type hint */}
       <div style={{ fontSize: '0.7rem', color: C.muted, textAlign: 'center' }}>
-        {roundState.roundType === 'minimum' && 'Lowest sum wins this round!'}
-        {roundState.roundType === 'multiplier' && 'Multiplier cells multiply your running total!'}
-        {roundState.roundType === 'classic' && 'Trace the highest-sum path!'}
-        {roundState.roundType === 'blocker' && isPlacingBlockers && 'Winner places walls to block paths.'}
-        {roundState.roundType === 'blocker' && !isPlacingBlockers && 'Navigate around the blocked cells!'}
+        {isPlacingBlockers && 'Last place picks 2 cells to block as a catch-up!'}
+        {!isPlacingBlockers && roundState.roundType === 'minimum' && 'Lowest sum wins this round!'}
+        {!isPlacingBlockers && roundState.roundType === 'multiplier' && 'Multiplier cells multiply your running total!'}
+        {!isPlacingBlockers && roundState.roundType === 'classic' && 'Trace the highest-sum path!'}
       </div>
     </div>
   );

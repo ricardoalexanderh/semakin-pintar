@@ -23,7 +23,6 @@ interface LobbyScreenProps {
 const ROUND_TYPE_INFO: Record<RoundType, { label: string; icon: string; desc: string; color: string }> = {
   classic: { label: 'Classic', icon: '\u2B06', desc: 'Highest sum wins', color: C.accent },
   minimum: { label: 'Minimum', icon: '\u2B07', desc: 'Lowest sum wins', color: C.accent3 },
-  blocker: { label: 'Blocker', icon: '\uD83E\uDDF1', desc: 'Winner places walls', color: C.accent2 },
   multiplier: { label: 'Multiplier', icon: '\u2728', desc: 'x2/x3 bonus cells', color: C.accent4 },
 };
 
@@ -353,7 +352,7 @@ const LobbyScreen: React.FC<LobbyScreenProps> = ({
           {/* Sound */}
           <div style={{
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            padding: '10px 0',
+            padding: '10px 0', borderBottom: `1px solid ${C.border}`,
           }}>
             <div>
               <div style={{ fontSize: '0.85rem', fontWeight: 700 }}>Sound Effects</div>
@@ -366,6 +365,26 @@ const LobbyScreen: React.FC<LobbyScreenProps> = ({
               }}
             >
               <div style={toggleKnob(settings.enableSound)} />
+            </div>
+          </div>
+
+          {/* Blockers */}
+          <div style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            padding: '10px 0',
+          }}>
+            <div>
+              <div style={{ fontSize: '0.85rem', fontWeight: 700 }}>{'\uD83E\uDDF1'} Blockers</div>
+              <div style={{ fontSize: '0.65rem', color: C.muted }}>Last place blocks 2 cells</div>
+            </div>
+            <div
+              style={toggleSwitch(settings.enableBlockers)}
+              onClick={() => {
+                playSound('uiClick', settings.enableSound);
+                onUpdateSettings({ ...settings, enableBlockers: !settings.enableBlockers });
+              }}
+            >
+              <div style={toggleKnob(settings.enableBlockers)} />
             </div>
           </div>
         </div>
