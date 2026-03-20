@@ -325,70 +325,60 @@ const GameScreen: React.FC<GameScreenProps> = ({
       </div>
 
       {/* Score + Controls */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: 8 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontSize: '0.75rem', color: C.muted, fontWeight: 700 }}>Sum:</span>
-          <span style={{
-            fontSize: '1.4rem', fontWeight: 900,
-            fontFamily: "'Bebas Neue', sans-serif",
-            color: pathSum >= 0 ? C.accent : C.danger,
-            letterSpacing: 1,
-          }}>
-            {pathSum}
-          </span>
+      {!isPlacingBlockers && !submitted && (
+        <div style={{ display: 'flex', gap: 10, width: '100%' }}>
+          <button
+            onClick={handleClear}
+            disabled={localPath.length === 0}
+            style={{
+              flex: 1, padding: '12px 0', borderRadius: 12,
+              background: C.surface, border: `1px solid ${C.border}`,
+              color: localPath.length > 0 ? C.white : C.muted,
+              fontSize: '0.85rem', fontWeight: 700, cursor: localPath.length > 0 ? 'pointer' : 'not-allowed',
+              opacity: localPath.length > 0 ? 1 : 0.5,
+            }}
+          >
+            Clear
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={!pathComplete}
+            style={{
+              flex: 2, padding: '12px 0', borderRadius: 12,
+              background: pathComplete ? `linear-gradient(135deg, ${C.accent}, ${C.accent3})` : C.surface,
+              border: pathComplete ? 'none' : `1px solid ${C.border}`,
+              color: pathComplete ? 'white' : C.muted,
+              fontSize: '0.9rem', fontWeight: 800, cursor: pathComplete ? 'pointer' : 'not-allowed',
+              boxShadow: pathComplete ? `0 4px 16px ${C.accent}44` : 'none',
+            }}
+          >
+            {'\u2705'} Submit ({pathSum})
+          </button>
         </div>
+      )}
 
-        <div style={{ display: 'flex', gap: 8 }}>
-          {!isPlacingBlockers && !submitted && (
-            <>
-              <button
-                onClick={handleClear}
-                disabled={localPath.length === 0}
-                style={{
-                  padding: '8px 14px', borderRadius: 10,
-                  background: C.surface, border: `1px solid ${C.border}`,
-                  color: localPath.length > 0 ? C.white : C.muted,
-                  fontSize: '0.75rem', fontWeight: 700, cursor: localPath.length > 0 ? 'pointer' : 'not-allowed',
-                  opacity: localPath.length > 0 ? 1 : 0.5,
-                }}
-              >
-                Clear
-              </button>
-              <button
-                onClick={handleSubmit}
-                disabled={!pathComplete}
-                style={{
-                  padding: '8px 18px', borderRadius: 10,
-                  background: pathComplete ? `linear-gradient(135deg, ${C.accent}, ${C.accent3})` : C.surface,
-                  border: pathComplete ? 'none' : `1px solid ${C.border}`,
-                  color: pathComplete ? 'white' : C.muted,
-                  fontSize: '0.8rem', fontWeight: 800, cursor: pathComplete ? 'pointer' : 'not-allowed',
-                  boxShadow: pathComplete ? `0 4px 16px ${C.accent}44` : 'none',
-                }}
-              >
-                {'\u2705'} Submit
-              </button>
-            </>
-          )}
-
-          {isPlacingBlockers && localPlayer?.isBlockerPlacer && (
-            <button
-              onClick={handleConfirmBlockers}
-              disabled={localBlockers.length === 0}
-              style={{
-                padding: '8px 18px', borderRadius: 10,
-                background: localBlockers.length > 0 ? `linear-gradient(135deg, ${C.accent2}, ${C.danger})` : C.surface,
-                border: localBlockers.length > 0 ? 'none' : `1px solid ${C.border}`,
-                color: localBlockers.length > 0 ? 'white' : C.muted,
-                fontSize: '0.8rem', fontWeight: 800,
-                cursor: localBlockers.length > 0 ? 'pointer' : 'not-allowed',
-              }}
-            >
-              {'\uD83E\uDDF1'} Confirm Blockers
-            </button>
-          )}
+      {!isPlacingBlockers && !submitted && !pathComplete && (
+        <div style={{ fontSize: '1.1rem', fontWeight: 900, fontFamily: "'Bebas Neue', sans-serif", color: pathSum >= 0 ? C.accent : C.danger, letterSpacing: 1 }}>
+          Sum: {pathSum}
         </div>
-      </div>
+      )}
+
+      {isPlacingBlockers && localPlayer?.isBlockerPlacer && (
+        <button
+          onClick={handleConfirmBlockers}
+          disabled={localBlockers.length === 0}
+          style={{
+            width: '100%', padding: '12px 0', borderRadius: 12,
+            background: localBlockers.length > 0 ? `linear-gradient(135deg, ${C.accent2}, ${C.danger})` : C.surface,
+            border: localBlockers.length > 0 ? 'none' : `1px solid ${C.border}`,
+            color: localBlockers.length > 0 ? 'white' : C.muted,
+            fontSize: '0.9rem', fontWeight: 800,
+            cursor: localBlockers.length > 0 ? 'pointer' : 'not-allowed',
+          }}
+        >
+          {'\uD83E\uDDF1'} Confirm Blockers
+        </button>
+      )}
 
       {/* Submitted overlay */}
       {submitted && (
@@ -406,18 +396,23 @@ const GameScreen: React.FC<GameScreenProps> = ({
         </div>
       )}
 
-      {/* Player status bar */}
-      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'center' }}>
-        {players.map(p => (
+      {/* Player ranking */}
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'center', width: '100%' }}>
+        {[...players].sort((a, b) => b.totalScore - a.totalScore).map((p, i) => (
           <div key={p.id} style={{
-            display: 'flex', alignItems: 'center', gap: 4,
-            padding: '3px 8px', borderRadius: 8,
-            background: C.card, border: `1px solid ${C.border}`,
+            display: 'flex', alignItems: 'center', gap: 5,
+            padding: '4px 10px', borderRadius: 8,
+            background: p.id === localPlayer?.id ? `${p.color}1a` : C.card,
+            border: `1px solid ${p.id === localPlayer?.id ? `${p.color}66` : C.border}`,
             fontSize: '0.65rem', fontWeight: 700,
           }}>
+            <span style={{ color: C.muted, fontWeight: 800, fontSize: '0.6rem' }}>#{i + 1}</span>
             <span>{p.avatar}</span>
             <span style={{ color: p.color }}>{p.name}</span>
-            {p.submitted && <span style={{ color: C.accent }}>{'\u2713'}</span>}
+            <span style={{ color: C.white, fontWeight: 900, fontFamily: "'Bebas Neue', sans-serif", fontSize: '0.8rem', letterSpacing: 0.5 }}>
+              {p.totalScore}
+            </span>
+            {p.submitted && <span style={{ color: C.accent, fontSize: '0.6rem' }}>{'\u2713'}</span>}
           </div>
         ))}
       </div>
