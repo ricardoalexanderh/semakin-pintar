@@ -3,7 +3,6 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import type { PDPlayer, PDSettings, RoundState, PathStep } from './types';
-import { DIFFICULTY_CONFIG } from './types';
 import { calculatePathSum } from './grid';
 import { playSound } from './audio';
 import { C, gridCell, timerBar, timerFill } from './styles';
@@ -65,7 +64,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
   // Time up check
   useEffect(() => {
     if (roundState.timeLeft <= 0 && roundState.phase === 'drawing' && !submitted) {
-      handleSubmit();
+      onTimeUp();
     }
   }, [roundState.timeLeft]);
 
@@ -107,7 +106,6 @@ const GameScreen: React.FC<GameScreenProps> = ({
       if (r === 0 && c === 0) return; // Can't block start
       if (r === rows - 1 && c === cols - 1) return; // Can't block end
 
-      const key = `${r},${c}`;
       const existing = localBlockers.find(b => b.row === r && b.col === c);
 
       if (existing) {

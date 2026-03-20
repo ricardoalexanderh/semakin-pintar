@@ -42,7 +42,6 @@ const RevealScreen: React.FC<RevealScreenProps> = ({
 
   // Sort players by round score for display
   const sortedPlayers = [...players].sort((a, b) => b.roundScore - a.roundScore);
-  const winner = sortedPlayers[0];
 
   // Build cell overlay map: which players' paths cross each cell
   const cellPaths = new Map<string, { color: string; name: string }[]>();

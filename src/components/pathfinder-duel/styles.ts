@@ -200,7 +200,7 @@ export const gridCell = (
 };
 
 // Timer bar
-export const timerBar = (fraction: number, danger: boolean): CSSProperties => ({
+export const timerBar = (_fraction?: number, _danger?: boolean): CSSProperties => ({
   height: 6,
   borderRadius: 3,
   background: C.surface,

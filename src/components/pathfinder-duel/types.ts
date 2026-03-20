@@ -1,7 +1,7 @@
 // ===== Pathfinder Duel — Type Definitions =====
 
 export type Difficulty = 'easy' | 'medium' | 'hard';
-export type GamePhase = 'menu' | 'lobby' | 'playing' | 'reveal' | 'gameover';
+export type GamePhase = 'menu' | 'lobby' | 'countdown' | 'playing' | 'reveal' | 'gameover';
 export type RoundType = 'classic' | 'minimum' | 'blocker' | 'multiplier';
 
 export interface GridCell {

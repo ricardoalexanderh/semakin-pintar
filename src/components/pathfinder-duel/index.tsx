@@ -8,7 +8,7 @@ import type { PDPlayer, PDSettings, GamePhase, RoundType, RoundState, PathStep, 
 import { AVATARS, PLAYER_COLORS, DIFFICULTY_CONFIG } from './types';
 import { initAudioContext, resumeAudioContext, playSound } from './audio';
 import { generateRoomCode, GameRoom } from './webrtc';
-import { generateGrid, generateRoundSequence, findOptimalPath, calculatePathSum, calculateRoundScores, applyBlockers, hasValidPath } from './grid';
+import { generateGrid, generateRoundSequence, findOptimalPath, calculateRoundScores, applyBlockers, hasValidPath } from './grid';
 import { screenBase, KEYFRAMES, C, lobbyCard, cardTitle, startBtn } from './styles';
 import LobbyScreen from './LobbyScreen';
 import GameScreen from './GameScreen';
