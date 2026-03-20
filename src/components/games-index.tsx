@@ -237,7 +237,7 @@ const GamesIndex: React.FC = () => {
       path: '/games/pathfinder-duel',
       difficulty: 'Easy to Hard',
       duration: '5-15 minutes',
-      category: 'Brain Training'
+      category: 'Computational Thinking'
     },
     /*{
       id: 'math-drop',
@@ -263,7 +263,7 @@ const GamesIndex: React.FC = () => {
     return acc;
   }, {} as Record<string, Game[]>);
 
-  const categoryOrder = ['Mental Math Games', 'Fun Math Games', 'Math Foundation', 'Cognitive Skills', 'Brain Training'];
+  const categoryOrder = ['Mental Math Games', 'Fun Math Games', 'Math Foundation', 'Cognitive Skills', 'Brain Training', 'Computational Thinking'];
   const allCategories = ['All', ...categoryOrder];
 
   // Filter games based on selected category
