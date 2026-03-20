@@ -422,14 +422,6 @@ const PathfinderDuelGame: React.FC = () => {
     setPhase('playing');
   }, [roundState, players, settings, startNewRound]);
 
-  const handleTimeUp = useCallback(() => {
-    // Auto-submit current path for local player
-    const localPlayer = players.find(p => p.id === localPlayerId);
-    if (localPlayer && !localPlayer.submitted) {
-      handlePathSubmit(localPlayer.path, localPlayer.pathSum);
-    }
-  }, [players, localPlayerId, handlePathSubmit]);
-
   // --- Menu actions ---
   const handleCreateRoom = useCallback(() => {
     const code = generateRoomCode();
@@ -719,7 +711,6 @@ const PathfinderDuelGame: React.FC = () => {
           isHost={isHost}
           onPathSubmit={handlePathSubmit}
           onBlockerPlaced={handleBlockerPlaced}
-          onTimeUp={handleTimeUp}
           onUpdateRoundState={setRoundState}
         />
       )}

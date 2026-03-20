@@ -15,7 +15,6 @@ interface GameScreenProps {
   isHost: boolean;
   onPathSubmit: (path: PathStep[], pathSum: number) => void;
   onBlockerPlaced: (blockedCells: PathStep[]) => void;
-  onTimeUp: () => void;
   onUpdateRoundState: (rs: RoundState) => void;
 }
 
@@ -28,7 +27,7 @@ const ROUND_TYPE_LABELS: Record<string, { label: string; icon: string; color: st
 
 const GameScreen: React.FC<GameScreenProps> = ({
   players, settings, roundState, localPlayerId, isHost,
-  onPathSubmit, onBlockerPlaced, onTimeUp, onUpdateRoundState,
+  onPathSubmit, onBlockerPlaced, onUpdateRoundState,
 }) => {
   const [localPath, setLocalPath] = useState<PathStep[]>([]);
   const [localBlockers, setLocalBlockers] = useState<PathStep[]>([]);
@@ -64,7 +63,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
   // Time up check
   useEffect(() => {
     if (roundState.timeLeft <= 0 && roundState.phase === 'drawing' && !submitted) {
-      onTimeUp();
+      handleSubmit();
     }
   }, [roundState.timeLeft]);
 

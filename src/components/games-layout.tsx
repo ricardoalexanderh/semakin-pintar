@@ -13,7 +13,7 @@ const GamesLayout: React.FC<GamesLayoutProps> = ({ children }) => {
 
   useEffect(() => {
     // Skip auto-scroll for Brain Bomb (fullscreen game with its own layout)
-    if (location.pathname === '/games/brain-bomb') return;
+    if (location.pathname === '/games/brain-bomb' || location.pathname === '/games/pathfinder-duel') return;
 
     // Scroll to bottom on game entry to hide mobile browser address bar
     const timer = setTimeout(() => {
