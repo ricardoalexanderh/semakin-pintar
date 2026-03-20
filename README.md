@@ -40,7 +40,7 @@ Semakin Pintar is a comprehensive educational games platform designed to make le
 - **Stack Climber** - Jump on blocks that follow the current number rule to launch yourself higher; wrong blocks cost a life while fall speed increases as you climb
 
 #### Computational Thinking
-- **Pathfinder Duel** - Multiplayer path optimization game for 2-6 players! Trace the best route through a number grid, moving only right or down to maximize your score. Features classic, minimum, blocker, and multiplier round types with dynamic programming-based scoring
+- **Pathfinder Duel** - Multiplayer path optimization game for 2-6 players! Trace the best route through a number grid, moving only right or down to maximize your score. Features classic, minimum, multiplier, and hidden round types with optional blocker catch-up mechanic and dynamic programming-based scoring
 
 ## ✨ Features
 
