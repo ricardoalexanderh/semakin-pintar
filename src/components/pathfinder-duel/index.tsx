@@ -100,6 +100,24 @@ const PathfinderDuelGame: React.FC = () => {
     }
   }, [phase]);
 
+  // Periodic state sync to guests (every second during playing phase)
+  // This ensures guests receive updated timeLeft from the host's timer
+  useEffect(() => {
+    if (!isHost || phase !== 'playing') return;
+
+    const interval = setInterval(() => {
+      if (roomRef.current && roundStateRef.current) {
+        roomRef.current.broadcast('game-state', {
+          roundState: roundStateRef.current,
+          players: playersRef.current,
+          phase: 'playing',
+        });
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [isHost, phase, roundState?.roundNumber]);
+
   // Setup WebRTC room
   useEffect(() => {
     if (phase === 'menu' || !roomCode) return;

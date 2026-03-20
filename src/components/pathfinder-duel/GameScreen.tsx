@@ -238,6 +238,9 @@ const GameScreen: React.FC<GameScreenProps> = ({
         gap: 'clamp(2px, 0.8vw, 4px)',
         width: '100%',
         maxWidth: `min(90vw, ${cols * 60}px)`,
+        touchAction: 'none',
+        userSelect: 'none' as const,
+        WebkitUserSelect: 'none',
       }}>
         {roundState.grid.map((row, r) =>
           row.map((cell, c) => {
@@ -251,7 +254,10 @@ const GameScreen: React.FC<GameScreenProps> = ({
             return (
               <div
                 key={`${r}-${c}`}
-                onClick={() => handleCellClick(r, c)}
+                onPointerDown={(e) => {
+                  e.preventDefault();
+                  handleCellClick(r, c);
+                }}
                 style={{
                   ...gridCell(onPath, isStart, isEnd, isBlocked, localPlayer?.color || C.accent, cell.multiplier),
                   ...(isBlockerSelected ? {

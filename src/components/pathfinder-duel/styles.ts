@@ -162,6 +162,9 @@ export const gridCell = (
       opacity: 0.5,
       position: 'relative' as const,
       aspectRatio: '1',
+      touchAction: 'manipulation' as const,
+      WebkitTapHighlightColor: 'transparent',
+      userSelect: 'none' as const,
     };
   }
 
@@ -196,6 +199,9 @@ export const gridCell = (
     aspectRatio: '1',
     boxShadow: isOnPath ? `0 0 12px ${pathColor}44` : 'none',
     transition: 'all 0.15s',
+    touchAction: 'manipulation' as const,
+    WebkitTapHighlightColor: 'transparent',
+    userSelect: 'none' as const,
   };
 };
 
