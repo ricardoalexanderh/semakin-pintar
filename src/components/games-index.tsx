@@ -226,6 +226,19 @@ const GamesIndex: React.FC = () => {
       duration: '5-20 minutes',
       category: 'Brain Training'
     },
+    {
+      id: 'pathfinder-duel',
+      name: 'Pathfinder Duel',
+      description: 'Multiplayer path optimization - find the best route!',
+      longDescription: 'A multiplayer optimization game for 2-6 players! Trace the best path through a number grid — move only right or down. Compete in classic, minimum, blocker, and multiplier rounds. The player who finds the optimal route scores big!',
+      icon: <span className="text-2xl">{'\uD83D\uDDFA\uFE0F'}</span>,
+      available: true,
+      gradient: 'from-emerald-500 to-cyan-500',
+      path: '/games/pathfinder-duel',
+      difficulty: 'Easy to Hard',
+      duration: '5-15 minutes',
+      category: 'Computational Thinking'
+    },
     /*{
       id: 'math-drop',
       name: 'Math Drop',
@@ -250,7 +263,7 @@ const GamesIndex: React.FC = () => {
     return acc;
   }, {} as Record<string, Game[]>);
 
-  const categoryOrder = ['Mental Math Games', 'Fun Math Games', 'Math Foundation', 'Cognitive Skills', 'Brain Training'];
+  const categoryOrder = ['Mental Math Games', 'Fun Math Games', 'Math Foundation', 'Cognitive Skills', 'Brain Training', 'Computational Thinking'];
   const allCategories = ['All', ...categoryOrder];
 
   // Filter games based on selected category
