@@ -303,10 +303,12 @@ export function calculateRoundScores(
   const submitted = players.filter(p => p.submitted);
   if (submitted.length === 0) return {};
 
-  // Sort by sum (descending for max, ascending for min)
-  const sorted = [...submitted].sort((a, b) =>
-    mode === 'max' ? b.pathSum - a.pathSum : a.pathSum - b.pathSum
-  );
+  // Sort by sum (descending for max, ascending for min), then by submission time as tiebreaker
+  const sorted = [...submitted].sort((a, b) => {
+    const sumDiff = mode === 'max' ? b.pathSum - a.pathSum : a.pathSum - b.pathSum;
+    if (sumDiff !== 0) return sumDiff;
+    return (a.submittedAt || Infinity) - (b.submittedAt || Infinity);
+  });
 
   // Sort by submission time for speed bonus
   const bySpeed = [...submitted].sort((a, b) =>

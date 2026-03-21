@@ -40,8 +40,12 @@ const RevealScreen: React.FC<RevealScreenProps> = ({
     return () => clearTimeout(timer);
   }, []);
 
-  // Sort players by round score for display
-  const sortedPlayers = [...players].sort((a, b) => b.roundScore - a.roundScore);
+  // Sort players by round score, then by submission time as tiebreaker
+  const sortedPlayers = [...players].sort((a, b) => {
+    const scoreDiff = b.roundScore - a.roundScore;
+    if (scoreDiff !== 0) return scoreDiff;
+    return (a.submittedAt || Infinity) - (b.submittedAt || Infinity);
+  });
 
   // Build cell overlay map: which players' paths cross each cell
   const cellPaths = new Map<string, { color: string; name: string }[]>();
@@ -228,6 +232,11 @@ const RevealScreen: React.FC<RevealScreenProps> = ({
                 </div>
                 <div style={{ fontSize: '0.65rem', color: C.muted }}>
                   Path sum: {p.pathSum}
+                  {p.submittedAt && roundState.startedAt && (
+                    <span style={{ marginLeft: 8, color: C.muted }}>
+                      {'\u23F1'} {((p.submittedAt - roundState.startedAt) / 1000).toFixed(1)}s
+                    </span>
+                  )}
                 </div>
               </div>
               <div style={{

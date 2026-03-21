@@ -179,7 +179,7 @@ const PathfinderDuelGame: React.FC = () => {
           setRoundState((prev) => {
             if (!prev) return prev;
             const newGrid = applyBlockers(prev.grid, payload.blockedCells);
-            return { ...prev, grid: newGrid, blockedCells: payload.blockedCells, phase: 'drawing' };
+            return { ...prev, grid: newGrid, blockedCells: payload.blockedCells, phase: 'drawing', startedAt: Date.now() };
           });
         } else if (msg.type === 'next-round') {
           // Host triggers next round — guests receive updated state via game-state
@@ -282,6 +282,7 @@ const PathfinderDuelGame: React.FC = () => {
       optimalSum,
       blockedCells: [],
       phase: settings.enableBlockers && roundNumber > 1 ? 'placing-blockers' : 'drawing',
+      startedAt: settings.enableBlockers && roundNumber > 1 ? undefined : Date.now(),
     };
 
     // Determine blocker placer: last place player (lowest totalScore)
@@ -376,7 +377,7 @@ const PathfinderDuelGame: React.FC = () => {
     // Re-calculate optimal path with blockers
     if (!hasValidPath(newGrid)) {
       // Invalid blockers — skip them
-      setRoundState(prev => prev ? { ...prev, phase: 'drawing' } : prev);
+      setRoundState(prev => prev ? { ...prev, phase: 'drawing', startedAt: Date.now() } : prev);
       return;
     }
 
@@ -390,6 +391,7 @@ const PathfinderDuelGame: React.FC = () => {
       optimalPath,
       optimalSum,
       phase: 'drawing' as const,
+      startedAt: Date.now(),
     };
 
     setRoundState(updatedRound);

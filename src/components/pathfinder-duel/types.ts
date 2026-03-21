@@ -46,6 +46,7 @@ export interface RoundState {
   optimalSum: number;
   blockedCells: PathStep[];
   phase: 'drawing' | 'placing-blockers' | 'submitted';
+  startedAt?: number;
 }
 
 export interface PDSettings {
