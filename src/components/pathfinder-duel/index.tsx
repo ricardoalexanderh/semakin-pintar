@@ -62,6 +62,7 @@ const PathfinderDuelGame: React.FC = () => {
   const [countdown, setCountdown] = useState(3);
 
   const roomRef = useRef<GameRoom | null>(null);
+  const bgmRef = useRef<HTMLAudioElement | null>(null);
   const startTimeRef = useRef<number>(0);
   const phaseRef = useRef<GamePhase>(phase);
   const playersRef = useRef<PDPlayer[]>(players);
@@ -85,6 +86,31 @@ const PathfinderDuelGame: React.FC = () => {
     return () => document.removeEventListener('pointerdown', handler);
   }, []);
 
+  // BGM setup
+  useEffect(() => {
+    const audio = new Audio('/pathfinder-duel.mp3');
+    audio.loop = true;
+    audio.volume = 0.4;
+    bgmRef.current = audio;
+
+    const onVisibility = () => {
+      if (!bgmRef.current) return;
+      if (document.hidden) {
+        bgmRef.current.pause();
+      } else if (phaseRef.current === 'playing') {
+        bgmRef.current.play().catch(() => {});
+      }
+    };
+
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility);
+      audio.pause();
+      audio.src = '';
+      bgmRef.current = null;
+    };
+  }, []);
+
   // Track game state for floating buttons
   useEffect(() => {
     updateGameState('pathfinder-duel', phase !== 'menu');
@@ -98,6 +124,10 @@ const PathfinderDuelGame: React.FC = () => {
         difficulty: settings.difficulty,
       });
       startTimeRef.current = Date.now();
+      if (bgmRef.current) {
+        bgmRef.current.currentTime = 0;
+        bgmRef.current.play().catch(() => {});
+      }
     }
   }, [phase]);
 
@@ -163,7 +193,12 @@ const PathfinderDuelGame: React.FC = () => {
           const payload = msg.payload as { roundState: RoundState; players: PDPlayer[]; phase: GamePhase };
           setRoundState(payload.roundState);
           setPlayers(payload.players);
-          if (payload.phase) setPhase(payload.phase);
+          if (payload.phase) {
+            if (payload.phase === 'gameover' || payload.phase === 'lobby') {
+              bgmRef.current?.pause();
+            }
+            setPhase(payload.phase);
+          }
         } else if (msg.type === 'path-submitted') {
           // Host receives a guest's path submission
           const payload = msg.payload as { playerId: string; path: PathStep[]; pathSum: number; submittedAt: number };
@@ -184,6 +219,7 @@ const PathfinderDuelGame: React.FC = () => {
         } else if (msg.type === 'next-round') {
           // Host triggers next round — guests receive updated state via game-state
         } else if (msg.type === 'return-lobby') {
+          bgmRef.current?.pause();
           setPhase('lobby');
           setRoundState(null);
           setPlayers((prev) => prev.map(p => ({
@@ -197,6 +233,7 @@ const PathfinderDuelGame: React.FC = () => {
       (peerId) => {
         console.log('[Pathfinder Duel] Peer disconnected:', peerId);
         if (!isHost) {
+          bgmRef.current?.pause();
           setPhase('menu');
           setRoomCode('');
           setHasJoined(false);
@@ -411,6 +448,7 @@ const PathfinderDuelGame: React.FC = () => {
 
     if (roundState.roundNumber >= roundState.totalRounds) {
       // Game over
+      bgmRef.current?.pause();
       setPhase('gameover');
       const duration = Math.round((Date.now() - startTimeRef.current) / 1000);
       const winner = [...players].sort((a, b) => b.totalScore - a.totalScore)[0];
@@ -499,6 +537,7 @@ const PathfinderDuelGame: React.FC = () => {
   }, [settings, players]);
 
   const handlePlayAgain = useCallback(() => {
+    bgmRef.current?.pause();
     trackButtonClick('play-again', 'pathfinder-duel-gameover');
     if (roomRef.current) {
       roomRef.current.broadcast('return-lobby', {});
