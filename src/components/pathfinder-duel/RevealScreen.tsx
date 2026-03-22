@@ -233,7 +233,7 @@ const RevealScreen: React.FC<RevealScreenProps> = ({
                 <div style={{ fontSize: '0.85rem', color: C.muted }}>
                   {p.pathComplete ? (
                     <>
-                      Path sum: <span style={{ fontWeight: 700, color: C.text }}>{p.pathSum}</span>
+                      Path sum: <span style={{ fontWeight: 700, color: C.white }}>{p.pathSum}</span>
                       {p.submittedAt && roundState.startedAt && (
                         <span style={{ marginLeft: 8, color: C.muted }}>
                           {'\u23F1'} {((p.submittedAt - roundState.startedAt) / 1000).toFixed(1)}s
