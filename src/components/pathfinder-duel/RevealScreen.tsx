@@ -230,10 +230,10 @@ const RevealScreen: React.FC<RevealScreenProps> = ({
                   {i === 0 && p.pathComplete && <span style={{ marginLeft: 6, color: C.accent2 }}>{'\uD83C\uDFC6'}</span>}
                   {isOptimal && <span style={{ marginLeft: 4, color: C.accent2, fontSize: '0.7rem' }}>{'\u2728'} Optimal!</span>}
                 </div>
-                <div style={{ fontSize: '0.65rem', color: C.muted }}>
+                <div style={{ fontSize: '0.85rem', color: C.muted }}>
                   {p.pathComplete ? (
                     <>
-                      Path sum: {p.pathSum}
+                      Path sum: <span style={{ fontWeight: 700, color: C.text }}>{p.pathSum}</span>
                       {p.submittedAt && roundState.startedAt && (
                         <span style={{ marginLeft: 8, color: C.muted }}>
                           {'\u23F1'} {((p.submittedAt - roundState.startedAt) / 1000).toFixed(1)}s
