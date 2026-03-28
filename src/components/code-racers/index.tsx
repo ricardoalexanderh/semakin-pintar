@@ -346,11 +346,8 @@ const CodeRacersGame: React.FC = () => {
       setTimeout(() => {
         if (roundState.roundNumber >= settings.totalRounds) {
           // Game over
-          trackGameCompletion('code-racers', Date.now() - startTimeRef.current, {
-            players: updatedPlayers.length,
-            rounds: roundState.roundNumber,
-            winner: [...updatedPlayers].sort((a, b) => b.totalScore - a.totalScore)[0]?.name,
-          });
+          const winnerScore = [...updatedPlayers].sort((a, b) => b.totalScore - a.totalScore)[0]?.totalScore || 0;
+          trackGameCompletion('code-racers', winnerScore, Date.now() - startTimeRef.current, settings.difficulty);
           playSound('victory', settings.enableSound);
           setPhase('gameover');
           if (roomRef.current) {
@@ -645,7 +642,6 @@ const CodeRacersGame: React.FC = () => {
           fontFamily: "'Bebas Neue', sans-serif",
           color: C.accent,
           animation: 'cr-countdown-pulse 1s ease-in-out',
-          key: countdown,
         }}>
           {countdown || '🚀'}
         </div>

@@ -24,18 +24,6 @@ const DIR_ARROWS: Record<Direction, string> = {
   right: '▶',
 };
 
-const CELL_ICONS: Record<string, string> = {
-  wall: '🧱',
-  gem: '💎',
-  hiddenGem: '',
-  portal: '🌀',
-  conveyor: '➡️',
-  oilSlick: '🛢️',
-  bonusStar: '⭐',
-  rechargePad: '🔋',
-  empty: '',
-};
-
 const CONVEYOR_ARROWS: Record<Direction, string> = {
   up: '↑',
   down: '↓',
