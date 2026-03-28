@@ -192,7 +192,7 @@ export default function GameScreen({
           R{roundState.roundNumber}/{roundState.totalRounds}
         </div>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'center', flex: 1 }}>
-          {players.map((p, i) => (
+          {players.map((p) => (
             <div key={p.id} style={{
               display: 'flex',
               alignItems: 'center',
@@ -408,7 +408,7 @@ export default function GameScreen({
             ROUND {roundState.roundNumber} RESULTS
           </div>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
-            {players.map((p, i) => (
+            {players.map((p) => (
               <div key={p.id} style={{
                 padding: '6px 10px',
                 background: C.card,
