@@ -175,6 +175,7 @@ const PathfinderDuelGame: React.FC = () => {
                 roundScore: 0,
                 path: [],
                 submitted: false,
+                pathComplete: false,
                 pathSum: 0,
                 isLocal: false,
                 peerId: msg.senderId,
@@ -201,11 +202,11 @@ const PathfinderDuelGame: React.FC = () => {
           }
         } else if (msg.type === 'path-submitted') {
           // Host receives a guest's path submission
-          const payload = msg.payload as { playerId: string; path: PathStep[]; pathSum: number; submittedAt: number };
+          const payload = msg.payload as { playerId: string; path: PathStep[]; pathSum: number; pathComplete: boolean; submittedAt: number };
           setPlayers((prev) =>
             prev.map((p) =>
               p.id === payload.playerId
-                ? { ...p, path: payload.path, pathSum: payload.pathSum, submitted: true, submittedAt: payload.submittedAt }
+                ? { ...p, path: payload.path, pathSum: payload.pathSum, pathComplete: payload.pathComplete, submitted: true, submittedAt: payload.submittedAt }
                 : p
             )
           );
@@ -223,7 +224,7 @@ const PathfinderDuelGame: React.FC = () => {
           setPhase('lobby');
           setRoundState(null);
           setPlayers((prev) => prev.map(p => ({
-            ...p, totalScore: 0, roundScore: 0, path: [], submitted: false, pathSum: 0, isWinner: false, isBlockerPlacer: false,
+            ...p, totalScore: 0, roundScore: 0, path: [], submitted: false, pathComplete: false, pathSum: 0, isWinner: false, isBlockerPlacer: false,
           })));
         }
       },
@@ -333,7 +334,7 @@ const PathfinderDuelGame: React.FC = () => {
 
     // Reset player round state
     const resetPlayers = players.map(p => ({
-      ...p, path: [], submitted: false, pathSum: 0, roundScore: 0, submittedAt: undefined,
+      ...p, path: [], submitted: false, pathComplete: false, pathSum: 0, roundScore: 0, submittedAt: undefined,
       isBlockerPlacer: p.id === blockerPlacerId,
     }));
 
@@ -355,7 +356,7 @@ const PathfinderDuelGame: React.FC = () => {
 
     const mode = roundState.roundType === 'minimum' ? 'min' : 'max';
     const scores = calculateRoundScores(
-      players.map(p => ({ id: p.id, pathSum: p.pathSum, submitted: p.submitted, submittedAt: p.submittedAt })),
+      players.map(p => ({ id: p.id, pathSum: p.pathSum, submitted: p.submitted, pathComplete: p.pathComplete, submittedAt: p.submittedAt })),
       mode as 'max' | 'min',
       roundState.optimalSum,
     );
@@ -384,12 +385,12 @@ const PathfinderDuelGame: React.FC = () => {
     }
   }, [roundState, players, settings]);
 
-  const handlePathSubmit = useCallback((path: PathStep[], pathSum: number) => {
+  const handlePathSubmit = useCallback((path: PathStep[], pathSum: number, pathComplete: boolean) => {
     const now = Date.now();
     setPlayers((prev) =>
       prev.map((p) =>
         p.id === localPlayerId
-          ? { ...p, path, pathSum, submitted: true, submittedAt: now }
+          ? { ...p, path, pathSum, pathComplete, submitted: true, submittedAt: now }
           : p
       )
     );
@@ -399,6 +400,7 @@ const PathfinderDuelGame: React.FC = () => {
         playerId: localPlayerId,
         path,
         pathSum,
+        pathComplete,
         submittedAt: now,
       });
     }
@@ -487,6 +489,7 @@ const PathfinderDuelGame: React.FC = () => {
       roundScore: 0,
       path: [],
       submitted: false,
+      pathComplete: false,
       pathSum: 0,
       isLocal: true,
     }]);
@@ -546,7 +549,7 @@ const PathfinderDuelGame: React.FC = () => {
     setRoundState(null);
     setRoundSequence([]);
     setPlayers((prev) => prev.map(p => ({
-      ...p, totalScore: 0, roundScore: 0, path: [], submitted: false, pathSum: 0, isWinner: false, isBlockerPlacer: false,
+      ...p, totalScore: 0, roundScore: 0, path: [], submitted: false, pathComplete: false, pathSum: 0, isWinner: false, isBlockerPlacer: false,
     })));
   }, []);
 

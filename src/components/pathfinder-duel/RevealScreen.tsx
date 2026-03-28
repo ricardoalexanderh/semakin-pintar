@@ -227,15 +227,21 @@ const RevealScreen: React.FC<RevealScreenProps> = ({
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: '0.85rem', fontWeight: 800, color: p.color }}>
                   {p.name}
-                  {i === 0 && <span style={{ marginLeft: 6, color: C.accent2 }}>{'\uD83C\uDFC6'}</span>}
+                  {i === 0 && p.pathComplete && <span style={{ marginLeft: 6, color: C.accent2 }}>{'\uD83C\uDFC6'}</span>}
                   {isOptimal && <span style={{ marginLeft: 4, color: C.accent2, fontSize: '0.7rem' }}>{'\u2728'} Optimal!</span>}
                 </div>
-                <div style={{ fontSize: '0.65rem', color: C.muted }}>
-                  Path sum: {p.pathSum}
-                  {p.submittedAt && roundState.startedAt && (
-                    <span style={{ marginLeft: 8, color: C.muted }}>
-                      {'\u23F1'} {((p.submittedAt - roundState.startedAt) / 1000).toFixed(1)}s
-                    </span>
+                <div style={{ fontSize: '0.85rem', color: C.muted }}>
+                  {p.pathComplete ? (
+                    <>
+                      Path sum: <span style={{ fontWeight: 700, color: C.white }}>{p.pathSum}</span>
+                      {p.submittedAt && roundState.startedAt && (
+                        <span style={{ marginLeft: 8, color: C.muted }}>
+                          {'\u23F1'} {((p.submittedAt - roundState.startedAt) / 1000).toFixed(1)}s
+                        </span>
+                      )}
+                    </>
+                  ) : (
+                    <span style={{ color: '#ef4444' }}>Did not finish</span>
                   )}
                 </div>
               </div>

@@ -296,22 +296,35 @@ export function generateRoundSequence(
  * Calculate scores for a round.
  */
 export function calculateRoundScores(
-  players: { id: string; pathSum: number; submitted: boolean; submittedAt?: number }[],
+  players: { id: string; pathSum: number; submitted: boolean; pathComplete: boolean; submittedAt?: number }[],
   mode: 'max' | 'min',
   optimalSum: number,
 ): Record<string, { roundScore: number; isOptimal: boolean; isWinner: boolean; isSpeedBonus: boolean }> {
   const submitted = players.filter(p => p.submitted);
   if (submitted.length === 0) return {};
 
+  // Only players who completed their path (reached the end) are eligible for scoring
+  const eligible = submitted.filter(p => p.pathComplete);
+
+  // Players who didn't finish get 0 score
+  const results: Record<string, { roundScore: number; isOptimal: boolean; isWinner: boolean; isSpeedBonus: boolean }> = {};
+  for (const p of submitted) {
+    if (!p.pathComplete) {
+      results[p.id] = { roundScore: 0, isOptimal: false, isWinner: false, isSpeedBonus: false };
+    }
+  }
+
+  if (eligible.length === 0) return results;
+
   // Sort by sum (descending for max, ascending for min), then by submission time as tiebreaker
-  const sorted = [...submitted].sort((a, b) => {
+  const sorted = [...eligible].sort((a, b) => {
     const sumDiff = mode === 'max' ? b.pathSum - a.pathSum : a.pathSum - b.pathSum;
     if (sumDiff !== 0) return sumDiff;
     return (a.submittedAt || Infinity) - (b.submittedAt || Infinity);
   });
 
   // Sort by submission time for speed bonus
-  const bySpeed = [...submitted].sort((a, b) =>
+  const bySpeed = [...eligible].sort((a, b) =>
     (a.submittedAt || Infinity) - (b.submittedAt || Infinity)
   );
 
@@ -320,9 +333,7 @@ export function calculateRoundScores(
   const winnerId = sorted[0].id;
   const fastestId = bySpeed[0]?.id;
 
-  const results: Record<string, { roundScore: number; isOptimal: boolean; isWinner: boolean; isSpeedBonus: boolean }> = {};
-
-  for (const p of submitted) {
+  for (const p of eligible) {
     const isWinner = p.id === winnerId;
     const isOptimal = p.pathSum === optimalSum;
     const isSpeedBonus = p.id === fastestId && (

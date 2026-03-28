@@ -27,6 +27,7 @@ export interface PDPlayer {
   path: PathStep[];
   submitted: boolean;
   submittedAt?: number;
+  pathComplete: boolean;
   pathSum: number;
   isLocal: boolean;
   peerId?: string;

@@ -13,7 +13,7 @@ interface GameScreenProps {
   roundState: RoundState;
   localPlayerId: string;
   isHost: boolean;
-  onPathSubmit: (path: PathStep[], pathSum: number) => void;
+  onPathSubmit: (path: PathStep[], pathSum: number, pathComplete: boolean) => void;
   onBlockerPlaced: (blockedCells: PathStep[]) => void;
   onUpdateRoundState: (rs: RoundState) => void;
 }
@@ -147,8 +147,13 @@ const GameScreen: React.FC<GameScreenProps> = ({
 
     // Calculate sum of current path
     const pathSum = calculatePathSum(roundState.grid, localPath);
+    const rows = roundState.grid.length;
+    const cols = roundState.grid[0].length;
+    const isComplete = localPath.length > 0 &&
+      localPath[localPath.length - 1].row === rows - 1 &&
+      localPath[localPath.length - 1].col === cols - 1;
     setSubmitted(true);
-    onPathSubmit(localPath, pathSum);
+    onPathSubmit(localPath, pathSum, isComplete);
   }, [submitted, localPath, roundState.grid, onPathSubmit]);
 
   const handleConfirmBlockers = useCallback(() => {
