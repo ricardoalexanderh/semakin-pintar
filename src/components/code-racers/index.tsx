@@ -245,7 +245,7 @@ const CodeRacersGame: React.FC = () => {
           return { ...prev, timeLeft: 0 };
         }
         // Broadcast time update
-        if (roomRef.current && newTime % 5 === 0) {
+        if (roomRef.current && newTime % 2 === 0) {
           roomRef.current.broadcast('game-state', {
             players,
             roundState: { ...prev, timeLeft: newTime },
@@ -264,7 +264,8 @@ const CodeRacersGame: React.FC = () => {
   // Check if all programs submitted
   useEffect(() => {
     if (phase !== 'planning' || !isHost) return;
-    const allSubmitted = players.every(p => p.programSubmitted);
+    const activePlayers = players.filter(p => p.isLocal || p.peerId);
+    const allSubmitted = activePlayers.length > 0 && activePlayers.every(p => p.programSubmitted);
     if (allSubmitted && players.length > 0) {
       if (timerRef.current) clearInterval(timerRef.current);
       setTimeout(() => executeRound(), 500);
@@ -330,6 +331,7 @@ const CodeRacersGame: React.FC = () => {
 
     // After execution animation, show summary
     const animDuration = frames.length * 600 + 500;
+    const currentRoundNumber = newRoundState.roundNumber;
     setTimeout(() => {
       const summaryState = { ...newRoundState, phase: 'summary' as const };
       setRoundState(summaryState);
@@ -338,13 +340,13 @@ const CodeRacersGame: React.FC = () => {
         roomRef.current.broadcast('game-state', {
           players: updatedPlayers,
           roundState: summaryState,
-          phase: 'planning',
+          phase: 'executing',
         });
       }
 
       // After summary, start next round or end game
       setTimeout(() => {
-        if (roundState.roundNumber >= settings.totalRounds) {
+        if (currentRoundNumber >= settings.totalRounds) {
           // Game over
           const winnerScore = [...updatedPlayers].sort((a, b) => b.totalScore - a.totalScore)[0]?.totalScore || 0;
           trackGameCompletion('code-racers', winnerScore, Date.now() - startTimeRef.current, settings.difficulty);
@@ -662,8 +664,8 @@ const CodeRacersGame: React.FC = () => {
     );
   }
 
-  // Game screen (planning, executing, summary)
-  if ((phase === 'planning' || phase === 'executing' || phase === 'roundSummary') && roundState) {
+  // Game screen (planning, executing — summary is driven by roundState.phase inside GameScreen)
+  if ((phase === 'planning' || phase === 'executing') && roundState) {
     return (
       <GameScreen
         players={players}

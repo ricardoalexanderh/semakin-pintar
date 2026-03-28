@@ -1,9 +1,9 @@
 // ===== Code Racers — Game Screen =====
 // Renders the grid board, program builder, execution viewer, and HUD.
 
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import type { CRPlayer, CRSettings, RoundState, BlockType, Direction, ExecutionFrame, ExecutionEvent } from './types';
-import { BLOCK_INFO, DIFFICULTY_CONFIG, ROBOT_AVATARS, PLAYER_COLORS } from './types';
+import { BLOCK_INFO, DIFFICULTY_CONFIG } from './types';
 import { playSound } from './audio';
 import { C, CELL_COLORS, blockStyle, programSlot } from './styles';
 
@@ -153,7 +153,13 @@ export default function GameScreen({
       ? roundState.executionFrames[Math.min(executionFrame, roundState.executionFrames.length - 1)]
       : null;
 
-  const cellSize = Math.min(Math.floor((window.innerWidth - 32) / settings.gridSize), 52);
+  const [viewWidth, setViewWidth] = useState(() => window.innerWidth);
+  useEffect(() => {
+    const onResize = () => setViewWidth(window.innerWidth);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+  const cellSize = useMemo(() => Math.min(Math.floor((viewWidth - 32) / settings.gridSize), 52), [viewWidth, settings.gridSize]);
 
   return (
     <div style={{
@@ -192,14 +198,14 @@ export default function GameScreen({
               alignItems: 'center',
               gap: 4,
               padding: '3px 8px',
-              background: p.id === localPlayerId ? `${PLAYER_COLORS[i]}22` : C.card,
+              background: p.id === localPlayerId ? `${p.color}22` : C.card,
               borderRadius: 8,
-              border: `1px solid ${p.programSubmitted && roundState.phase === 'planning' ? C.green : PLAYER_COLORS[i]}44`,
+              border: `1px solid ${p.programSubmitted && roundState.phase === 'planning' ? C.green : p.color}44`,
               fontSize: '0.7rem',
               fontWeight: 800,
             }}>
-              <span>{ROBOT_AVATARS[i % ROBOT_AVATARS.length]}</span>
-              <span style={{ color: PLAYER_COLORS[i % PLAYER_COLORS.length], maxWidth: 50, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
+              <span>{p.avatar}</span>
+              <span style={{ color: p.color, maxWidth: 'clamp(40px, 12vw, 80px)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
               <span style={{ color: C.accent, fontFamily: "'Space Mono', monospace" }}>{p.totalScore}</span>
               {p.programSubmitted && roundState.phase === 'planning' && (
                 <span style={{ color: C.green, fontSize: '0.6rem' }}>✓</span>
@@ -263,7 +269,7 @@ export default function GameScreen({
                 if (rb) robotOnCell = rb;
               }
 
-              const playerIdx = robotOnCell ? players.findIndex(p => p.id === robotOnCell!.playerId) : -1;
+              const robotPlayer = robotOnCell ? players.find(p => p.id === robotOnCell!.playerId) : null;
 
               // Check for events on this cell in current frame
               let hasEvent: ExecutionEvent | null = null;
@@ -309,7 +315,8 @@ export default function GameScreen({
                           right: 3,
                           fontSize: '0.5rem',
                           fontWeight: 900,
-                          color: C.yellow,
+                          color: '#fff',
+                          textShadow: '0 0 3px rgba(0,0,0,0.8)',
                           fontFamily: "'Space Mono', monospace",
                         }}>
                           {cell.gemValue}
@@ -341,13 +348,13 @@ export default function GameScreen({
                     }}>
                       <span style={{
                         fontSize: cellSize > 36 ? '1.3rem' : '1rem',
-                        filter: `drop-shadow(0 0 4px ${PLAYER_COLORS[playerIdx % PLAYER_COLORS.length]})`,
+                        filter: `drop-shadow(0 0 4px ${robotPlayer?.color || C.accent})`,
                       }}>
-                        {ROBOT_AVATARS[playerIdx % ROBOT_AVATARS.length]}
+                        {robotPlayer?.avatar || '🤖'}
                       </span>
                       <span style={{
                         fontSize: '0.5rem',
-                        color: PLAYER_COLORS[playerIdx % PLAYER_COLORS.length],
+                        color: robotPlayer?.color || C.accent,
                         lineHeight: 1,
                         marginTop: -2,
                       }}>
@@ -413,8 +420,8 @@ export default function GameScreen({
                 alignItems: 'center',
                 gap: 6,
               }}>
-                <span>{ROBOT_AVATARS[i % ROBOT_AVATARS.length]}</span>
-                <span style={{ color: PLAYER_COLORS[i % PLAYER_COLORS.length] }}>{p.name}</span>
+                <span>{p.avatar}</span>
+                <span style={{ color: p.color }}>{p.name}</span>
                 <span style={{ color: C.yellow }}>+{roundState.gemsCollectedThisRound[p.id] || 0}</span>
               </div>
             ))}
@@ -504,8 +511,9 @@ export default function GameScreen({
                 onClick={() => { if (block) handleRemoveSlot(idx); }}
                 style={{
                   ...programSlot(block !== null, dragOverSlot === idx),
-                  width: `calc(${100 / Math.min(program.length, 7)}% - 5px)`,
+                  flex: '1 1 0',
                   minWidth: 54,
+                  maxWidth: 80,
                   cursor: block && !submitted ? 'pointer' : 'default',
                   flexDirection: 'column',
                   gap: 2,

@@ -81,6 +81,10 @@ export function executePrograms(
     maxSteps = Math.max(maxSteps, prog.length);
   }
 
+  // Per-robot skip flags for conditional blocks
+  const skipNext: Map<string, boolean> = new Map();
+  robots.forEach(r => skipNext.set(r.playerId, false));
+
   // Initialize robot states
   const states: RobotState[] = robots.map(r => ({
     playerId: r.playerId,
@@ -110,25 +114,24 @@ export function executePrograms(
 
       const block = prog[step];
 
-      // Handle conditionals: if condition is false, skip this step
-      if (block === 'ifGemAhead') {
-        if (!hasGemAhead(state, gridCopy)) {
-          // Skip the next instruction (already expanded, so just skip current)
-          // Since expansion puts the conditional as-is, we need to handle it:
-          // The conditional itself doesn't move, it just gates the NEXT step
-          // In our expansion, ifGemAhead stays as-is, so we check and potentially skip
-        }
-        continue; // conditional block itself does nothing, it modifies the next block
-      }
-      if (block === 'ifBlocked') {
+      // If previous conditional failed, skip this block
+      if (skipNext.get(state.playerId)) {
+        skipNext.set(state.playerId, false);
         continue;
       }
 
-      // Check if previous block was a conditional
-      if (step > 0) {
-        const prevBlock = prog[step - 1];
-        if (prevBlock === 'ifGemAhead' && !hasGemAhead(state, gridCopy)) continue;
-        if (prevBlock === 'ifBlocked' && !isBlockedAhead(state, gridCopy, states)) continue;
+      // Handle conditionals: evaluate condition, if false skip the NEXT block
+      if (block === 'ifGemAhead') {
+        if (!hasGemAhead(state, gridCopy)) {
+          skipNext.set(state.playerId, true);
+        }
+        continue;
+      }
+      if (block === 'ifBlocked') {
+        if (!isBlockedAhead(state, gridCopy, states)) {
+          skipNext.set(state.playerId, true);
+        }
+        continue;
       }
 
       switch (block) {
@@ -144,7 +147,6 @@ export function executePrograms(
         }
         case 'turnLeft':
           state.facing = turnDirection(state.facing, 'left');
-          events.push({ type: 'collision', playerId: state.playerId, row: state.row, col: state.col }); // reuse for animation
           break;
         case 'turnRight':
           state.facing = turnDirection(state.facing, 'right');

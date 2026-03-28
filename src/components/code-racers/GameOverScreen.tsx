@@ -1,7 +1,6 @@
 // ===== Code Racers — Game Over Screen =====
 
 import type { CRPlayer } from './types';
-import { ROBOT_AVATARS, PLAYER_COLORS } from './types';
 import { playSound } from './audio';
 import { C, screenBase, lobbyCard, cardTitle, startBtn, NOISE_BG } from './styles';
 
@@ -14,7 +13,6 @@ interface GameOverScreenProps {
 export default function GameOverScreen({ players, soundEnabled, onPlayAgain }: GameOverScreenProps) {
   const sorted = [...players].sort((a, b) => b.totalScore - a.totalScore);
   const winner = sorted[0];
-  const winnerIdx = players.findIndex(p => p.id === winner.id);
 
   return (
     <div style={screenBase}>
@@ -45,7 +43,7 @@ export default function GameOverScreen({ players, soundEnabled, onPlayAgain }: G
             WebkitBackgroundClip: 'text',
             WebkitTextFillColor: 'transparent',
           }}>
-            {ROBOT_AVATARS[winnerIdx % ROBOT_AVATARS.length]} {winner.name}
+            {winner.avatar} {winner.name}
           </div>
           <div style={{ fontSize: '1.2rem', color: C.accent, fontWeight: 800, marginTop: 4 }}>
             {winner.totalScore} points
@@ -57,7 +55,6 @@ export default function GameOverScreen({ players, soundEnabled, onPlayAgain }: G
           <div style={cardTitle}>FINAL STANDINGS</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {sorted.map((p, rank) => {
-              const origIdx = players.findIndex(pl => pl.id === p.id);
               const medal = rank === 0 ? '🥇' : rank === 1 ? '🥈' : rank === 2 ? '🥉' : `#${rank + 1}`;
               return (
                 <div key={p.id} style={{
@@ -73,13 +70,13 @@ export default function GameOverScreen({ players, soundEnabled, onPlayAgain }: G
                     {medal}
                   </span>
                   <span style={{ fontSize: '1.3rem' }}>
-                    {ROBOT_AVATARS[origIdx % ROBOT_AVATARS.length]}
+                    {p.avatar}
                   </span>
                   <span style={{
                     flex: 1,
                     fontSize: '0.85rem',
                     fontWeight: 800,
-                    color: PLAYER_COLORS[origIdx % PLAYER_COLORS.length],
+                    color: p.color,
                   }}>
                     {p.name}
                   </span>

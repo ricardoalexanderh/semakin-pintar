@@ -1,7 +1,7 @@
 // ===== Code Racers — Type Definitions =====
 
 export type Difficulty = 'easy' | 'medium' | 'hard';
-export type GamePhase = 'menu' | 'lobby' | 'countdown' | 'planning' | 'executing' | 'roundSummary' | 'gameover';
+export type GamePhase = 'menu' | 'lobby' | 'countdown' | 'planning' | 'executing' | 'gameover';
 export type PeerRole = 'host' | 'guest';
 export type Direction = 'up' | 'down' | 'left' | 'right';
 
