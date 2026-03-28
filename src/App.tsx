@@ -25,6 +25,7 @@ import PairShift from './components/pair-shift';
 import StackClimber from './components/stack-climber';
 import BrainBombGame from './components/brain-bomb';
 import PathfinderDuelGame from './components/pathfinder-duel';
+import CodeRacersGame from './components/code-racers';
 
 // Component to handle page tracking and SEO
 const PageTracker = () => {
@@ -697,6 +698,41 @@ const PathfinderDuelPage = () => {
   );
 };
 
+// Code Racers Game page with SEO
+const CodeRacersPage = () => {
+  const gameJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Game",
+    "name": "Code Racers",
+    "description": "Multiplayer robot programming race. Drag-and-drop instruction blocks to program your robot, then watch all robots execute simultaneously. Collect gems, use loops and conditionals, and outsmart opponents!",
+    "url": "https://www.semakinpintar.com/games/code-racers",
+    "genre": "Educational",
+    "gamePlatform": "Web Browser",
+    "applicationCategory": "EducationalApplication",
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD"
+    }
+  };
+
+  return (
+    <>
+      <SEOHead
+        title="Code Racers - Multiplayer Robot Programming Game | Semakin Pintar"
+        description="Program your robot with visual blocks, then race for gems! A multiplayer turn-based game for 2-5 players that teaches computational thinking, logic, and math through gameplay."
+        keywords="code racers, robot programming, multiplayer game, computational thinking, visual programming, logic game, educational game, coding game, brain training, STEM game"
+        canonicalUrl="https://www.semakinpintar.com/games/code-racers"
+        ogTitle="Code Racers - Multiplayer Robot Programming Game"
+        ogDescription="Program your robot and race for gems! A multiplayer game that teaches coding through play."
+        ogImage="https://www.semakinpintar.com/logo.png"
+        jsonLd={gameJsonLd}
+      />
+      <CodeRacersGame />
+    </>
+  );
+};
+
 function App() {
   useEffect(() => {
     // Initialize Google Analytics    
@@ -797,6 +833,11 @@ function App() {
           <Route path="/games/pathfinder-duel" element={
             <GamesLayout>
               <PathfinderDuelPage />
+            </GamesLayout>
+          } />
+          <Route path="/games/code-racers" element={
+            <GamesLayout>
+              <CodeRacersPage />
             </GamesLayout>
           } />
           <Route path="*" element={

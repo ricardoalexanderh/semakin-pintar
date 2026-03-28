@@ -239,6 +239,19 @@ const GamesIndex: React.FC = () => {
       duration: '5-15 minutes',
       category: 'Computational Thinking'
     },
+    {
+      id: 'code-racers',
+      name: 'Code Racers',
+      description: 'Multiplayer robot programming race!',
+      longDescription: 'A multiplayer robot programming game for 2-5 players! Drag-and-drop instruction blocks (MOVE, TURN, LOOP, IF/THEN) to program your robot, then watch all robots execute simultaneously on a shared grid. Collect gems, use loops and conditionals, push opponents, and outsmart your friends. The programming IS the education — learn computational thinking, logic, and math through gameplay!',
+      icon: <span className="text-2xl">🤖</span>,
+      available: true,
+      gradient: 'from-cyan-500 to-purple-500',
+      path: '/games/code-racers',
+      difficulty: 'Easy to Hard',
+      duration: '10-25 minutes',
+      category: 'Computational Thinking'
+    },
     /*{
       id: 'math-drop',
       name: 'Math Drop',
