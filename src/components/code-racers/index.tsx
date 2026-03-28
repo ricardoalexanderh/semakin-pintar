@@ -537,14 +537,14 @@ const CodeRacersGame: React.FC = () => {
             <div style={{ fontSize: '0.65rem', color: C.muted, letterSpacing: 2, marginBottom: 8, fontFamily: "'Space Mono', monospace" }}>
               OR JOIN A ROOM
             </div>
-            <div style={{ display: 'flex', gap: 8 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               <input
                 value={joinName}
                 onChange={e => setJoinName(e.target.value)}
                 placeholder="Your name"
                 maxLength={12}
                 style={{
-                  flex: 1,
+                  width: '100%',
                   padding: '12px 14px',
                   background: C.card,
                   border: `1.5px solid ${C.border}`,
@@ -553,44 +553,49 @@ const CodeRacersGame: React.FC = () => {
                   fontSize: '0.85rem',
                   fontFamily: "'Nunito', sans-serif",
                   outline: 'none',
+                  boxSizing: 'border-box',
                 }}
               />
-              <input
-                value={manualCode}
-                onChange={e => setManualCode(e.target.value.toUpperCase())}
-                placeholder="ROOM CODE"
-                maxLength={6}
-                style={{
-                  width: 120,
-                  padding: '12px 14px',
-                  background: C.card,
-                  border: `1.5px solid ${C.border}`,
-                  borderRadius: 12,
-                  color: C.accent,
-                  fontSize: '0.85rem',
-                  fontFamily: "'Space Mono', monospace",
-                  letterSpacing: 3,
-                  textAlign: 'center',
-                  outline: 'none',
-                }}
-              />
-              <button
-                onClick={handleJoinRoom}
-                disabled={manualCode.trim().length < 4}
-                style={{
-                  padding: '12px 18px',
-                  background: manualCode.trim().length >= 4 ? C.accent : C.surface,
-                  border: `1.5px solid ${manualCode.trim().length >= 4 ? C.accent : C.border}`,
-                  borderRadius: 12,
-                  color: 'white',
-                  fontWeight: 800,
-                  fontSize: '0.85rem',
-                  cursor: manualCode.trim().length >= 4 ? 'pointer' : 'not-allowed',
-                  fontFamily: "'Nunito', sans-serif",
-                }}
-              >
-                JOIN
-              </button>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <input
+                  value={manualCode}
+                  onChange={e => setManualCode(e.target.value.toUpperCase())}
+                  placeholder="ROOM CODE"
+                  maxLength={6}
+                  style={{
+                    flex: 1,
+                    padding: '12px 14px',
+                    background: C.card,
+                    border: `1.5px solid ${C.border}`,
+                    borderRadius: 12,
+                    color: C.accent,
+                    fontSize: '0.95rem',
+                    fontFamily: "'Space Mono', monospace",
+                    letterSpacing: 4,
+                    textAlign: 'center',
+                    outline: 'none',
+                    boxSizing: 'border-box',
+                  }}
+                />
+                <button
+                  onClick={handleJoinRoom}
+                  disabled={manualCode.trim().length < 4}
+                  style={{
+                    padding: '12px 24px',
+                    background: manualCode.trim().length >= 4 ? C.accent : C.surface,
+                    border: `1.5px solid ${manualCode.trim().length >= 4 ? C.accent : C.border}`,
+                    borderRadius: 12,
+                    color: 'white',
+                    fontWeight: 800,
+                    fontSize: '0.85rem',
+                    cursor: manualCode.trim().length >= 4 ? 'pointer' : 'not-allowed',
+                    fontFamily: "'Nunito', sans-serif",
+                    flexShrink: 0,
+                  }}
+                >
+                  JOIN
+                </button>
+              </div>
             </div>
           </div>
 
