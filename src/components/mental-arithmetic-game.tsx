@@ -22,6 +22,7 @@ interface GameSettings {
   soundEnabled: boolean;
   answerRevealDelay: number;
   tapToReveal: boolean;
+  showQuestionNumber: boolean;
 }
 
 interface Question {
@@ -64,7 +65,8 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
     speechEnabled: false,
     soundEnabled: true,
     answerRevealDelay: 5,
-    tapToReveal: false
+    tapToReveal: false,
+    showQuestionNumber: true
   });
 
   // Load settings from memory on component mount
@@ -1302,6 +1304,32 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
                 </div>
               </div>
 
+              {/* Display Options */}
+              <div className="bg-slate-50 rounded-2xl p-6">
+                <label className="block text-2xl font-bold text-slate-800 mb-4">Display:</label>
+                <label className={`flex items-center justify-between p-4 rounded-xl cursor-pointer transition-all transform hover:scale-105 border-2 ${settings.showQuestionNumber
+                  ? 'bg-slate-100 border-slate-300 text-slate-800 shadow-lg'
+                  : 'bg-white border-gray-200 hover:bg-gray-50'
+                  }`}>
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl">#️⃣</span>
+                    <span className="text-lg font-bold">Show Question Number</span>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={settings.showQuestionNumber}
+                    onChange={(e) => {
+                      playSound('settingChange');
+                      updateSettings(prev => ({ ...prev, showQuestionNumber: e.target.checked }));
+                    }}
+                    className="w-6 h-6 text-slate-600 rounded"
+                  />
+                </label>
+                <p className="text-sm text-slate-600 mt-2">
+                  When off, the "Question X of Y" counter is hidden during play.
+                </p>
+              </div>
+
               {/* Digit Types */}
               <div className="bg-blue-50 rounded-2xl p-6">
                 <label className="block text-2xl font-bold text-blue-800 mb-4">Number Types:</label>
@@ -1598,14 +1626,18 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
             <div className="mb-8">
               <div className="text-6xl mb-6">🚀</div>
               <h2 className="text-5xl font-bold text-green-600 mb-4">Get Ready!</h2>
-              <p className="text-2xl text-green-500">Question {nextQuestionNumber} of {settings.numQuestions}</p>
+              {settings.showQuestionNumber && (
+                <p className="text-2xl text-green-500">Question {nextQuestionNumber} of {settings.numQuestions}</p>
+              )}
             </div>
           ) : (
             <>
               <div className="mb-8">
-                <div className={`text-2xl font-bold ${currentTheme.primary} mb-2`}>
-                  Question {currentQuestion + 1} of {settings.numQuestions}
-                </div>
+                {settings.showQuestionNumber && (
+                  <div className={`text-2xl font-bold ${currentTheme.primary} mb-2`}>
+                    Question {currentQuestion + 1} of {settings.numQuestions}
+                  </div>
+                )}
                 <div className={`text-lg ${currentTheme.secondary}`}>
                   {showingAnswer ? 'Answer:' : calculatingAnswer ? 'Calculating...' : `Number ${currentNumberIndex + 1} of ${currentNumbers.length}`}
                 </div>
