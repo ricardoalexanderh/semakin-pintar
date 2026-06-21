@@ -11,6 +11,7 @@ interface GameSettings {
     '2digit': boolean;
     '3digit': boolean;
     '4digit': boolean;
+    '5digit': boolean;
   };
   operations: 'addition' | 'both';
   numQuestions: number;
@@ -19,6 +20,8 @@ interface GameSettings {
   theme: 'default' | 'ocean' | 'forest' | 'sunset' | 'lavender';
   speechEnabled: boolean;
   soundEnabled: boolean;
+  answerRevealDelay: number;
+  tapToReveal: boolean;
 }
 
 interface Question {
@@ -40,7 +43,7 @@ interface Theme {
 
 type GameState = 'setup' | 'playing' | 'paused' | 'results';
 type SoundType = 'getReady' | 'calculating' | 'answerReveal' | 'questionComplete' | 'gameStart' | 'gameComplete' | 'pause' | 'resume' | 'buttonClick' | 'settingChange';
-type DigitType = '1digit' | '2digit' | '3digit' | '4digit';
+type DigitType = '1digit' | '2digit' | '3digit' | '4digit' | '5digit';
 
 interface MentalArithmeticGameProps {
   onBackToHome?: () => void;
@@ -52,14 +55,16 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
 
   // In-memory settings store
   const settingsRef = useRef<GameSettings>({
-    digitTypes: { '1digit': true, '2digit': true, '3digit': false, '4digit': false },
+    digitTypes: { '1digit': true, '2digit': true, '3digit': false, '4digit': false, '5digit': false },
     operations: 'both',
     numQuestions: 10,
     numbersPerQuestion: 10,
     level: 1,
     theme: 'default',
     speechEnabled: false,
-    soundEnabled: true
+    soundEnabled: true,
+    answerRevealDelay: 5,
+    tapToReveal: false
   });
 
   // Load settings from memory on component mount
@@ -227,6 +232,10 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
             }
           }
 
+          // Match the spoken language to the selected voice (falls back to en-US)
+          // so numbers and words are pronounced consistently across devices
+          utterance.lang = preferredVoiceRef.current?.lang || 'en-US';
+
           // iOS-optimized settings
           if (isIOS) {
             utterance.rate = 1.0;
@@ -324,6 +333,8 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
         numberTime += 1400 * speedMultiplier; // Three digits
       } else if (digitCount === 4) {
         numberTime += 1800 * speedMultiplier; // Four digits
+      } else if (digitCount >= 5) {
+        numberTime += 2200 * speedMultiplier; // Five or more digits
       }
     });
 
@@ -541,6 +552,7 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
     if (settings.digitTypes['2digit']) enabledTypes.push('2digit');
     if (settings.digitTypes['3digit']) enabledTypes.push('3digit');
     if (settings.digitTypes['4digit']) enabledTypes.push('4digit');
+    if (settings.digitTypes['5digit']) enabledTypes.push('5digit');
 
     if (enabledTypes.length === 0) enabledTypes.push('1digit');
 
@@ -552,8 +564,10 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
       return Math.floor(Math.random() * 90) + 10;
     } else if (randomType === '3digit') {
       return Math.floor(Math.random() * 900) + 100;
-    } else { // 4digit
+    } else if (randomType === '4digit') {
       return Math.floor(Math.random() * 9000) + 1000;
+    } else { // 5digit
+      return Math.floor(Math.random() * 90000) + 10000;
     }
   };
 
@@ -984,6 +998,16 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
     }, 0);
   };
 
+  // Reveal the answer — shared by the auto-delay path and tap-to-reveal
+  const revealAnswer = (): void => {
+    if (!settings.speechEnabled) {
+      playSound('answerReveal');
+    }
+    setDisplayNumber(answer.toString());
+    setCalculatingAnswer(false);
+    setShowingAnswer(true);
+  };
+
   // Enhanced game logic effect with NEW post-answer delay mechanism
   useEffect(() => {
     if (gameState !== 'playing' || isPaused || showingGetReady) return;
@@ -1073,27 +1097,21 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
 
       return;
     } else if (calculatingAnswer) {
-      if (settings.speechEnabled) {
-        //const levelDelay = Math.max(800, 3000 - (settings.level - 1) * 400);
-        const levelDelay = Math.max(1200, 3000 - settings.level * 600);
-        const timer = setTimeout(() => {
-          setDisplayNumber(answer.toString());
-          setCalculatingAnswer(false);
-          setShowingAnswer(true);
-        }, levelDelay);
-
-        return () => clearTimeout(timer);
-      } else {
-        const delays = getDelays(settings.level);
-        const timer = setTimeout(() => {
-          playSound('answerReveal');
-          setDisplayNumber(answer.toString());
-          setCalculatingAnswer(false);
-          setShowingAnswer(true);
-        }, delays.answerDelay * 1000);
-
-        return () => clearTimeout(timer);
+      // Tap-to-reveal: wait for the user to tap the reveal button instead of
+      // auto-revealing. The reveal is triggered by revealAnswer() in onClick.
+      if (settings.tapToReveal) {
+        return;
       }
+
+      // Auto-reveal after the configurable delay (applies to both speech and
+      // non-speech modes). Minimum 1s so the spoken "answer" cue never overlaps
+      // the answer announcement.
+      const revealDelay = Math.max(1, settings.answerRevealDelay) * 1000;
+      const timer = setTimeout(() => {
+        revealAnswer();
+      }, revealDelay);
+
+      return () => clearTimeout(timer);
     } else if (flashingBetweenNumbers) {
       const timer = setTimeout(() => {
         setFlashingBetweenNumbers(false);
@@ -1128,6 +1146,7 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
               setFlashingBetweenNumbers(true);
             } else {
               setDisplayNumber('Calculating...');
+              speak('answer');
               setCalculatingAnswer(true);
             }
           }, speechDelay);
@@ -1286,12 +1305,13 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
               {/* Digit Types */}
               <div className="bg-blue-50 rounded-2xl p-6">
                 <label className="block text-2xl font-bold text-blue-800 mb-4">Number Types:</label>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
                   {[
                     { value: '1digit' as DigitType, label: '1 Digit', range: '1-9', color: 'bg-green-100 border-green-300 text-green-800' },
                     { value: '2digit' as DigitType, label: '2 Digits', range: '10-99', color: 'bg-blue-100 border-blue-300 text-blue-800' },
                     { value: '3digit' as DigitType, label: '3 Digits', range: '100-999', color: 'bg-purple-100 border-purple-300 text-purple-800' },
-                    { value: '4digit' as DigitType, label: '4 Digits', range: '1000-9999', color: 'bg-red-100 border-red-300 text-red-800' }
+                    { value: '4digit' as DigitType, label: '4 Digits', range: '1000-9999', color: 'bg-red-100 border-red-300 text-red-800' },
+                    { value: '5digit' as DigitType, label: '5 Digits', range: '10000-99999', color: 'bg-indigo-100 border-indigo-300 text-indigo-800' }
                   ].map(option => (
                     <label
                       key={option.value}
@@ -1302,7 +1322,7 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
                     >
                       <input
                         type="checkbox"
-                        checked={settings.digitTypes[option.value]}
+                        checked={!!settings.digitTypes[option.value]}
                         onChange={(e) => {
                           playSound('settingChange');
                           updateSettings(prev => ({
@@ -1402,6 +1422,67 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
                     className="w-full p-4 text-2xl font-bold text-center rounded-xl border-4 border-red-200 focus:border-red-400 focus:outline-none"
                     placeholder="2-20"
                   />
+                </div>
+              </div>
+
+              {/* Answer Reveal Settings */}
+              <div className="bg-teal-50 rounded-2xl p-6">
+                <label className="block text-2xl font-bold text-teal-800 mb-4">Answer Reveal:</label>
+                <label className={`flex items-center justify-between p-4 rounded-xl cursor-pointer transition-all transform hover:scale-105 border-2 mb-4 ${settings.tapToReveal
+                  ? 'bg-teal-100 border-teal-300 text-teal-800 shadow-lg'
+                  : 'bg-white border-gray-200 hover:bg-gray-50'
+                  }`}>
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl">👆</span>
+                    <span className="text-lg font-bold">Tap to Reveal Answer</span>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={settings.tapToReveal}
+                    onChange={(e) => {
+                      playSound('settingChange');
+                      updateSettings(prev => ({ ...prev, tapToReveal: e.target.checked }));
+                    }}
+                    className="w-6 h-6 text-teal-600 rounded"
+                  />
+                </label>
+
+                <div className={settings.tapToReveal ? 'opacity-50' : ''}>
+                  <label className="block text-lg font-bold text-teal-800 mb-2">
+                    Answer Delay (seconds):
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="10"
+                    step="1"
+                    disabled={settings.tapToReveal}
+                    value={settings.answerRevealDelay === 0 ? '' : settings.answerRevealDelay}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      if (value === '') {
+                        updateSettings(prev => ({ ...prev, answerRevealDelay: 0 }));
+                      } else {
+                        const num = parseInt(value);
+                        if (!isNaN(num) && num >= 0) {
+                          updateSettings(prev => ({ ...prev, answerRevealDelay: Math.min(10, Math.max(0, num)) }));
+                        }
+                      }
+                    }}
+                    onBlur={() => {
+                      if (settings.answerRevealDelay < 1) {
+                        updateSettings(prev => ({ ...prev, answerRevealDelay: 1 }));
+                      }
+                    }}
+                    className="w-full p-4 text-2xl font-bold text-center rounded-xl border-4 border-teal-200 focus:border-teal-400 focus:outline-none disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    placeholder="1-10"
+                  />
+                  <p className="text-sm text-teal-700 mt-2">
+                    {settings.speechEnabled
+                      ? 'After all numbers, the game says "answer", waits this long, then reveals the answer.'
+                      : 'After all numbers, the game waits this long, then reveals the answer.'}
+                    {settings.tapToReveal ? ' (Disabled while Tap to Reveal is on.)' : ''}
+                  </p>
                 </div>
               </div>
 
@@ -1508,6 +1589,8 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
 
   // Playing Screen
   if (gameState === 'playing') {
+    // Shrink the font for long values (5-digit inputs and large answers) so they fit the card
+    const numberSizeClass = displayNumber.length >= 7 ? 'text-6xl' : displayNumber.length === 6 ? 'text-7xl' : 'text-8xl';
     return (
       <div className={`min-h-screen bg-gradient-to-br ${currentTheme.playingBg} flex items-center justify-center p-4`}>
         <div className={`${currentTheme.cardBg} rounded-3xl shadow-2xl p-12 text-center max-w-lg w-full`}>
@@ -1535,9 +1618,22 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
                       {currentOperations[currentNumberIndex - 1]}
                     </div>
                   )}
-                  <div className={`text-8xl font-bold ${currentTheme.primary}`}>
+                  <div className={`${numberSizeClass} font-bold ${currentTheme.primary}`}>
                     {calculatingAnswer ? (
-                      <span className="text-4xl">Calculating...</span>
+                      settings.tapToReveal ? (
+                        <button
+                          onClick={() => {
+                            trackButtonClick('tap-reveal-answer', 'mental-arithmetic-playing');
+                            playSound('buttonClick');
+                            revealAnswer();
+                          }}
+                          className="text-3xl sm:text-4xl font-bold text-white bg-gradient-to-r from-purple-500 to-pink-500 py-4 px-8 rounded-2xl hover:from-purple-600 hover:to-pink-600 transition-all shadow-xl transform hover:scale-105"
+                        >
+                          👆 Tap to Reveal
+                        </button>
+                      ) : (
+                        <span className="text-4xl">Calculating...</span>
+                      )
                     ) : (
                       displayNumber
                     )}
