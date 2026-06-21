@@ -22,7 +22,7 @@ interface GameSettings {
   soundEnabled: boolean;
   answerRevealDelay: number;
   tapToReveal: boolean;
-  showQuestionNumber: boolean;
+  showQuestion: boolean;
 }
 
 interface Question {
@@ -66,7 +66,7 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
     soundEnabled: true,
     answerRevealDelay: 5,
     tapToReveal: false,
-    showQuestionNumber: true
+    showQuestion: true
   });
 
   // Load settings from memory on component mount
@@ -1249,7 +1249,9 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
                           ...prev,
                           speechEnabled: e.target.checked,
                           // Reset level to 1 if speech is enabled and current level is above 3
-                          level: e.target.checked && prev.level > 3 ? 1 : prev.level
+                          level: e.target.checked && prev.level > 3 ? 1 : prev.level,
+                          // Hiding numbers (audio-only) requires voice; force numbers visible when voice is off
+                          showQuestion: e.target.checked ? prev.showQuestion : true
                         }));
                       }}
                       className="w-6 h-6 text-purple-600 rounded"
@@ -1307,26 +1309,31 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
               {/* Display Options */}
               <div className="bg-slate-50 rounded-2xl p-6">
                 <label className="block text-2xl font-bold text-slate-800 mb-4">Display:</label>
-                <label className={`flex items-center justify-between p-4 rounded-xl cursor-pointer transition-all transform hover:scale-105 border-2 ${settings.showQuestionNumber
-                  ? 'bg-slate-100 border-slate-300 text-slate-800 shadow-lg'
-                  : 'bg-white border-gray-200 hover:bg-gray-50'
+                <label className={`flex items-center justify-between p-4 rounded-xl border-2 transition-all ${!settings.speechEnabled
+                  ? 'bg-gray-100 border-gray-200 opacity-60 cursor-not-allowed'
+                  : settings.showQuestion
+                    ? 'bg-slate-100 border-slate-300 text-slate-800 shadow-lg cursor-pointer transform hover:scale-105'
+                    : 'bg-white border-gray-200 hover:bg-gray-50 cursor-pointer transform hover:scale-105'
                   }`}>
                   <div className="flex items-center gap-3">
-                    <span className="text-2xl">#️⃣</span>
-                    <span className="text-lg font-bold">Show Question Number</span>
+                    <span className="text-2xl">👁️</span>
+                    <span className="text-lg font-bold">Show Numbers on Screen</span>
                   </div>
                   <input
                     type="checkbox"
-                    checked={settings.showQuestionNumber}
+                    disabled={!settings.speechEnabled}
+                    checked={settings.speechEnabled ? settings.showQuestion : true}
                     onChange={(e) => {
                       playSound('settingChange');
-                      updateSettings(prev => ({ ...prev, showQuestionNumber: e.target.checked }));
+                      updateSettings(prev => ({ ...prev, showQuestion: e.target.checked }));
                     }}
-                    className="w-6 h-6 text-slate-600 rounded"
+                    className="w-6 h-6 text-slate-600 rounded disabled:cursor-not-allowed"
                   />
                 </label>
                 <p className="text-sm text-slate-600 mt-2">
-                  When off, the "Question X of Y" counter is hidden during play.
+                  {settings.speechEnabled
+                    ? 'Turn off for audio-only mode — numbers are hidden and you solve by listening to the voice. The answer is still shown.'
+                    : 'Requires Voice. Enable Voice to allow hiding the numbers for audio-only practice.'}
                 </p>
               </div>
 
@@ -1619,6 +1626,9 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
   if (gameState === 'playing') {
     // Shrink the font for long values (5-digit inputs and large answers) so they fit the card
     const numberSizeClass = displayNumber.length >= 7 ? 'text-6xl' : displayNumber.length === 6 ? 'text-7xl' : 'text-8xl';
+    // Audio-only mode: hide the flashed number (and its operator) so it's conveyed by voice only.
+    // Only active when Voice is on; the "Calculating"/reveal states and the answer still show.
+    const hideQuestionNumber = settings.speechEnabled && !settings.showQuestion && !showingAnswer && !calculatingAnswer;
     return (
       <div className={`min-h-screen bg-gradient-to-br ${currentTheme.playingBg} flex items-center justify-center p-4`}>
         <div className={`${currentTheme.cardBg} rounded-3xl shadow-2xl p-12 text-center max-w-lg w-full`}>
@@ -1626,18 +1636,14 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
             <div className="mb-8">
               <div className="text-6xl mb-6">🚀</div>
               <h2 className="text-5xl font-bold text-green-600 mb-4">Get Ready!</h2>
-              {settings.showQuestionNumber && (
-                <p className="text-2xl text-green-500">Question {nextQuestionNumber} of {settings.numQuestions}</p>
-              )}
+              <p className="text-2xl text-green-500">Question {nextQuestionNumber} of {settings.numQuestions}</p>
             </div>
           ) : (
             <>
               <div className="mb-8">
-                {settings.showQuestionNumber && (
-                  <div className={`text-2xl font-bold ${currentTheme.primary} mb-2`}>
-                    Question {currentQuestion + 1} of {settings.numQuestions}
-                  </div>
-                )}
+                <div className={`text-2xl font-bold ${currentTheme.primary} mb-2`}>
+                  Question {currentQuestion + 1} of {settings.numQuestions}
+                </div>
                 <div className={`text-lg ${currentTheme.secondary}`}>
                   {showingAnswer ? 'Answer:' : calculatingAnswer ? 'Calculating...' : `Number ${currentNumberIndex + 1} of ${currentNumbers.length}`}
                 </div>
@@ -1645,31 +1651,37 @@ const MentalArithmeticGame: React.FC<MentalArithmeticGameProps> = ({ onBackToHom
 
               <div className="mb-8">
                 <div className={`flex items-center justify-center gap-6 transition-opacity duration-200 ${flashingBetweenNumbers ? 'opacity-20' : 'opacity-100'}`}>
-                  {!showingAnswer && !calculatingAnswer && currentNumberIndex > 0 && currentOperations[currentNumberIndex - 1] && (
-                    <div className="text-6xl font-bold text-red-600 bg-red-100 rounded-2xl p-4 shadow-lg">
-                      {currentOperations[currentNumberIndex - 1]}
-                    </div>
+                  {hideQuestionNumber ? (
+                    <div className={`${numberSizeClass} font-bold ${currentTheme.primary}`}>🔊</div>
+                  ) : (
+                    <>
+                      {!showingAnswer && !calculatingAnswer && currentNumberIndex > 0 && currentOperations[currentNumberIndex - 1] && (
+                        <div className="text-6xl font-bold text-red-600 bg-red-100 rounded-2xl p-4 shadow-lg">
+                          {currentOperations[currentNumberIndex - 1]}
+                        </div>
+                      )}
+                      <div className={`${numberSizeClass} font-bold ${currentTheme.primary}`}>
+                        {calculatingAnswer ? (
+                          settings.tapToReveal ? (
+                            <button
+                              onClick={() => {
+                                trackButtonClick('tap-reveal-answer', 'mental-arithmetic-playing');
+                                playSound('buttonClick');
+                                revealAnswer();
+                              }}
+                              className="text-3xl sm:text-4xl font-bold text-white bg-gradient-to-r from-purple-500 to-pink-500 py-4 px-8 rounded-2xl hover:from-purple-600 hover:to-pink-600 transition-all shadow-xl transform hover:scale-105"
+                            >
+                              👆 Tap to Reveal
+                            </button>
+                          ) : (
+                            <span className="text-4xl">Calculating...</span>
+                          )
+                        ) : (
+                          displayNumber
+                        )}
+                      </div>
+                    </>
                   )}
-                  <div className={`${numberSizeClass} font-bold ${currentTheme.primary}`}>
-                    {calculatingAnswer ? (
-                      settings.tapToReveal ? (
-                        <button
-                          onClick={() => {
-                            trackButtonClick('tap-reveal-answer', 'mental-arithmetic-playing');
-                            playSound('buttonClick');
-                            revealAnswer();
-                          }}
-                          className="text-3xl sm:text-4xl font-bold text-white bg-gradient-to-r from-purple-500 to-pink-500 py-4 px-8 rounded-2xl hover:from-purple-600 hover:to-pink-600 transition-all shadow-xl transform hover:scale-105"
-                        >
-                          👆 Tap to Reveal
-                        </button>
-                      ) : (
-                        <span className="text-4xl">Calculating...</span>
-                      )
-                    ) : (
-                      displayNumber
-                    )}
-                  </div>
                 </div>
               </div>
 
